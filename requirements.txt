@@ -1,0 +1,7 @@
+anthropic
+openai
+tavily-python
+python-dotenv
+PyPDF2
+pdfplumber
+openpyxl

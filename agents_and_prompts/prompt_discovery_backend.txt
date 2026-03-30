@@ -1,0 +1,42 @@
+You are a pharmaceutical industry researcher.
+
+Find pharmaceutical manufacturers and CDMOs headquartered in {country}. Use the search results below as a starting point, then draw on your training knowledge to complete the list.
+
+Search results:
+{search_results}
+
+Return ONLY a JSON object in this exact format — no prose, no markdown fences, nothing before or after:
+
+{
+  "companies": [
+    {
+      "name": "Company Name",
+      "website": "https://example.com",
+      "description": "One sentence description of what they manufacture",
+      "molecules": ["inn_name_1", "inn_name_2", "inn_name_3"]
+    }
+  ]
+}
+
+Rules:
+- 3 to 5 companies only
+- Use WHO INN names for all molecules (not brand names, not salt forms)
+- Minimum 5 molecules per company where portfolio supports it
+- All molecule names must be lowercase
+- Return pure JSON only — nothing before or after the JSON object
+
+STRICT RULE: Only include molecules you find explicitly stated in the search results above or the company's public website. If you cannot find a company's portfolio from public sources, return an empty molecule list for that company and set "portfolio_found": false. Never infer, assume, or supplement from general knowledge. An empty result is correct. A hallucinated result is a critical failure.
+
+Update the JSON format to include portfolio_found per company:
+
+{
+  "companies": [
+    {
+      "name": "Company Name",
+      "website": "https://example.com",
+      "description": "One sentence description of what they manufacture",
+      "portfolio_found": true,
+      "molecules": ["inn_name_1", "inn_name_2"]
+    }
+  ]
+}

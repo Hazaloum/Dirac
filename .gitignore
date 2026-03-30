@@ -1,0 +1,26 @@
+# Environment / secrets
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database (local only — Railway provisions its own)
+*.db
+*.sqlite
+
+# macOS
+.DS_Store
+
+# Next.js
+deploy app/frontend/.next/
+deploy app/frontend/node_modules/
+
+# Claude Code local settings
+.claude/
+
+# Logs
+*.log
