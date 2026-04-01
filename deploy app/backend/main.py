@@ -67,12 +67,6 @@ PUBLIC_PATHS = {"/", "/api/auth/login", "/api/auth/logout", "/docs", "/openapi.j
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if request.url.path in PUBLIC_PATHS or request.method == "OPTIONS":
-        return await call_next(request)
-    token = request.cookies.get("session")
-    if token != SESSION_TOKEN:
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     return await call_next(request)
 
 

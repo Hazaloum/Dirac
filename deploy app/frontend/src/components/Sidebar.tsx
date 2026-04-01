@@ -1,23 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { FlaskConical, Users, LogOut } from "lucide-react";
-import { api } from "@/lib/api";
+import { usePathname } from "next/navigation";
+import { FlaskConical, Users } from "lucide-react";
 
 const navigation = [
-  { name: "Analysis Agent",  href: "/analysis",  icon: FlaskConical },
-  { name: "Outreach Agent",  href: "/outreach",  icon: Users },
+  { name: "Analysis Agent", href: "/analysis", icon: FlaskConical },
+  { name: "Outreach Agent", href: "/outreach", icon: Users },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router   = useRouter();
-
-  const handleSignOut = async () => {
-    await api.logout().catch(() => {});
-    router.push("/login");
-  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-surface-900/95 backdrop-blur-xl border-r border-zinc-800/50 flex flex-col">
@@ -56,7 +49,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-zinc-800/50 space-y-2">
+      <div className="p-4 border-t border-zinc-800/50">
         <div className="px-3 py-3 rounded-lg bg-zinc-800/30 border border-zinc-700/30">
           <p className="text-xs text-zinc-500 mb-1">API Status</p>
           <div className="flex items-center gap-2">
@@ -64,11 +57,6 @@ export function Sidebar() {
             <span className="text-xs text-zinc-400">Connected</span>
           </div>
         </div>
-        <button onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
-          <LogOut className="w-5 h-5" />
-          <span>Sign Out</span>
-        </button>
       </div>
     </aside>
   );
