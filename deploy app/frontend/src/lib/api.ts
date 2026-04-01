@@ -1,4 +1,4 @@
-const API = "";
+const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
