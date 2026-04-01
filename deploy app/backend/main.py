@@ -49,12 +49,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="COMIX BD API", lifespan=lifespan)
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+origins = ["http://localhost:3000"]
+if FRONTEND_URL:
+    origins.extend([u.strip() for u in FRONTEND_URL.split(",") if u.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        os.getenv("FRONTEND_URL", ""),
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,9 +84,13 @@ class LoginRequest(BaseModel):
 def login(body: LoginRequest, response: Response):
     if body.password != APP_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password")
+    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     response.set_cookie(
         "session", SESSION_TOKEN,
-        httponly=True, samesite="lax", max_age=86400 * 7,
+        httponly=True,
+        samesite="none" if is_production else "lax",
+        secure=is_production,
+        max_age=86400 * 7,
     )
     return {"ok": True}
 
