@@ -84,12 +84,10 @@ class LoginRequest(BaseModel):
 def login(body: LoginRequest, response: Response):
     if body.password != APP_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password")
-    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     response.set_cookie(
         "session", SESSION_TOKEN,
         httponly=True,
-        samesite="none" if is_production else "lax",
-        secure=is_production,
+        samesite="lax",
         max_age=86400 * 7,
     )
     return {"ok": True}
