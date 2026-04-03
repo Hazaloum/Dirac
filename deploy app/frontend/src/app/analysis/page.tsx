@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   Upload, Search, FlaskConical, LayoutGrid, Map,
   FileText, Play, Loader2, X, Plus, ChevronDown,
-  History, Trash2, ChevronRight,
+  History, Trash2, ChevronRight, CheckCircle2, XCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
-import { MoleculeCard } from "@/components/MoleculeCard";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 
@@ -161,6 +160,15 @@ export default function AnalysisPage() {
 
   // Selected molecule for pie chart
   const [chartMolecule, setChartMolecule] = useState<string | null>(null);
+
+  // Shortlist / disqualify state
+  const [shortlistStatus, setShortlistStatusMap] = useState<Record<string, "shortlisted" | "disqualified" | null>>({});
+  const isShortlisted  = (mol: string) => shortlistStatus[mol.toUpperCase()] === "shortlisted";
+  const isDisqualified = (mol: string) => shortlistStatus[mol.toUpperCase()] === "disqualified";
+  const toggleShortlist = (mol: string, status: "shortlisted" | "disqualified") => {
+    const key = mol.toUpperCase();
+    setShortlistStatusMap(prev => ({ ...prev, [key]: prev[key] === status ? null : status }));
+  };
 
   const abortRef        = useRef<AbortController | null>(null);
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
@@ -333,6 +341,15 @@ export default function AnalysisPage() {
     e.stopPropagation();
     await api.deleteHistoryRun(runId).catch(() => {});
     setHistory((prev) => prev.filter((r) => r.run_id !== runId));
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  const fmtAed = (v?: number | null) => {
+    if (v == null) return "0";
+    if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
+    if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`;
+    return v.toFixed(0);
   };
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -662,16 +679,315 @@ export default function AnalysisPage() {
           {phase === "portfolio" && (
             <>
               {viewMode === "grid" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {scoredCards.map((mol) => (
-                    <MoleculeCard
-                      key={mol.molecule}
-                      molecule={mol}
-                      onClick={() => {
-                        setChartMolecule(mol.molecule);
-                      }}
-                    />
-                  ))}
+                <div className="space-y-4">
+                  {Object.entries(result.molecules_by_atc1).map(([atc1, moleculeNames], groupIndex) => {
+                    const cards = scoredCards.filter(m =>
+                      moleculeNames.some(n => n.toUpperCase() === m.molecule.toUpperCase())
+                    );
+                    const groupValue = cards.reduce((sum, m) => sum + (m.market_value_aed ?? 0), 0);
+                    const atcCode = atc1.split(' ')[0];
+                    const atcName = atc1.split(' ').slice(1).join(' ') || atc1;
+                    return (
+                      <div key={atc1} className="p-5 rounded-xl bg-surface-800/50 border border-zinc-800/50">
+                        {/* ATC1 group header */}
+                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-zinc-800/50">
+                          <div className="px-3 py-1 rounded-lg bg-pharma-500/10 border border-pharma-500/20">
+                            <span className="text-sm font-semibold text-pharma-400">{atcCode}</span>
+                          </div>
+                          <div className="flex-1 min-w-[200px]">
+                            <span className="text-sm font-medium text-zinc-200">{atcName}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {groupValue > 0 && (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-pharma-500/10 border border-pharma-500/20">
+                                <span className="text-xs text-pharma-300/70">Portfolio:</span>
+                                <span className="text-sm font-semibold text-pharma-400">AED {fmtAed(groupValue)}</span>
+                              </div>
+                            )}
+                            <span className="text-xs text-zinc-500 px-2">
+                              {cards.length} molecule{cards.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Molecule cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {cards.map((mol, idx) => {
+                            const shortlisted = isShortlisted(mol.molecule);
+                            const disqualified = isDisqualified(mol.molecule);
+                            const cardBorder = shortlisted
+                              ? "border-emerald-500/50 bg-emerald-500/10"
+                              : disqualified
+                              ? "border-zinc-700/50 bg-zinc-800/30 opacity-60"
+                              : "border-zinc-800/50 bg-surface-900/50 hover:bg-surface-800 hover:border-pharma-500/30";
+                            return (
+                              <div
+                                key={mol.molecule}
+                                className="flex items-stretch gap-2 opacity-0 animate-slide-up"
+                                style={{ animationDelay: `${(groupIndex * 5 + idx) * 0.02}s` }}
+                              >
+                                {/* Shortlist / disqualify buttons */}
+                                <div className="flex flex-col gap-1 justify-center">
+                                  <button
+                                    onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
+                                    className={`p-1.5 rounded-md transition-all ${
+                                      shortlisted
+                                        ? 'text-emerald-400 bg-emerald-500/20 hover:bg-emerald-500/30'
+                                        : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                    }`}
+                                    title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
+                                  >
+                                    <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-500/30' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={() => toggleShortlist(mol.molecule, "disqualified")}
+                                    className={`p-1.5 rounded-md transition-all ${
+                                      disqualified
+                                        ? 'text-rose-400 bg-rose-500/20 hover:bg-rose-500/30'
+                                        : 'text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10'
+                                    }`}
+                                    title={disqualified ? "Remove disqualification" : "Disqualify"}
+                                  >
+                                    <XCircle className={`w-5 h-5 ${disqualified ? 'fill-rose-500/30' : ''}`} />
+                                  </button>
+                                </div>
+                                {/* Molecule card */}
+                                <button
+                                  onClick={() => setChartMolecule(mol.molecule)}
+                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
+                                >
+                                  <div className="flex items-center gap-2 mb-1 pr-2">
+                                    <div className={`p-1.5 rounded-md transition-colors ${
+                                      shortlisted ? "bg-emerald-500/20 text-emerald-400" :
+                                      disqualified ? "bg-zinc-700/30 text-zinc-500" :
+                                      "bg-pharma-500/10 text-pharma-400 group-hover:bg-pharma-500/20"
+                                    }`}>
+                                      <FlaskConical className="w-4 h-4" />
+                                    </div>
+                                    <span className={`text-sm font-medium transition-colors flex-1 truncate ${
+                                      disqualified ? "text-zinc-500 line-through" :
+                                      shortlisted  ? "text-emerald-300" :
+                                      "text-zinc-200 group-hover:text-pharma-300"
+                                    }`}>
+                                      {mol.molecule}
+                                    </span>
+                                    {mol.ai_score != null && (
+                                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
+                                        mol.ai_score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                                        mol.ai_score >= 6 ? "bg-pharma-500/20 text-pharma-400 border-pharma-500/30" :
+                                        mol.ai_score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                                                            "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                      }`}>
+                                        {mol.ai_score}<span className="text-[10px] opacity-70">/10</span>
+                                      </div>
+                                    )}
+                                    {!mol.in_iqvia && (
+                                      <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                                        Not in IQVIA
+                                      </span>
+                                    )}
+                                  </div>
+                                  {mol.atc4_class && (
+                                    <p className="text-[11px] text-zinc-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
+                                  )}
+                                  {mol.in_iqvia && (
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-zinc-800/30">
+                                      {mol.market_value_aed != null && mol.market_value_aed > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Value:</span>
+                                          <span className="text-emerald-400 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
+                                        </div>
+                                      )}
+                                      {mol.value_cagr_pct != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">CAGR:</span>
+                                          <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.num_competitors != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Competitors:</span>
+                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-400' : 'text-zinc-300'}`}>
+                                            {mol.num_competitors}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.private_pct != null && mol.lpo_pct != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Private/LPO:</span>
+                                          <span className="text-blue-400 font-semibold">
+                                            {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.cagr_delta != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">δCAGR:</span>
+                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-400' : 'text-zinc-400'}`}>
+                                            {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Ungrouped molecules (no ATC1 match) */}
+                  {(() => {
+                    const groupedSet = new Set(
+                      Object.values(result.molecules_by_atc1).flat().map(n => n.toUpperCase())
+                    );
+                    const ungrouped = scoredCards.filter(m => !groupedSet.has(m.molecule.toUpperCase()));
+                    if (ungrouped.length === 0) return null;
+                    const groupOffset = Object.keys(result.molecules_by_atc1).length;
+                    return (
+                      <div className="p-5 rounded-xl bg-surface-800/50 border border-zinc-800/50">
+                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-zinc-800/50">
+                          <div className="px-3 py-1 rounded-lg bg-zinc-500/10 border border-zinc-500/20">
+                            <span className="text-sm font-semibold text-zinc-400">?</span>
+                          </div>
+                          <div className="flex-1 min-w-[200px]">
+                            <span className="text-sm font-medium text-zinc-400">No ATC1 classification</span>
+                          </div>
+                          <span className="text-xs text-zinc-500 px-2">
+                            {ungrouped.length} molecule{ungrouped.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {ungrouped.map((mol, idx) => {
+                            const shortlisted = isShortlisted(mol.molecule);
+                            const disqualified = isDisqualified(mol.molecule);
+                            const cardBorder = shortlisted
+                              ? "border-emerald-500/50 bg-emerald-500/10"
+                              : disqualified
+                              ? "border-zinc-700/50 bg-zinc-800/30 opacity-60"
+                              : "border-zinc-800/50 bg-surface-900/50 hover:bg-surface-800 hover:border-pharma-500/30";
+                            return (
+                              <div
+                                key={mol.molecule}
+                                className="flex items-stretch gap-2 opacity-0 animate-slide-up"
+                                style={{ animationDelay: `${(groupOffset * 5 + idx) * 0.02}s` }}
+                              >
+                                <div className="flex flex-col gap-1 justify-center">
+                                  <button
+                                    onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
+                                    className={`p-1.5 rounded-md transition-all ${
+                                      shortlisted
+                                        ? 'text-emerald-400 bg-emerald-500/20 hover:bg-emerald-500/30'
+                                        : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                    }`}
+                                    title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
+                                  >
+                                    <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-500/30' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={() => toggleShortlist(mol.molecule, "disqualified")}
+                                    className={`p-1.5 rounded-md transition-all ${
+                                      disqualified
+                                        ? 'text-rose-400 bg-rose-500/20 hover:bg-rose-500/30'
+                                        : 'text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10'
+                                    }`}
+                                    title={disqualified ? "Remove disqualification" : "Disqualify"}
+                                  >
+                                    <XCircle className={`w-5 h-5 ${disqualified ? 'fill-rose-500/30' : ''}`} />
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => setChartMolecule(mol.molecule)}
+                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
+                                >
+                                  <div className="flex items-center gap-2 mb-1 pr-2">
+                                    <div className={`p-1.5 rounded-md transition-colors ${
+                                      shortlisted ? "bg-emerald-500/20 text-emerald-400" :
+                                      disqualified ? "bg-zinc-700/30 text-zinc-500" :
+                                      "bg-pharma-500/10 text-pharma-400 group-hover:bg-pharma-500/20"
+                                    }`}>
+                                      <FlaskConical className="w-4 h-4" />
+                                    </div>
+                                    <span className={`text-sm font-medium transition-colors flex-1 truncate ${
+                                      disqualified ? "text-zinc-500 line-through" :
+                                      shortlisted  ? "text-emerald-300" :
+                                      "text-zinc-200 group-hover:text-pharma-300"
+                                    }`}>
+                                      {mol.molecule}
+                                    </span>
+                                    {mol.ai_score != null && (
+                                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
+                                        mol.ai_score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                                        mol.ai_score >= 6 ? "bg-pharma-500/20 text-pharma-400 border-pharma-500/30" :
+                                        mol.ai_score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                                                            "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                      }`}>
+                                        {mol.ai_score}<span className="text-[10px] opacity-70">/10</span>
+                                      </div>
+                                    )}
+                                    {!mol.in_iqvia && (
+                                      <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                                        Not in IQVIA
+                                      </span>
+                                    )}
+                                  </div>
+                                  {mol.atc4_class && (
+                                    <p className="text-[11px] text-zinc-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
+                                  )}
+                                  {mol.in_iqvia && (
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-zinc-800/30">
+                                      {mol.market_value_aed != null && mol.market_value_aed > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Value:</span>
+                                          <span className="text-emerald-400 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
+                                        </div>
+                                      )}
+                                      {mol.value_cagr_pct != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">CAGR:</span>
+                                          <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.num_competitors != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Competitors:</span>
+                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-400' : 'text-zinc-300'}`}>
+                                            {mol.num_competitors}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.private_pct != null && mol.lpo_pct != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">Private/LPO:</span>
+                                          <span className="text-blue-400 font-semibold">
+                                            {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                      {mol.cagr_delta != null && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-zinc-500">δCAGR:</span>
+                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-400' : 'text-zinc-400'}`}>
+                                            {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <PortfolioTreemap
