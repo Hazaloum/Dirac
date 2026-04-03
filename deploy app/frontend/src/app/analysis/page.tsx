@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Upload, Search, FlaskConical, LayoutGrid, Map,
   FileText, Play, Loader2, X, Plus, ChevronDown,
-  History, Trash2, ChevronRight, CheckCircle2, XCircle,
+  History, Trash2, ChevronRight, CheckCircle2, XCircle, Star,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -344,6 +344,18 @@ export default function AnalysisPage() {
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  // Top 5 molecules by AI score — only populated after report completes
+  const top5Molecules = new Set(
+    reportDone
+      ? [...scoredCards]
+          .filter(m => m.ai_score != null)
+          .sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0))
+          .slice(0, 5)
+          .map(m => m.molecule.toUpperCase())
+      : []
+  );
+
   const fmtAed = (v?: number | null) => {
     if (v == null) return "0";
     if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
@@ -755,6 +767,12 @@ export default function AnalysisPage() {
                                   onClick={() => setChartMolecule(mol.molecule)}
                                   className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
                                 >
+                                  {/* Top-5 star badge */}
+                                  {top5Molecules.has(mol.molecule.toUpperCase()) && (
+                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-zinc-900">
+                                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                                    </div>
+                                  )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">
                                     <div className={`p-1.5 rounded-md transition-colors ${
                                       shortlisted ? "bg-emerald-500/20 text-emerald-400" :
@@ -904,6 +922,12 @@ export default function AnalysisPage() {
                                   onClick={() => setChartMolecule(mol.molecule)}
                                   className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
                                 >
+                                  {/* Top-5 star badge */}
+                                  {top5Molecules.has(mol.molecule.toUpperCase()) && (
+                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-zinc-900">
+                                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                                    </div>
+                                  )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">
                                     <div className={`p-1.5 rounded-md transition-colors ${
                                       shortlisted ? "bg-emerald-500/20 text-emerald-400" :
