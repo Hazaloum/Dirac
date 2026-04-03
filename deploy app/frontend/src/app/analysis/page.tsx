@@ -30,9 +30,10 @@ const MODELS = [
 function parseScores(report: string): Record<string, { score: number; reasoning: string }> {
   const result: Record<string, { score: number; reasoning: string }> = {};
 
-  // Pattern: molecule name followed by score on same or nearby line
-  // Handles "**METFORMIN** ... Score: 7/10" and "| METFORMIN | ... | 7 |"
-  const tableRowRe = /\|\s*([A-Z][A-Z0-9 +\-]+?)\s*\|[^|]*\|\s*(\d{1,2})\s*\|/g;
+  // Actual table format from prompt_scoring.txt:
+  // | Molecule | Company | ATC4 | Patent Status | UAE Score (1-10) | Rationale |
+  // Score is in the 5th column — skip 3 intermediate cells before matching it.
+  const tableRowRe = /\|\s*([A-Za-z][A-Za-z0-9 +\-\/()]+?)\s*\|[^|]*\|[^|]*\|[^|]*\|\s*(\d{1,2})\s*\|/g;
   let m;
   while ((m = tableRowRe.exec(report)) !== null) {
     const mol   = m[1].trim().toUpperCase();
@@ -42,8 +43,8 @@ function parseScores(report: string): Record<string, { score: number; reasoning:
     }
   }
 
-  // Also look for inline patterns: "**MOLECULE** ... **Score: X/10**"
-  const inlineRe = /\*\*([A-Z][A-Z0-9 +\-]+?)\*\*[^*]{0,300}[Ss]core[:\s]+(\d{1,2})\s*(?:\/\s*10)?/g;
+  // Fallback: inline "**MOLECULE** ... Score: X/10"
+  const inlineRe = /\*\*([A-Za-z][A-Za-z0-9 +\-]+?)\*\*[^*]{0,300}[Ss]core[:\s]+(\d{1,2})\s*(?:\/\s*10)?/g;
   while ((m = inlineRe.exec(report)) !== null) {
     const mol   = m[1].trim().toUpperCase();
     const score = parseInt(m[2], 10);
@@ -1047,6 +1048,39 @@ export default function AnalysisPage() {
           {/* Report view */}
           {phase === "report" && (
             <div className="space-y-6">
+
+              {/* Top 5 banner — appears once report is done and scores parsed */}
+              {reportDone && top5Molecules.size > 0 && (
+                <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-sm">
+                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                    </div>
+                    <span className="text-sm font-semibold text-amber-300">Top 5 Molecules</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[...scoredCards]
+                      .filter(m => top5Molecules.has(m.molecule.toUpperCase()))
+                      .sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0))
+                      .map(m => (
+                        <div key={m.molecule} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30">
+                          <span className="text-xs font-medium text-amber-200">{m.molecule}</span>
+                          {m.ai_score != null && (
+                            <span className="text-xs font-bold text-amber-400">{m.ai_score}/10</span>
+                          )}
+                        </div>
+                      ))
+                    }
+                  </div>
+                  <button
+                    onClick={() => setPhase("portfolio")}
+                    className="ml-auto text-xs text-amber-400 hover:text-amber-300 underline underline-offset-2 shrink-0"
+                  >
+                    View on cards →
+                  </button>
+                </div>
+              )}
+
               {/* Report sub-tabs */}
               <div className="flex items-center gap-1 bg-surface-800/50 rounded-lg p-1 w-fit">
                 {(["report", "charts"] as ReportTab[]).map((tab) => (
