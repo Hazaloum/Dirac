@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
+import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Mode      = "upload" | "craft" | "molecule";
@@ -159,8 +160,11 @@ export default function AnalysisPage() {
   const [showHistory,    setShowHistory]    = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Selected molecule for pie chart
+  // Selected molecule for pie chart (report phase charts tab)
   const [chartMolecule, setChartMolecule] = useState<string | null>(null);
+
+  // Drawer — open with full MoleculeCard object
+  const [drawerMolecule, setDrawerMolecule] = useState<MolCardType | null>(null);
 
   // Shortlist / disqualify state
   const [shortlistStatus, setShortlistStatusMap] = useState<Record<string, "shortlisted" | "disqualified" | null>>({});
@@ -765,8 +769,8 @@ export default function AnalysisPage() {
                                 </div>
                                 {/* Molecule card */}
                                 <button
-                                  onClick={() => setChartMolecule(mol.molecule)}
-                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
+                                  onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
+                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
@@ -920,8 +924,8 @@ export default function AnalysisPage() {
                                   </button>
                                 </div>
                                 <button
-                                  onClick={() => setChartMolecule(mol.molecule)}
-                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left ${cardBorder}`}
+                                  onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
+                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
@@ -1022,26 +1026,7 @@ export default function AnalysisPage() {
                 />
               )}
 
-              {/* Manufacturer pie chart for selected molecule */}
-              {chartMolecule && (
-                <div className="max-w-md">
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="text-xs text-zinc-500">Manufacturer breakdown for:</label>
-                    <div className="relative">
-                      <select
-                        value={chartMolecule}
-                        onChange={(e) => setChartMolecule(e.target.value)}
-                        className="appearance-none bg-surface-800 border border-zinc-700/50 rounded-lg pl-3 pr-8 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-pharma-500/50">
-                        {result.molecules.filter((m) => m.in_iqvia).map((m) => (
-                          <option key={m.molecule} value={m.molecule}>{m.molecule}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
-                    </div>
-                  </div>
-                  <ManufacturerPieChart molecule={chartMolecule} />
-                </div>
-              )}
+              {/* Click any card to open the detail drawer */}
             </>
           )}
 
@@ -1148,6 +1133,13 @@ export default function AnalysisPage() {
           )}
         </div>
       )}
+
+      {/* ── Molecule detail drawer ── */}
+      <MoleculeDrawer
+        molecule={drawerMolecule}
+        isTop5={drawerMolecule ? top5Molecules.has(drawerMolecule.molecule.toUpperCase()) : false}
+        onClose={() => setDrawerMolecule(null)}
+      />
     </div>
   );
 }
