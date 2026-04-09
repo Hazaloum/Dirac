@@ -38,7 +38,7 @@ export function Sidebar() {
             <Link key={name} href={href}
               className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                 active
-                  ? "bg-pharma-50 text-pharma-900 border border-pharma-200 shadow-sm"
+                  ? "bg-pharma-50 text-pharma-900 font-semibold border border-pharma-200 shadow-sm"
                   : "text-surface-600 hover:text-surface-900 hover:bg-surface-50"
               }`}>
               <Icon className={`w-5 h-5 transition-colors ${active ? "text-pharma-900" : "text-surface-400 group-hover:text-surface-600"}`} />

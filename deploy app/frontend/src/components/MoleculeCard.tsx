@@ -6,10 +6,10 @@ import type { MoleculeCard as MoleculeCardType } from "@/lib/api";
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
-    score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-    score >= 6 ? "bg-pharma-100 text-pharma-900 border-pharma-200" :
-    score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
-                 "bg-rose-500/20 text-rose-400 border-rose-500/30";
+    score >= 8 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+    score >= 6 ? "bg-pharma-100 text-pharma-900 font-semibold border-pharma-200" :
+    score >= 4 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                 "bg-rose-50 text-rose-700 border-rose-200";
   return (
     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold ${color}`}>
       <span>{score}</span>
@@ -81,7 +81,7 @@ export function MoleculeCard({ molecule: m, onClick }: Props) {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-surface-500 uppercase tracking-wider">CAGR</p>
-              <div className={`flex items-center gap-1 justify-end ${cagrPositive ? "text-emerald-400" : "text-rose-400"}`}>
+              <div className={`flex items-center gap-1 justify-end ${cagrPositive ? "text-emerald-700" : "text-rose-700"}`}>
                 {cagrPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                 <span className="text-base font-bold">{fmt(cagr)}%</span>
               </div>

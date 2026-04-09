@@ -39,7 +39,7 @@ function MolMiniCard({ mol }: { mol: MolCardType }) {
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-surface-900 truncate">{mol.molecule}</p>
         {mol.in_iqvia
-          ? <span className="text-[10px] bg-pharma-50 text-pharma-900 border border-pharma-200 px-1.5 py-0.5 rounded-full shrink-0">IQVIA matched</span>
+          ? <span className="text-[10px] bg-pharma-50 text-pharma-900 font-semibold border border-pharma-200 px-1.5 py-0.5 rounded-full shrink-0">IQVIA matched</span>
           : <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded-full shrink-0">No IQVIA data</span>
         }
       </div>
@@ -55,7 +55,7 @@ function MolMiniCard({ mol }: { mol: MolCardType }) {
           </div>
           <div>
             <p className="text-surface-400">Value CAGR</p>
-            <p className={`font-medium flex items-center gap-0.5 ${(mol.value_cagr_pct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            <p className={`font-medium flex items-center gap-0.5 ${(mol.value_cagr_pct ?? 0) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
               {(mol.value_cagr_pct ?? 0) >= 0
                 ? <TrendingUp className="w-3 h-3" />
                 : <TrendingDown className="w-3 h-3" />}
@@ -163,7 +163,7 @@ function ContactRow({ contact, companyName, companyOverview }: {
                 <button onClick={copy}
                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors ${
                     copied
-                      ? "text-emerald-400 bg-emerald-500/10"
+                      ? "text-emerald-700 bg-emerald-50"
                       : "text-surface-600 hover:text-surface-800 bg-surface-100 hover:bg-zinc-700"
                   }`}>
                   {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
@@ -226,7 +226,7 @@ function CompanyCard({ company }: { company: CompanyResult }) {
         {/* UAE badge */}
         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${
           hasUae
-            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+            ? "bg-emerald-500/15 text-emerald-700 border border-emerald-200"
             : "bg-surface-100 text-surface-500 border border-surface-300"
         }`}>
           {hasUae
@@ -460,19 +460,19 @@ export default function OutreachPage() {
             </div>
 
             {error && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+              <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
                 {error}
               </p>
             )}
 
             {running ? (
               <button onClick={stopRun}
-                className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
+                className="w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" /> Stop Run
               </button>
             ) : (
               <button onClick={startRun} disabled={!country.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
+                className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
                 <Play className="w-4 h-4" /> Run Outreach
               </button>
             )}
@@ -493,8 +493,8 @@ export default function OutreachPage() {
               <div ref={logEndRef} />
               {runComplete && !running && (
                 <div className="flex items-center gap-2 pt-1 border-t border-surface-200">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-xs text-emerald-400 font-medium">Run complete · Saved</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="text-xs text-emerald-700 font-medium">Run complete · Saved</span>
                 </div>
               )}
             </div>
@@ -517,7 +517,7 @@ export default function OutreachPage() {
                 {prevRuns.map((run) => (
                   <button key={run.run_id} onClick={() => viewRun(run)}
                     className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-100 transition-colors group ${
-                      selectedRun?.run_id === run.run_id ? "bg-pharma-900 text-white/5 border-l-2 border-pharma-500" : ""
+                      selectedRun?.run_id === run.run_id ? "bg-pharma-900 text-white font-medium/5 border-l-2 border-pharma-500" : ""
                     }`}>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-surface-800">{run.country}</p>
@@ -528,7 +528,7 @@ export default function OutreachPage() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={(e) => deleteRun(run.run_id, e)}
-                        className="p-1 rounded text-surface-300 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all">
+                        className="p-1 rounded text-surface-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-all">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                       <ChevronRight className="w-4 h-4 text-surface-400" />

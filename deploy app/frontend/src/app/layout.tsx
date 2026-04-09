@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="light">
-      <body className={`${outfit.variable} font-sans antialiased bg-surface-50 text-surface-900`}>
+      <body className={`${inter.variable} font-sans antialiased bg-surface-50 text-surface-900`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

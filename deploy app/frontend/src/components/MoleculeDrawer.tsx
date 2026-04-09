@@ -54,9 +54,9 @@ function MetricRow({ label, value, highlight, sub }: {
   sub?: string;
 }) {
   const valueColor =
-    highlight === "good"    ? "text-emerald-400" :
-    highlight === "bad"     ? "text-rose-400" :
-    highlight === "neutral" ? "text-amber-400" :
+    highlight === "good"    ? "text-emerald-700" :
+    highlight === "bad"     ? "text-rose-700" :
+    highlight === "neutral" ? "text-amber-700" :
     "text-surface-800";
   return (
     <div className="flex items-center justify-between py-2 border-b border-surface-200/40 last:border-0">
@@ -71,10 +71,10 @@ function MetricRow({ label, value, highlight, sub }: {
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
-    score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-    score >= 6 ? "bg-pharma-100 text-pharma-900 border-pharma-200" :
-    score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
-                 "bg-rose-500/20 text-rose-400 border-rose-500/30";
+    score >= 8 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+    score >= 6 ? "bg-pharma-100 text-pharma-900 font-semibold border-pharma-200" :
+    score >= 4 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                 "bg-rose-50 text-rose-700 border-rose-200";
   return (
     <div className={`flex items-center gap-1 px-3 py-1 rounded-full border text-sm font-bold ${color}`}>
       {score}<span className="text-xs opacity-70">/10</span>
@@ -128,7 +128,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 <FlaskConical className="w-4 h-4" />
               </div>
               {isTop5 && (
-                <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center ring-2 ring-zinc-900 shrink-0">
+                <div className="w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center ring-2 ring-zinc-900 shrink-0">
                   <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
                 </div>
               )}
@@ -171,7 +171,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 </div>
                 <div className="bg-white/60 rounded-xl p-4 text-center">
                   <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-1">Value CAGR</p>
-                  <div className={`flex items-center justify-center gap-1 ${cagrPositive ? "text-emerald-400" : "text-rose-400"}`}>
+                  <div className={`flex items-center justify-center gap-1 ${cagrPositive ? "text-emerald-700" : "text-rose-700"}`}>
                     {cagrPositive
                       ? <TrendingUp className="w-4 h-4" />
                       : <TrendingDown className="w-4 h-4" />}
@@ -256,7 +256,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
               <div className="mb-4">
                 <div className="flex rounded-full overflow-hidden h-3 mb-2">
                   <div
-                    className="bg-pharma-900 text-white transition-all"
+                    className="bg-pharma-900 text-white font-medium transition-all"
                     style={{ width: `${m.private_pct}%` }}
                   />
                   <div
@@ -266,7 +266,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 </div>
                 <div className="flex justify-between text-[11px] text-surface-500">
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-pharma-900 text-white inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-pharma-900 text-white font-medium inline-block" />
                     Private {m.private_pct.toFixed(0)}%
                   </span>
                   <span className="flex items-center gap-1">
@@ -332,7 +332,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                   <div
                     className={`h-2 rounded-full transition-all ${
                       m.ai_score >= 8 ? "bg-emerald-500" :
-                      m.ai_score >= 6 ? "bg-pharma-900 text-white" :
+                      m.ai_score >= 6 ? "bg-pharma-900 text-white font-medium" :
                       m.ai_score >= 4 ? "bg-amber-500" : "bg-rose-500"
                     }`}
                     style={{ width: `${m.ai_score * 10}%` }}
