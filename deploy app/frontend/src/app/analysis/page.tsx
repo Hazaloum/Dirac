@@ -86,8 +86,8 @@ function MoleculeSearchInput({
 
   return (
     <div ref={ref} className="relative">
-      <div className="flex items-center gap-2 bg-surface-800 border border-zinc-700/50 rounded-lg px-3 py-2 focus-within:border-pharma-500/50">
-        <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+      <div className="flex items-center gap-2 bg-white border border-surface-300 rounded-xl px-3 py-2 focus-within:border-pharma-300">
+        <Search className="w-4 h-4 text-surface-500 shrink-0" />
         <input
           type="text"
           value={query}
@@ -95,22 +95,22 @@ function MoleculeSearchInput({
           onFocus={() => { setFocused(true); setOpen(true); }}
           onBlur={() => setFocused(false)}
           placeholder="Search molecules (e.g. METFORMIN)..."
-          className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none"
+          className="flex-1 bg-transparent text-sm text-surface-900 placeholder-zinc-600 focus:outline-none"
         />
         {query && (
           <button onClick={() => { setQuery(""); setOpen(false); }}>
-            <X className="w-4 h-4 text-zinc-500 hover:text-zinc-300" />
+            <X className="w-4 h-4 text-surface-500 hover:text-surface-800" />
           </button>
         )}
       </div>
 
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full max-h-60 overflow-y-auto bg-surface-800 border border-zinc-700/50 rounded-lg shadow-xl">
+        <div className="absolute z-50 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-surface-300 rounded-xl shadow-xl">
           {filtered.map((mol) => (
             <button
               key={mol}
               onMouseDown={(e) => { e.preventDefault(); onAdd(mol); setQuery(""); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-pharma-500/10 hover:text-pharma-400 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-surface-700 hover:bg-pharma-50 hover:text-pharma-900 transition-colors"
             >
               {mol}
             </button>
@@ -119,8 +119,8 @@ function MoleculeSearchInput({
       )}
 
       {open && query.length >= 2 && filtered.length === 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-surface-800 border border-zinc-700/50 rounded-lg shadow-xl p-3">
-          <p className="text-sm text-zinc-500">No molecules found matching &quot;{query}&quot;</p>
+        <div className="absolute z-50 top-full mt-1 w-full bg-white border border-surface-300 rounded-xl shadow-xl p-3">
+          <p className="text-sm text-surface-500">No molecules found matching &quot;{query}&quot;</p>
         </div>
       )}
     </div>
@@ -376,31 +376,31 @@ export default function AnalysisPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
-            <FlaskConical className="w-6 h-6 text-pharma-400" />
+          <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
+            <FlaskConical className="w-6 h-6 text-pharma-900" />
             Analysis Agent
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <p className="text-sm text-surface-500 mt-1">
             Score manufacturer portfolios against UAE market data
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button onClick={() => setShowHistory((v) => !v)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition-colors ${
               showHistory
-                ? "border-pharma-500/40 bg-pharma-500/10 text-pharma-400"
-                : "border-zinc-700/50 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50"
+                ? "border-pharma-300 bg-pharma-50 text-pharma-900"
+                : "border-surface-300 text-surface-600 hover:text-surface-900 hover:bg-surface-100"
             }`}>
             <History className="w-4 h-4" />
             Saved Portfolios
             {history.length > 0 && (
-              <span className="bg-pharma-500/20 text-pharma-400 text-xs px-1.5 py-0.5 rounded-full">{history.length}</span>
+              <span className="bg-pharma-100 text-pharma-900 text-xs px-1.5 py-0.5 rounded-full">{history.length}</span>
             )}
           </button>
           {phase !== "input" && (
             <button onClick={reset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700/50 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors">
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors">
               <X className="w-4 h-4" /> New Analysis
             </button>
           )}
@@ -409,40 +409,40 @@ export default function AnalysisPage() {
 
       {/* ── HISTORY PANEL ── */}
       {showHistory && (
-        <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl overflow-hidden mb-6">
-          <div className="px-5 py-3 border-b border-zinc-800/50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-              <History className="w-4 h-4 text-zinc-500" /> Saved Portfolios
+        <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl overflow-hidden mb-6">
+          <div className="px-5 py-3 border-b border-surface-200 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-surface-700 flex items-center gap-2">
+              <History className="w-4 h-4 text-surface-500" /> Saved Portfolios
             </h2>
-            <button onClick={() => setShowHistory(false)} className="text-zinc-600 hover:text-zinc-400">
+            <button onClick={() => setShowHistory(false)} className="text-surface-400 hover:text-surface-700">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {historyLoading && (
-            <div className="flex items-center gap-2 px-5 py-4 text-sm text-zinc-500">
+            <div className="flex items-center gap-2 px-5 py-4 text-sm text-surface-500">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading...
             </div>
           )}
 
           {!historyLoading && history.length === 0 && (
-            <p className="text-sm text-zinc-600 px-5 py-4">No saved portfolios yet. Run an analysis and generate a report to save it.</p>
+            <p className="text-sm text-surface-400 px-5 py-4">No saved portfolios yet. Run an analysis and generate a report to save it.</p>
           )}
 
           {!historyLoading && history.length > 0 && (
             <div className="divide-y divide-zinc-800/50 max-h-80 overflow-y-auto">
               {history.map((run) => (
                 <button key={run.run_id} onClick={() => loadFromHistory(run.run_id)}
-                  className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-zinc-800/30 transition-colors group">
+                  className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-100 transition-colors group">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-zinc-200">{run.source_name}</p>
+                      <p className="text-sm font-medium text-surface-800">{run.source_name}</p>
                       {run.has_report && (
-                        <span className="text-[10px] bg-pharma-500/15 text-pharma-400 border border-pharma-500/25 px-1.5 py-0.5 rounded-full">Report</span>
+                        <span className="text-[10px] bg-pharma-50 text-pharma-900 border border-pharma-200 px-1.5 py-0.5 rounded-full">Report</span>
                       )}
-                      <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700/50 px-1.5 py-0.5 rounded-full capitalize">{run.source_type}</span>
+                      <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded-full capitalize">{run.source_type}</span>
                     </div>
-                    <p className="text-xs text-zinc-500 mt-0.5">
+                    <p className="text-xs text-surface-500 mt-0.5">
                       {run.saved_at} · {run.stats?.total ?? 0} molecules · {run.stats?.matched_iqvia ?? 0} IQVIA matched
                       {run.model && <> · {run.model}</>}
                     </p>
@@ -450,10 +450,10 @@ export default function AnalysisPage() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={(e) => deleteFromHistory(run.run_id, e)}
-                      className="p-1.5 rounded-md text-zinc-700 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100">
+                      className="p-1.5 rounded-lg text-surface-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-surface-400 group-hover:text-surface-700 transition-colors" />
                   </div>
                 </button>
               ))}
@@ -475,10 +475,10 @@ export default function AnalysisPage() {
               <button key={id} onClick={() => { setMode(id); setCraftMolecules([]); }}
                 className={`p-4 rounded-xl border text-left transition-all ${
                   mode === id
-                    ? "border-pharma-500/50 bg-pharma-500/10 text-pharma-400"
-                    : "border-zinc-800/50 bg-surface-800/30 text-zinc-400 hover:border-zinc-700"
+                    ? "border-pharma-300 bg-pharma-50 text-pharma-900"
+                    : "border-surface-200 bg-surface-50 text-surface-600 hover:border-surface-300"
                 }`}>
-                <Icon className={`w-5 h-5 mb-2 ${mode === id ? "text-pharma-400" : "text-zinc-500"}`} />
+                <Icon className={`w-5 h-5 mb-2 ${mode === id ? "text-pharma-900" : "text-surface-500"}`} />
                 <p className="text-sm font-medium">{label}</p>
                 <p className="text-xs opacity-60 mt-0.5">{desc}</p>
               </button>
@@ -486,11 +486,11 @@ export default function AnalysisPage() {
           </div>
 
           {/* Input form */}
-          <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl p-6 space-y-4">
+          <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl p-6 space-y-4">
 
             {/* Company / portfolio name */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              <label className="block text-xs font-medium text-surface-600 mb-1.5">
                 {mode === "molecule" ? "Molecule Name (auto-filled)" : "Company / Portfolio Name"}
               </label>
               <input
@@ -498,14 +498,14 @@ export default function AnalysisPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder={mode === "upload" ? "e.g. Adalvo" : mode === "craft" ? "e.g. CNS Portfolio" : "Leave blank to auto-fill"}
-                className="w-full bg-surface-800 border border-zinc-700/50 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pharma-500/50 transition-colors"
+                className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
               />
             </div>
 
             {/* Upload mode */}
             {mode === "upload" && (
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Catalogue File</label>
+                <label className="block text-xs font-medium text-surface-600 mb-1.5">Catalogue File</label>
                 <div
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
@@ -513,30 +513,30 @@ export default function AnalysisPage() {
                   onClick={() => document.getElementById("file-input")?.click()}
                   className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                     dragging
-                      ? "border-pharma-500/70 bg-pharma-500/5"
+                      ? "border-pharma-500/70 bg-pharma-900 text-white/5"
                       : file
-                        ? "border-pharma-500/40 bg-pharma-500/5"
-                        : "border-zinc-700/50 hover:border-zinc-600"
+                        ? "border-pharma-300 bg-pharma-900 text-white/5"
+                        : "border-surface-300 hover:border-zinc-600"
                   }`}>
                   <input id="file-input" type="file" accept=".pdf,.csv,.xlsx,.xls" className="hidden"
                     onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
                   {file ? (
                     <div className="flex items-center justify-center gap-3">
-                      <FileText className="w-8 h-8 text-pharma-400" />
+                      <FileText className="w-8 h-8 text-pharma-900" />
                       <div className="text-left">
-                        <p className="text-sm font-medium text-zinc-200">{file.name}</p>
-                        <p className="text-xs text-zinc-500">{(file.size / 1024).toFixed(0)} KB</p>
+                        <p className="text-sm font-medium text-surface-800">{file.name}</p>
+                        <p className="text-xs text-surface-500">{(file.size / 1024).toFixed(0)} KB</p>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                        className="ml-2 text-zinc-500 hover:text-rose-400 transition-colors">
+                        className="ml-2 text-surface-500 hover:text-rose-400 transition-colors">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
                     <>
-                      <Upload className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-                      <p className="text-sm text-zinc-400">Drop file here or click to browse</p>
-                      <p className="text-xs text-zinc-600 mt-1">PDF, CSV, XLSX supported</p>
+                      <Upload className="w-8 h-8 text-surface-400 mx-auto mb-3" />
+                      <p className="text-sm text-surface-600">Drop file here or click to browse</p>
+                      <p className="text-xs text-surface-400 mt-1">PDF, CSV, XLSX supported</p>
                     </>
                   )}
                 </div>
@@ -546,7 +546,7 @@ export default function AnalysisPage() {
             {/* Craft mode */}
             {mode === "craft" && (
               <div className="space-y-3">
-                <label className="block text-xs font-medium text-zinc-400">Add Molecules</label>
+                <label className="block text-xs font-medium text-surface-600">Add Molecules</label>
                 <MoleculeSearchInput
                   allMolecules={allMolecules}
                   selected={craftMolecules}
@@ -556,7 +556,7 @@ export default function AnalysisPage() {
                   <div className="flex flex-wrap gap-2">
                     {craftMolecules.map((mol) => (
                       <span key={mol}
-                        className="flex items-center gap-1.5 bg-pharma-500/10 border border-pharma-500/20 text-pharma-400 text-xs px-3 py-1 rounded-full">
+                        className="flex items-center gap-1.5 bg-pharma-50 border border-pharma-200 text-pharma-900 text-xs px-3 py-1 rounded-full">
                         {mol}
                         <button onClick={() => setCraftMolecules((prev) => prev.filter((m) => m !== mol))}>
                           <X className="w-3 h-3" />
@@ -566,7 +566,7 @@ export default function AnalysisPage() {
                   </div>
                 )}
                 {craftMolecules.length === 0 && (
-                  <p className="text-xs text-zinc-600">Type at least 2 characters to search</p>
+                  <p className="text-xs text-surface-400">Type at least 2 characters to search</p>
                 )}
               </div>
             )}
@@ -574,7 +574,7 @@ export default function AnalysisPage() {
             {/* Single molecule mode */}
             {mode === "molecule" && (
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-zinc-400">Select Molecule</label>
+                <label className="block text-xs font-medium text-surface-600">Select Molecule</label>
                 <MoleculeSearchInput
                   allMolecules={allMolecules}
                   selected={craftMolecules}
@@ -582,7 +582,7 @@ export default function AnalysisPage() {
                 />
                 {craftMolecules[0] && (
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 bg-pharma-500/10 border border-pharma-500/20 text-pharma-400 text-xs px-3 py-1 rounded-full">
+                    <span className="flex items-center gap-1.5 bg-pharma-50 border border-pharma-200 text-pharma-900 text-xs px-3 py-1 rounded-full">
                       {craftMolecules[0]}
                       <button onClick={() => setCraftMolecules([])}>
                         <X className="w-3 h-3" />
@@ -595,20 +595,20 @@ export default function AnalysisPage() {
 
             {/* Scoring model selector */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Scoring Model (Pass 2)</label>
+              <label className="block text-xs font-medium text-surface-600 mb-1.5">Scoring Model (Pass 2)</label>
               <div className="relative">
                 <select
                   value={scoringModel}
                   onChange={(e) => setScoringModel(e.target.value)}
-                  className="w-full appearance-none bg-surface-800 border border-zinc-700/50 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pharma-500/50 transition-colors">
+                  className="w-full appearance-none bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 focus:outline-none focus:border-pharma-300 transition-colors">
                   {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500 pointer-events-none" />
               </div>
             </div>
 
             {enrichError && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
                 {enrichError}
               </p>
             )}
@@ -616,7 +616,7 @@ export default function AnalysisPage() {
             <button
               onClick={runPhase1}
               disabled={enrichLoading || (mode === "upload" && !file) || (mode !== "upload" && craftMolecules.length === 0)}
-              className="w-full flex items-center justify-center gap-2 bg-pharma-500 hover:bg-pharma-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm">
+              className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
               {enrichLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               {enrichLoading ? "Extracting & enriching molecules..." : "Analyse Portfolio"}
             </button>
@@ -628,20 +628,20 @@ export default function AnalysisPage() {
       {(phase === "portfolio" || phase === "report") && result && (
         <div className="space-y-6">
           {/* Stats bar */}
-          <div className="flex items-center gap-6 p-4 bg-surface-900/50 rounded-xl border border-zinc-800/50">
+          <div className="flex items-center gap-6 p-4 bg-white shadow-sm border-surface-200 rounded-xl border border-surface-200">
             <div>
-              <p className="text-xs text-zinc-500">Molecules Found</p>
-              <p className="text-xl font-bold text-zinc-100">{result.stats.total}</p>
+              <p className="text-xs text-surface-500">Molecules Found</p>
+              <p className="text-xl font-bold text-surface-900">{result.stats.total}</p>
             </div>
-            <div className="w-px h-8 bg-zinc-800" />
+            <div className="w-px h-8 bg-surface-100" />
             <div>
-              <p className="text-xs text-zinc-500">Matched IQVIA</p>
-              <p className="text-xl font-bold text-pharma-400">{result.stats.matched_iqvia}</p>
+              <p className="text-xs text-surface-500">Matched IQVIA</p>
+              <p className="text-xl font-bold text-pharma-900">{result.stats.matched_iqvia}</p>
             </div>
-            <div className="w-px h-8 bg-zinc-800" />
+            <div className="w-px h-8 bg-surface-100" />
             <div>
-              <p className="text-xs text-zinc-500">Portfolio</p>
-              <p className="text-xl font-bold text-zinc-100">{companyName || "Portfolio"}</p>
+              <p className="text-xs text-surface-500">Portfolio</p>
+              <p className="text-xl font-bold text-surface-900">{companyName || "Portfolio"}</p>
             </div>
 
             {/* Spacer */}
@@ -649,16 +649,16 @@ export default function AnalysisPage() {
 
             {/* View toggle (only in portfolio phase) */}
             {phase === "portfolio" && (
-              <div className="flex items-center gap-1 bg-surface-800 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-white rounded-xl p-1">
                 <button onClick={() => setViewMode("grid")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    viewMode === "grid" ? "bg-pharma-500/20 text-pharma-400" : "text-zinc-500 hover:text-zinc-300"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    viewMode === "grid" ? "bg-pharma-100 text-pharma-900" : "text-surface-500 hover:text-surface-800"
                   }`}>
                   <LayoutGrid className="w-3.5 h-3.5" /> Grid
                 </button>
                 <button onClick={() => setViewMode("treemap")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    viewMode === "treemap" ? "bg-pharma-500/20 text-pharma-400" : "text-zinc-500 hover:text-zinc-300"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    viewMode === "treemap" ? "bg-pharma-100 text-pharma-900" : "text-surface-500 hover:text-surface-800"
                   }`}>
                   <Map className="w-3.5 h-3.5" /> Treemap
                 </button>
@@ -669,12 +669,12 @@ export default function AnalysisPage() {
             {phase === "portfolio" && (
               reportDone ? (
                 <button onClick={() => { setPhase("report"); setReportTab("report"); }}
-                  className="flex items-center gap-2 bg-pharma-500/20 hover:bg-pharma-500/30 border border-pharma-500/40 text-pharma-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                  className="flex items-center gap-2 bg-pharma-100 hover:bg-pharma-200 border border-pharma-300 text-pharma-900 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
                   <FileText className="w-4 h-4" /> View Report
                 </button>
               ) : (
                 <button onClick={runPhase2} disabled={reportStreaming}
-                  className="flex items-center gap-2 bg-pharma-500 hover:bg-pharma-600 disabled:bg-pharma-500/60 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                  className="flex items-center gap-2 bg-pharma-900 text-white hover:bg-pharma-800 text-white disabled:bg-pharma-900 text-white/60 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
                   {reportStreaming
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
                     : <><Play className="w-4 h-4" /> Generate AI Report</>
@@ -686,7 +686,7 @@ export default function AnalysisPage() {
             {/* Back to portfolio (from report) */}
             {phase === "report" && (
               <button onClick={() => setPhase("portfolio")}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700/50 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 transition-colors">
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors">
                 ← Back to Portfolio
               </button>
             )}
@@ -705,23 +705,23 @@ export default function AnalysisPage() {
                     const atcCode = atc1.split(' ')[0];
                     const atcName = atc1.split(' ').slice(1).join(' ') || atc1;
                     return (
-                      <div key={atc1} className="p-5 rounded-xl bg-surface-800/50 border border-zinc-800/50">
+                      <div key={atc1} className="p-5 rounded-xl bg-surface-50 border-surface-200 border border-surface-200">
                         {/* ATC1 group header */}
-                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-zinc-800/50">
-                          <div className="px-3 py-1 rounded-lg bg-pharma-500/10 border border-pharma-500/20">
-                            <span className="text-sm font-semibold text-pharma-400">{atcCode}</span>
+                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-surface-200">
+                          <div className="px-3 py-1 rounded-xl bg-pharma-50 border border-pharma-200">
+                            <span className="text-sm font-semibold text-pharma-900">{atcCode}</span>
                           </div>
                           <div className="flex-1 min-w-[200px]">
-                            <span className="text-sm font-medium text-zinc-200">{atcName}</span>
+                            <span className="text-sm font-medium text-surface-800">{atcName}</span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             {groupValue > 0 && (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-pharma-500/10 border border-pharma-500/20">
-                                <span className="text-xs text-pharma-300/70">Portfolio:</span>
-                                <span className="text-sm font-semibold text-pharma-400">AED {fmtAed(groupValue)}</span>
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pharma-50 border border-pharma-200">
+                                <span className="text-xs text-pharma-800/70">Portfolio:</span>
+                                <span className="text-sm font-semibold text-pharma-900">AED {fmtAed(groupValue)}</span>
                               </div>
                             )}
-                            <span className="text-xs text-zinc-500 px-2">
+                            <span className="text-xs text-surface-500 px-2">
                               {cards.length} molecule{cards.length !== 1 ? 's' : ''}
                             </span>
                           </div>
@@ -734,8 +734,8 @@ export default function AnalysisPage() {
                             const cardBorder = shortlisted
                               ? "border-emerald-500/50 bg-emerald-500/10"
                               : disqualified
-                              ? "border-zinc-700/50 bg-zinc-800/30 opacity-60"
-                              : "border-zinc-800/50 bg-surface-900/50 hover:bg-surface-800 hover:border-pharma-500/30";
+                              ? "border-surface-300 bg-surface-50 opacity-60"
+                              : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
                             return (
                               <div
                                 key={mol.molecule}
@@ -746,10 +746,10 @@ export default function AnalysisPage() {
                                 <div className="flex flex-col gap-1 justify-center">
                                   <button
                                     onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
-                                    className={`p-1.5 rounded-md transition-all ${
+                                    className={`p-1.5 rounded-lg transition-all ${
                                       shortlisted
                                         ? 'text-emerald-400 bg-emerald-500/20 hover:bg-emerald-500/30'
-                                        : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                        : 'text-surface-500 hover:text-emerald-400 hover:bg-emerald-500/10'
                                     }`}
                                     title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
                                   >
@@ -757,10 +757,10 @@ export default function AnalysisPage() {
                                   </button>
                                   <button
                                     onClick={() => toggleShortlist(mol.molecule, "disqualified")}
-                                    className={`p-1.5 rounded-md transition-all ${
+                                    className={`p-1.5 rounded-lg transition-all ${
                                       disqualified
                                         ? 'text-rose-400 bg-rose-500/20 hover:bg-rose-500/30'
-                                        : 'text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10'
+                                        : 'text-surface-500 hover:text-rose-400 hover:bg-rose-500/10'
                                     }`}
                                     title={disqualified ? "Remove disqualification" : "Disqualify"}
                                   >
@@ -770,7 +770,7 @@ export default function AnalysisPage() {
                                 {/* Molecule card */}
                                 <button
                                   onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
-                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
+                                  className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
@@ -779,24 +779,24 @@ export default function AnalysisPage() {
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">
-                                    <div className={`p-1.5 rounded-md transition-colors ${
+                                    <div className={`p-1.5 rounded-lg transition-colors ${
                                       shortlisted ? "bg-emerald-500/20 text-emerald-400" :
-                                      disqualified ? "bg-zinc-700/30 text-zinc-500" :
-                                      "bg-pharma-500/10 text-pharma-400 group-hover:bg-pharma-500/20"
+                                      disqualified ? "bg-zinc-700/30 text-surface-500" :
+                                      "bg-pharma-50 text-pharma-900 group-hover:bg-pharma-100"
                                     }`}>
                                       <FlaskConical className="w-4 h-4" />
                                     </div>
                                     <span className={`text-sm font-medium transition-colors flex-1 truncate ${
-                                      disqualified ? "text-zinc-500 line-through" :
+                                      disqualified ? "text-surface-500 line-through" :
                                       shortlisted  ? "text-emerald-300" :
-                                      "text-zinc-200 group-hover:text-pharma-300"
+                                      "text-surface-800 group-hover:text-pharma-800"
                                     }`}>
                                       {mol.molecule}
                                     </span>
                                     {mol.ai_score != null && (
                                       <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
                                         mol.ai_score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-                                        mol.ai_score >= 6 ? "bg-pharma-500/20 text-pharma-400 border-pharma-500/30" :
+                                        mol.ai_score >= 6 ? "bg-pharma-100 text-pharma-900 border-pharma-200" :
                                         mol.ai_score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
                                                             "bg-rose-500/20 text-rose-400 border-rose-500/30"
                                       }`}>
@@ -804,25 +804,25 @@ export default function AnalysisPage() {
                                       </div>
                                     )}
                                     {!mol.in_iqvia && (
-                                      <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                                      <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">
                                         Not in IQVIA
                                       </span>
                                     )}
                                   </div>
                                   {mol.atc4_class && (
-                                    <p className="text-[11px] text-zinc-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
+                                    <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
                                   )}
                                   {mol.in_iqvia && (
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-zinc-800/30">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-surface-200/30">
                                       {mol.market_value_aed != null && mol.market_value_aed > 0 && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Value:</span>
+                                          <span className="text-surface-500">Value:</span>
                                           <span className="text-emerald-400 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
                                         </div>
                                       )}
                                       {mol.value_cagr_pct != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">CAGR:</span>
+                                          <span className="text-surface-500">CAGR:</span>
                                           <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                             {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
                                           </span>
@@ -830,15 +830,15 @@ export default function AnalysisPage() {
                                       )}
                                       {mol.num_competitors != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Competitors:</span>
-                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-400' : 'text-zinc-300'}`}>
+                                          <span className="text-surface-500">Competitors:</span>
+                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-900' : 'text-surface-700'}`}>
                                             {mol.num_competitors}
                                           </span>
                                         </div>
                                       )}
                                       {mol.private_pct != null && mol.lpo_pct != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Private/LPO:</span>
+                                          <span className="text-surface-500">Private/LPO:</span>
                                           <span className="text-blue-400 font-semibold">
                                             {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
                                           </span>
@@ -846,8 +846,8 @@ export default function AnalysisPage() {
                                       )}
                                       {mol.cagr_delta != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">δCAGR:</span>
-                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-400' : 'text-zinc-400'}`}>
+                                          <span className="text-surface-500">δCAGR:</span>
+                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-900' : 'text-surface-600'}`}>
                                             {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
                                           </span>
                                         </div>
@@ -872,15 +872,15 @@ export default function AnalysisPage() {
                     if (ungrouped.length === 0) return null;
                     const groupOffset = Object.keys(result.molecules_by_atc1).length;
                     return (
-                      <div className="p-5 rounded-xl bg-surface-800/50 border border-zinc-800/50">
-                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-zinc-800/50">
-                          <div className="px-3 py-1 rounded-lg bg-zinc-500/10 border border-zinc-500/20">
-                            <span className="text-sm font-semibold text-zinc-400">?</span>
+                      <div className="p-5 rounded-xl bg-surface-50 border-surface-200 border border-surface-200">
+                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-surface-200">
+                          <div className="px-3 py-1 rounded-xl bg-zinc-500/10 border border-zinc-500/20">
+                            <span className="text-sm font-semibold text-surface-600">?</span>
                           </div>
                           <div className="flex-1 min-w-[200px]">
-                            <span className="text-sm font-medium text-zinc-400">No ATC1 classification</span>
+                            <span className="text-sm font-medium text-surface-600">No ATC1 classification</span>
                           </div>
-                          <span className="text-xs text-zinc-500 px-2">
+                          <span className="text-xs text-surface-500 px-2">
                             {ungrouped.length} molecule{ungrouped.length !== 1 ? 's' : ''}
                           </span>
                         </div>
@@ -891,8 +891,8 @@ export default function AnalysisPage() {
                             const cardBorder = shortlisted
                               ? "border-emerald-500/50 bg-emerald-500/10"
                               : disqualified
-                              ? "border-zinc-700/50 bg-zinc-800/30 opacity-60"
-                              : "border-zinc-800/50 bg-surface-900/50 hover:bg-surface-800 hover:border-pharma-500/30";
+                              ? "border-surface-300 bg-surface-50 opacity-60"
+                              : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
                             return (
                               <div
                                 key={mol.molecule}
@@ -902,10 +902,10 @@ export default function AnalysisPage() {
                                 <div className="flex flex-col gap-1 justify-center">
                                   <button
                                     onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
-                                    className={`p-1.5 rounded-md transition-all ${
+                                    className={`p-1.5 rounded-lg transition-all ${
                                       shortlisted
                                         ? 'text-emerald-400 bg-emerald-500/20 hover:bg-emerald-500/30'
-                                        : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                        : 'text-surface-500 hover:text-emerald-400 hover:bg-emerald-500/10'
                                     }`}
                                     title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
                                   >
@@ -913,10 +913,10 @@ export default function AnalysisPage() {
                                   </button>
                                   <button
                                     onClick={() => toggleShortlist(mol.molecule, "disqualified")}
-                                    className={`p-1.5 rounded-md transition-all ${
+                                    className={`p-1.5 rounded-lg transition-all ${
                                       disqualified
                                         ? 'text-rose-400 bg-rose-500/20 hover:bg-rose-500/30'
-                                        : 'text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10'
+                                        : 'text-surface-500 hover:text-rose-400 hover:bg-rose-500/10'
                                     }`}
                                     title={disqualified ? "Remove disqualification" : "Disqualify"}
                                   >
@@ -925,7 +925,7 @@ export default function AnalysisPage() {
                                 </div>
                                 <button
                                   onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
-                                  className={`relative group p-3 border rounded-lg transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
+                                  className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
@@ -934,24 +934,24 @@ export default function AnalysisPage() {
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">
-                                    <div className={`p-1.5 rounded-md transition-colors ${
+                                    <div className={`p-1.5 rounded-lg transition-colors ${
                                       shortlisted ? "bg-emerald-500/20 text-emerald-400" :
-                                      disqualified ? "bg-zinc-700/30 text-zinc-500" :
-                                      "bg-pharma-500/10 text-pharma-400 group-hover:bg-pharma-500/20"
+                                      disqualified ? "bg-zinc-700/30 text-surface-500" :
+                                      "bg-pharma-50 text-pharma-900 group-hover:bg-pharma-100"
                                     }`}>
                                       <FlaskConical className="w-4 h-4" />
                                     </div>
                                     <span className={`text-sm font-medium transition-colors flex-1 truncate ${
-                                      disqualified ? "text-zinc-500 line-through" :
+                                      disqualified ? "text-surface-500 line-through" :
                                       shortlisted  ? "text-emerald-300" :
-                                      "text-zinc-200 group-hover:text-pharma-300"
+                                      "text-surface-800 group-hover:text-pharma-800"
                                     }`}>
                                       {mol.molecule}
                                     </span>
                                     {mol.ai_score != null && (
                                       <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
                                         mol.ai_score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-                                        mol.ai_score >= 6 ? "bg-pharma-500/20 text-pharma-400 border-pharma-500/30" :
+                                        mol.ai_score >= 6 ? "bg-pharma-100 text-pharma-900 border-pharma-200" :
                                         mol.ai_score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
                                                             "bg-rose-500/20 text-rose-400 border-rose-500/30"
                                       }`}>
@@ -959,25 +959,25 @@ export default function AnalysisPage() {
                                       </div>
                                     )}
                                     {!mol.in_iqvia && (
-                                      <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                                      <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">
                                         Not in IQVIA
                                       </span>
                                     )}
                                   </div>
                                   {mol.atc4_class && (
-                                    <p className="text-[11px] text-zinc-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
+                                    <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
                                   )}
                                   {mol.in_iqvia && (
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-zinc-800/30">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-surface-200/30">
                                       {mol.market_value_aed != null && mol.market_value_aed > 0 && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Value:</span>
+                                          <span className="text-surface-500">Value:</span>
                                           <span className="text-emerald-400 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
                                         </div>
                                       )}
                                       {mol.value_cagr_pct != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">CAGR:</span>
+                                          <span className="text-surface-500">CAGR:</span>
                                           <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                             {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
                                           </span>
@@ -985,15 +985,15 @@ export default function AnalysisPage() {
                                       )}
                                       {mol.num_competitors != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Competitors:</span>
-                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-400' : 'text-zinc-300'}`}>
+                                          <span className="text-surface-500">Competitors:</span>
+                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-900' : 'text-surface-700'}`}>
                                             {mol.num_competitors}
                                           </span>
                                         </div>
                                       )}
                                       {mol.private_pct != null && mol.lpo_pct != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">Private/LPO:</span>
+                                          <span className="text-surface-500">Private/LPO:</span>
                                           <span className="text-blue-400 font-semibold">
                                             {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
                                           </span>
@@ -1001,8 +1001,8 @@ export default function AnalysisPage() {
                                       )}
                                       {mol.cagr_delta != null && (
                                         <div className="flex items-center gap-1">
-                                          <span className="text-zinc-500">δCAGR:</span>
-                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-400' : 'text-zinc-400'}`}>
+                                          <span className="text-surface-500">δCAGR:</span>
+                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-900' : 'text-surface-600'}`}>
                                             {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
                                           </span>
                                         </div>
@@ -1067,13 +1067,13 @@ export default function AnalysisPage() {
               )}
 
               {/* Report sub-tabs */}
-              <div className="flex items-center gap-1 bg-surface-800/50 rounded-lg p-1 w-fit">
+              <div className="flex items-center gap-1 bg-surface-50 border-surface-200 rounded-xl p-1 w-fit">
                 {(["report", "charts"] as ReportTab[]).map((tab) => (
                   <button key={tab} onClick={() => setReportTab(tab)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
                       reportTab === tab
-                        ? "bg-pharma-500/20 text-pharma-400"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "bg-pharma-100 text-pharma-900"
+                        : "text-surface-500 hover:text-surface-800"
                     }`}>
                     {tab === "report" ? "AI Report" : "Charts"}
                   </button>
@@ -1081,16 +1081,16 @@ export default function AnalysisPage() {
               </div>
 
               {reportTab === "report" && (
-                <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl p-8">
+                <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl p-8">
                   {enrichError && (
-                    <div className="flex items-center gap-3 text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-4 py-3 mb-4">
+                    <div className="flex items-center gap-3 text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 mb-4">
                       <X className="w-4 h-4 shrink-0" />
                       <span className="text-sm">{enrichError}</span>
                     </div>
                   )}
                   {reportStreaming && !reportText && (
-                    <div className="flex items-center gap-3 text-zinc-400">
-                      <Loader2 className="w-5 h-5 animate-spin text-pharma-400" />
+                    <div className="flex items-center gap-3 text-surface-600">
+                      <Loader2 className="w-5 h-5 animate-spin text-pharma-900" />
                       <span className="text-sm">Analysing portfolio with {MODELS.find(m => m.id === scoringModel)?.label}...</span>
                     </div>
                   )}
@@ -1105,10 +1105,10 @@ export default function AnalysisPage() {
                     </div>
                   )}
                   {reportDone && (
-                    <div className="mt-6 pt-4 border-t border-zinc-800/50 flex items-center justify-between">
-                      <p className="text-xs text-zinc-600">Report complete · {scoredCards.filter(m => m.ai_score != null).length} molecules scored</p>
+                    <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
+                      <p className="text-xs text-surface-400">Report complete · {scoredCards.filter(m => m.ai_score != null).length} molecules scored</p>
                       <button onClick={() => setPhase("portfolio")}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-700/50 text-xs text-zinc-400 hover:text-pharma-400 hover:border-pharma-500/30 transition-colors">
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-surface-300 text-xs text-surface-600 hover:text-pharma-900 hover:border-pharma-200 transition-colors">
                         <LayoutGrid className="w-3.5 h-3.5" /> View scored cards
                       </button>
                     </div>
@@ -1119,7 +1119,7 @@ export default function AnalysisPage() {
               {reportTab === "charts" && (
                 <div className="space-y-6">
                   {result.molecules.filter((m) => m.in_iqvia).length === 0 ? (
-                    <p className="text-zinc-500 text-sm">No IQVIA-matched molecules to chart.</p>
+                    <p className="text-surface-500 text-sm">No IQVIA-matched molecules to chart.</p>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {result.molecules.filter((m) => m.in_iqvia).map((m) => (

@@ -27,18 +27,18 @@ export function ManufacturerPieChart({ molecule }: Props) {
 
   if (loading) return (
     <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-pharma-400 animate-spin" />
+      <Loader2 className="w-6 h-6 text-pharma-900 animate-spin" />
     </div>
   );
   if (error || !data || !data.manufacturers.length) return (
-    <p className="text-sm text-zinc-500 text-center py-8">No manufacturer data available</p>
+    <p className="text-sm text-surface-500 text-center py-8">No manufacturer data available</p>
   );
 
   return (
-    <div className="rounded-xl bg-surface-800/50 border border-zinc-800/50 p-4">
+    <div className="rounded-xl bg-surface-50 border-surface-200 border border-surface-200 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-zinc-200">Manufacturer Share — {molecule}</h4>
-        <span className="text-xs text-zinc-500">{data.year}</span>
+        <h4 className="text-sm font-semibold text-surface-800">Manufacturer Share — {molecule}</h4>
+        <span className="text-xs text-surface-500">{data.year}</span>
       </div>
       {typeof window !== "undefined" && (
         <Plot

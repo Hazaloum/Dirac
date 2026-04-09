@@ -8,10 +8,10 @@ import type { MoleculeMetrics } from "@/lib/api";
 const Plot = dynamic(() => import("react-plotly.js"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-[450px] bg-surface-800/30 rounded-xl">
+    <div className="flex items-center justify-center h-[450px] bg-surface-50 rounded-xl">
       <div className="flex flex-col items-center gap-3">
-        <Loader2 className="w-8 h-8 text-pharma-400 animate-spin" />
-        <p className="text-sm text-zinc-400">Loading treemap...</p>
+        <Loader2 className="w-8 h-8 text-pharma-900 animate-spin" />
+        <p className="text-sm text-surface-600">Loading treemap...</p>
       </div>
     </div>
   ),
@@ -119,42 +119,42 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
 
   if (!isMounted) {
     return (
-      <div className="flex items-center justify-center h-[450px] bg-surface-800/30 rounded-xl border border-zinc-800/50">
-        <Loader2 className="w-8 h-8 text-pharma-400 animate-spin" />
+      <div className="flex items-center justify-center h-[450px] bg-surface-50 rounded-xl border border-surface-200">
+        <Loader2 className="w-8 h-8 text-pharma-900 animate-spin" />
       </div>
     );
   }
 
   if (treemapData.ids.length <= 1) {
     return (
-      <div className="p-8 rounded-xl bg-surface-800/30 border border-zinc-800/50 text-center">
-        <p className="text-zinc-400">No market value data available for treemap.</p>
-        <p className="text-sm text-zinc-500 mt-1">Only molecules matched in IQVIA can be visualised.</p>
+      <div className="p-8 rounded-xl bg-surface-50 border border-surface-200 text-center">
+        <p className="text-surface-600">No market value data available for treemap.</p>
+        <p className="text-sm text-surface-500 mt-1">Only molecules matched in IQVIA can be visualised.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-surface-800/50 border border-zinc-800/50 overflow-hidden">
+    <div className="rounded-xl bg-surface-50 border-surface-200 border border-surface-200 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
+      <div className="p-4 border-b border-surface-200 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-100">Portfolio Value Distribution</h3>
-          <p className="text-sm text-zinc-500">Click a molecule to view details · double-click to zoom out</p>
+          <h3 className="text-lg font-semibold text-surface-900">Portfolio Value Distribution</h3>
+          <p className="text-sm text-surface-500">Click a molecule to view details · double-click to zoom out</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-zinc-500">Total Portfolio Value</p>
-          <p className="text-xl font-bold text-pharma-400">AED {fmtV(totalValue)}</p>
+          <p className="text-sm text-surface-500">Total Portfolio Value</p>
+          <p className="text-xl font-bold text-pharma-900">AED {fmtV(totalValue)}</p>
         </div>
       </div>
 
       {/* ATC1 legend */}
-      <div className="px-4 py-3 border-b border-zinc-800/50 overflow-x-auto">
+      <div className="px-4 py-3 border-b border-surface-200 overflow-x-auto">
         <div className="flex flex-wrap gap-3">
           {Object.keys(moleculesByAtc1).map((atc1) => (
             <div key={atc1} className="flex items-center gap-2 text-xs">
               <div className="w-3 h-3 rounded" style={{ backgroundColor: getAtc1Color(atc1) }} />
-              <span className="text-zinc-400 whitespace-nowrap">{atc1.split(" ")[0]}</span>
+              <span className="text-surface-600 whitespace-nowrap">{atc1.split(" ")[0]}</span>
             </div>
           ))}
         </div>
@@ -193,8 +193,8 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
       </div>
 
       {/* ATC1 breakdown mini-grid */}
-      <div className="p-4 border-t border-zinc-800/50">
-        <h4 className="text-sm font-medium text-zinc-300 mb-3">Value by Therapeutic Area</h4>
+      <div className="p-4 border-t border-surface-200">
+        <h4 className="text-sm font-medium text-surface-700 mb-3">Value by Therapeutic Area</h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {Object.entries(moleculesByAtc1)
             .map(([atc1, mols]) => ({
@@ -204,13 +204,13 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
             .filter((x) => x.total > 0)
             .sort((a, b) => b.total - a.total)
             .map(({ atc1, mols, total }) => (
-              <div key={atc1} className="p-3 rounded-lg bg-surface-900/50 border border-zinc-800/50">
+              <div key={atc1} className="p-3 rounded-xl bg-white shadow-sm border-surface-200 border border-surface-200">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-3 h-3 rounded" style={{ backgroundColor: getAtc1Color(atc1) }} />
-                  <span className="text-xs font-medium text-zinc-400 truncate">{atc1.split(" ")[0]}</span>
+                  <span className="text-xs font-medium text-surface-600 truncate">{atc1.split(" ")[0]}</span>
                 </div>
-                <p className="text-lg font-semibold text-zinc-100">{fmtV(total)}</p>
-                <p className="text-xs text-zinc-500">{mols.length} molecule{mols.length !== 1 ? "s" : ""}</p>
+                <p className="text-lg font-semibold text-surface-900">{fmtV(total)}</p>
+                <p className="text-xs text-surface-500">{mols.length} molecule{mols.length !== 1 ? "s" : ""}</p>
               </div>
             ))}
         </div>

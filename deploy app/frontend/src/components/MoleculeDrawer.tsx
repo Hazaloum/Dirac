@@ -37,10 +37,10 @@ function Section({ title, icon, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-surface-800/50 border border-zinc-800/50 p-5">
+    <div className="rounded-xl bg-surface-50 border-surface-200 border border-surface-200 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-1.5 rounded-md bg-pharma-500/10 text-pharma-400">{icon}</div>
-        <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
+        <div className="p-1.5 rounded-lg bg-pharma-50 text-pharma-900">{icon}</div>
+        <h3 className="text-sm font-semibold text-surface-800">{title}</h3>
       </div>
       {children}
     </div>
@@ -57,13 +57,13 @@ function MetricRow({ label, value, highlight, sub }: {
     highlight === "good"    ? "text-emerald-400" :
     highlight === "bad"     ? "text-rose-400" :
     highlight === "neutral" ? "text-amber-400" :
-    "text-zinc-200";
+    "text-surface-800";
   return (
-    <div className="flex items-center justify-between py-2 border-b border-zinc-800/40 last:border-0">
-      <span className="text-xs text-zinc-500">{label}</span>
+    <div className="flex items-center justify-between py-2 border-b border-surface-200/40 last:border-0">
+      <span className="text-xs text-surface-500">{label}</span>
       <div className="text-right">
         <span className={`text-sm font-medium ${valueColor}`}>{value}</span>
-        {sub && <p className="text-[11px] text-zinc-600">{sub}</p>}
+        {sub && <p className="text-[11px] text-surface-400">{sub}</p>}
       </div>
     </div>
   );
@@ -72,7 +72,7 @@ function MetricRow({ label, value, highlight, sub }: {
 function ScoreBadge({ score }: { score: number }) {
   const color =
     score >= 8 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-    score >= 6 ? "bg-pharma-500/20 text-pharma-400 border-pharma-500/30" :
+    score >= 6 ? "bg-pharma-100 text-pharma-900 border-pharma-200" :
     score >= 4 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
                  "bg-rose-500/20 text-rose-400 border-rose-500/30";
   return (
@@ -118,13 +118,13 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
       />
 
       {/* Drawer panel */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-surface-900 border-l border-zinc-800 z-50 flex flex-col shadow-2xl overflow-hidden animate-slide-in-right">
+      <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white border-l border-surface-200 z-50 flex flex-col shadow-2xl overflow-hidden animate-slide-in-right">
 
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-zinc-800/60 shrink-0">
+        <div className="flex items-start justify-between p-6 border-b border-surface-200/60 shrink-0">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <div className="p-1.5 rounded-md bg-pharma-500/10 text-pharma-400">
+              <div className="p-1.5 rounded-lg bg-pharma-50 text-pharma-900">
                 <FlaskConical className="w-4 h-4" />
               </div>
               {isTop5 && (
@@ -133,21 +133,21 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 </div>
               )}
               {!m.in_iqvia && (
-                <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700 px-2 py-0.5 rounded">
+                <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-2 py-0.5 rounded">
                   Not in IQVIA
                 </span>
               )}
             </div>
-            <h2 className="text-xl font-bold text-zinc-100 truncate">{m.molecule}</h2>
+            <h2 className="text-xl font-bold text-surface-900 truncate">{m.molecule}</h2>
             {m.atc4_class && (
-              <p className="text-xs text-zinc-500 mt-0.5 truncate">{m.atc4_class}</p>
+              <p className="text-xs text-surface-500 mt-0.5 truncate">{m.atc4_class}</p>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {m.ai_score != null && <ScoreBadge score={m.ai_score} />}
             <button
               onClick={onClose}
-              className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 text-surface-500 hover:text-surface-800 hover:bg-surface-100 rounded-xl transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -162,22 +162,22 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
             <Section title="Market Overview" icon={<Activity className="w-4 h-4" />}>
               {/* Hero value + CAGR */}
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-surface-900/60 rounded-lg p-4 text-center">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">UAE Market Value</p>
-                  <p className="text-xl font-bold text-pharma-400">{fmtAed(m.market_value_aed)}</p>
+                <div className="bg-white/60 rounded-xl p-4 text-center">
+                  <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-1">UAE Market Value</p>
+                  <p className="text-xl font-bold text-pharma-900">{fmtAed(m.market_value_aed)}</p>
                   {m.launch_year && (
-                    <p className="text-[11px] text-zinc-600 mt-1">Since {m.launch_year}</p>
+                    <p className="text-[11px] text-surface-400 mt-1">Since {m.launch_year}</p>
                   )}
                 </div>
-                <div className="bg-surface-900/60 rounded-lg p-4 text-center">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Value CAGR</p>
+                <div className="bg-white/60 rounded-xl p-4 text-center">
+                  <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-1">Value CAGR</p>
                   <div className={`flex items-center justify-center gap-1 ${cagrPositive ? "text-emerald-400" : "text-rose-400"}`}>
                     {cagrPositive
                       ? <TrendingUp className="w-4 h-4" />
                       : <TrendingDown className="w-4 h-4" />}
                     <span className="text-xl font-bold">{fmtPct(m.value_cagr_pct, true)}</span>
                   </div>
-                  <p className="text-[11px] text-zinc-600 mt-1">
+                  <p className="text-[11px] text-surface-400 mt-1">
                     Units: {fmtPct(m.unit_cagr_pct, true)}
                   </p>
                 </div>
@@ -256,7 +256,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
               <div className="mb-4">
                 <div className="flex rounded-full overflow-hidden h-3 mb-2">
                   <div
-                    className="bg-pharma-500 transition-all"
+                    className="bg-pharma-900 text-white transition-all"
                     style={{ width: `${m.private_pct}%` }}
                   />
                   <div
@@ -264,9 +264,9 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                     style={{ width: `${m.lpo_pct ?? 0}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[11px] text-zinc-500">
+                <div className="flex justify-between text-[11px] text-surface-500">
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-pharma-500 inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-pharma-900 text-white inline-block" />
                     Private {m.private_pct.toFixed(0)}%
                   </span>
                   <span className="flex items-center gap-1">
@@ -328,11 +328,11 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
             <Section title="AI Scoring" icon={<ShieldCheck className="w-4 h-4" />}>
               <div className="flex items-center gap-4 mb-4">
                 <ScoreBadge score={m.ai_score} />
-                <div className="flex-1 bg-surface-900/60 rounded-full h-2">
+                <div className="flex-1 bg-white/60 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all ${
                       m.ai_score >= 8 ? "bg-emerald-500" :
-                      m.ai_score >= 6 ? "bg-pharma-500" :
+                      m.ai_score >= 6 ? "bg-pharma-900 text-white" :
                       m.ai_score >= 4 ? "bg-amber-500" : "bg-rose-500"
                     }`}
                     style={{ width: `${m.ai_score * 10}%` }}
@@ -340,11 +340,11 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 </div>
               </div>
               {m.ai_reasoning ? (
-                <p className="text-sm text-zinc-300 leading-relaxed border-l-2 border-pharma-500/30 pl-3">
+                <p className="text-sm text-surface-700 leading-relaxed border-l-2 border-pharma-200 pl-3">
                   {m.ai_reasoning}
                 </p>
               ) : (
-                <p className="text-xs text-zinc-500">No reasoning captured for this molecule.</p>
+                <p className="text-xs text-surface-500">No reasoning captured for this molecule.</p>
               )}
             </Section>
           )}
@@ -352,7 +352,7 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
           {/* ── IQVIA context ── */}
           {m.context && (
             <Section title="Source Context" icon={<ShieldAlert className="w-4 h-4" />}>
-              <p className="text-xs text-zinc-400 leading-relaxed font-mono bg-surface-900/60 rounded-lg p-3">
+              <p className="text-xs text-surface-600 leading-relaxed font-mono bg-white/60 rounded-xl p-3">
                 {m.context}
               </p>
             </Section>
@@ -360,11 +360,11 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
 
           {/* Not in IQVIA fallback */}
           {!m.in_iqvia && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
-              <Minus className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-surface-100 border border-surface-300">
+              <Minus className="w-4 h-4 text-surface-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-zinc-400">Not found in UAE IQVIA data</p>
-                <p className="text-xs text-zinc-600 mt-1">
+                <p className="text-sm font-medium text-surface-600">Not found in UAE IQVIA data</p>
+                <p className="text-xs text-surface-400 mt-1">
                   This molecule was extracted from the catalogue but has no UAE market data.
                   Score conservatively — maximum 4 per COMIX rules.
                 </p>

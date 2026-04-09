@@ -35,26 +35,26 @@ function MolMiniCard({ mol }: { mol: MolCardType }) {
   const pct = (v?: number | null) => v != null ? `${v.toFixed(1)}%` : "—";
 
   return (
-    <div className="bg-surface-900/60 border border-zinc-800/50 rounded-lg p-3 space-y-2">
+    <div className="bg-white/60 border border-surface-200 rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-zinc-100 truncate">{mol.molecule}</p>
+        <p className="text-sm font-semibold text-surface-900 truncate">{mol.molecule}</p>
         {mol.in_iqvia
-          ? <span className="text-[10px] bg-pharma-500/15 text-pharma-400 border border-pharma-500/25 px-1.5 py-0.5 rounded-full shrink-0">IQVIA matched</span>
-          : <span className="text-[10px] bg-zinc-800 text-zinc-500 border border-zinc-700/50 px-1.5 py-0.5 rounded-full shrink-0">No IQVIA data</span>
+          ? <span className="text-[10px] bg-pharma-50 text-pharma-900 border border-pharma-200 px-1.5 py-0.5 rounded-full shrink-0">IQVIA matched</span>
+          : <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded-full shrink-0">No IQVIA data</span>
         }
       </div>
       {mol.in_iqvia && (
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <div>
-            <p className="text-zinc-600">Market value</p>
-            <p className="text-zinc-200 font-medium">AED {fmt(mol.market_value_aed)}</p>
+            <p className="text-surface-400">Market value</p>
+            <p className="text-surface-800 font-medium">AED {fmt(mol.market_value_aed)}</p>
           </div>
           <div>
-            <p className="text-zinc-600">Competitors</p>
-            <p className="text-zinc-200 font-medium">{mol.num_competitors ?? "—"}</p>
+            <p className="text-surface-400">Competitors</p>
+            <p className="text-surface-800 font-medium">{mol.num_competitors ?? "—"}</p>
           </div>
           <div>
-            <p className="text-zinc-600">Value CAGR</p>
+            <p className="text-surface-400">Value CAGR</p>
             <p className={`font-medium flex items-center gap-0.5 ${(mol.value_cagr_pct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {(mol.value_cagr_pct ?? 0) >= 0
                 ? <TrendingUp className="w-3 h-3" />
@@ -63,19 +63,19 @@ function MolMiniCard({ mol }: { mol: MolCardType }) {
             </p>
           </div>
           <div>
-            <p className="text-zinc-600">Private %</p>
-            <p className="text-zinc-200 font-medium">{pct(mol.private_pct)}</p>
+            <p className="text-surface-400">Private %</p>
+            <p className="text-surface-800 font-medium">{pct(mol.private_pct)}</p>
           </div>
           {mol.market_leader && (
             <div className="col-span-2">
-              <p className="text-zinc-600">Leader</p>
-              <p className="text-zinc-300 truncate">{mol.market_leader} ({pct(mol.leader_share_pct)})</p>
+              <p className="text-surface-400">Leader</p>
+              <p className="text-surface-700 truncate">{mol.market_leader} ({pct(mol.leader_share_pct)})</p>
             </div>
           )}
           {mol.atc3_class && (
             <div className="col-span-2">
-              <p className="text-zinc-600">ATC3</p>
-              <p className="text-zinc-400 text-[11px] truncate">{mol.atc3_class}</p>
+              <p className="text-surface-400">ATC3</p>
+              <p className="text-surface-600 text-[11px] truncate">{mol.atc3_class}</p>
             </div>
           )}
         </div>
@@ -121,30 +121,30 @@ function ContactRow({ contact, companyName, companyOverview }: {
   };
 
   return (
-    <div className="bg-surface-900/40 rounded-lg overflow-hidden">
+    <div className="bg-white/40 rounded-xl overflow-hidden">
       <div className="flex items-start justify-between gap-3 px-3 py-2.5">
         <div>
-          <p className="text-sm font-medium text-zinc-200">{contact.name || "—"}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">{contact.title || "—"}</p>
+          <p className="text-sm font-medium text-surface-800">{contact.name || "—"}</p>
+          <p className="text-xs text-surface-500 mt-0.5">{contact.title || "—"}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {contact.email && (
             <a href={`mailto:${contact.email}`} title={contact.email}
-              className="p-1.5 rounded-md text-zinc-500 hover:text-pharma-400 hover:bg-pharma-500/10 transition-colors">
+              className="p-1.5 rounded-lg text-surface-500 hover:text-pharma-900 hover:bg-pharma-50 transition-colors">
               <Mail className="w-4 h-4" />
             </a>
           )}
           {contact.linkedin_url && (
             <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer"
-              className="p-1.5 rounded-md text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+              className="p-1.5 rounded-lg text-surface-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
               <Linkedin className="w-4 h-4" />
             </a>
           )}
           <button onClick={draft} title="Draft LinkedIn message"
-            className={`p-1.5 rounded-md transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors ${
               open
-                ? "text-pharma-400 bg-pharma-500/10"
-                : "text-zinc-500 hover:text-pharma-400 hover:bg-pharma-500/10"
+                ? "text-pharma-900 bg-pharma-50"
+                : "text-surface-500 hover:text-pharma-900 hover:bg-pharma-50"
             }`}>
             {drafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
           </button>
@@ -152,19 +152,19 @@ function ContactRow({ contact, companyName, companyOverview }: {
       </div>
 
       {open && (
-        <div className="border-t border-zinc-800/50 px-3 py-3 space-y-2">
+        <div className="border-t border-surface-200 px-3 py-3 space-y-2">
           {drafting ? (
-            <p className="text-xs text-zinc-500 italic">Drafting personalised message...</p>
+            <p className="text-xs text-surface-500 italic">Drafting personalised message...</p>
           ) : (
             <>
-              <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">{message}</p>
+              <p className="text-xs text-surface-600 leading-relaxed whitespace-pre-wrap">{message}</p>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] text-zinc-600">{message.length} / 300 chars</p>
+                <p className="text-[10px] text-surface-400">{message.length} / 300 chars</p>
                 <button onClick={copy}
-                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md transition-colors ${
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors ${
                     copied
                       ? "text-emerald-400 bg-emerald-500/10"
-                      : "text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700"
+                      : "text-surface-600 hover:text-surface-800 bg-surface-100 hover:bg-zinc-700"
                   }`}>
                   {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
                 </button>
@@ -205,21 +205,21 @@ function CompanyCard({ company }: { company: CompanyResult }) {
   };
 
   return (
-    <div className="bg-surface-800/50 border border-zinc-800/50 rounded-xl p-5 space-y-4">
+    <div className="bg-surface-50 border-surface-200 border border-surface-200 rounded-xl p-5 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-semibold text-zinc-100">{company.company}</h3>
+            <h3 className="text-base font-semibold text-surface-900">{company.company}</h3>
             {company.website && (
               <a href={`https://${company.website}`} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-pharma-400 hover:underline flex items-center gap-1">
+                className="text-xs text-pharma-900 hover:underline flex items-center gap-1">
                 <Globe className="w-3 h-3" />{company.website}
               </a>
             )}
           </div>
           {company.overview && (
-            <p className="text-sm text-zinc-400 mt-1 leading-relaxed">{company.overview}</p>
+            <p className="text-sm text-surface-600 mt-1 leading-relaxed">{company.overview}</p>
           )}
         </div>
 
@@ -227,7 +227,7 @@ function CompanyCard({ company }: { company: CompanyResult }) {
         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${
           hasUae
             ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-            : "bg-zinc-800 text-zinc-500 border border-zinc-700/50"
+            : "bg-surface-100 text-surface-500 border border-surface-300"
         }`}>
           {hasUae
             ? <><CheckCircle2 className="w-3.5 h-3.5" /> UAE Present</>
@@ -238,25 +238,25 @@ function CompanyCard({ company }: { company: CompanyResult }) {
 
       {/* UAE presence detail */}
       {hasUae && (
-        <div className="bg-surface-900/50 rounded-lg p-3 space-y-1.5 text-xs">
+        <div className="bg-white shadow-sm border-surface-200 rounded-xl p-3 space-y-1.5 text-xs">
           {company.uae_presence.mohap && (
             <div className="flex gap-2">
-              <span className="text-zinc-600 w-14 shrink-0">MOHAP</span>
-              <span className="text-zinc-300">{company.uae_presence.mohap}</span>
+              <span className="text-surface-400 w-14 shrink-0">MOHAP</span>
+              <span className="text-surface-700">{company.uae_presence.mohap}</span>
             </div>
           )}
           {company.uae_presence.upp && (
             <div className="flex gap-2">
-              <span className="text-zinc-600 w-14 shrink-0">UPP</span>
-              <span className="text-zinc-300">{company.uae_presence.upp}</span>
+              <span className="text-surface-400 w-14 shrink-0">UPP</span>
+              <span className="text-surface-700">{company.uae_presence.upp}</span>
             </div>
           )}
           {allAgents.length > 0 && (
-            <div className="flex gap-2 pt-1 border-t border-zinc-800/50">
-              <span className="text-zinc-600 w-14 shrink-0 mt-0.5">Agents</span>
+            <div className="flex gap-2 pt-1 border-t border-surface-200">
+              <span className="text-surface-400 w-14 shrink-0 mt-0.5">Agents</span>
               <div className="flex flex-wrap gap-1">
                 {allAgents.map((a) => (
-                  <span key={a} className="bg-zinc-800 border border-zinc-700/50 text-zinc-400 px-2 py-0.5 rounded-full">
+                  <span key={a} className="bg-surface-100 border border-surface-300 text-surface-600 px-2 py-0.5 rounded-full">
                     {a}
                   </span>
                 ))}
@@ -268,11 +268,11 @@ function CompanyCard({ company }: { company: CompanyResult }) {
 
       {/* Contacts */}
       <div>
-        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
+        <p className="text-xs font-medium text-surface-500 uppercase tracking-wider mb-2">
           BD Contacts
         </p>
         {company.contacts.length === 0 ? (
-          <p className="text-xs text-zinc-600 italic">No contacts found</p>
+          <p className="text-xs text-surface-400 italic">No contacts found</p>
         ) : (
           <div className="space-y-3">
             {company.contacts.map((c, i) => (
@@ -291,7 +291,7 @@ function CompanyCard({ company }: { company: CompanyResult }) {
       {company.uae_presence.mohap && (
         <div>
           <button onClick={loadProducts}
-            className="flex items-center gap-2 text-xs font-medium text-pharma-400 hover:text-pharma-300 bg-pharma-500/10 hover:bg-pharma-500/15 border border-pharma-500/25 px-3 py-2 rounded-lg transition-colors w-full justify-center">
+            className="flex items-center gap-2 text-xs font-medium text-pharma-900 hover:text-pharma-800 bg-pharma-50 hover:bg-pharma-50 border border-pharma-200 px-3 py-2 rounded-xl transition-colors w-full justify-center">
             <FlaskConical className="w-3.5 h-3.5" />
             {loadingProducts
               ? "Loading registered products..."
@@ -304,10 +304,10 @@ function CompanyCard({ company }: { company: CompanyResult }) {
           {showProducts && !loadingProducts && products !== null && (
             <div className="mt-3 space-y-2">
               {products.length === 0 ? (
-                <p className="text-xs text-zinc-600 italic text-center py-2">No molecules found for this company</p>
+                <p className="text-xs text-surface-400 italic text-center py-2">No molecules found for this company</p>
               ) : (
                 <>
-                  <p className="text-xs text-zinc-500">{products.length} molecule{products.length !== 1 ? "s" : ""} registered under <span className="text-zinc-300">{company.uae_presence.mohap}</span></p>
+                  <p className="text-xs text-surface-500">{products.length} molecule{products.length !== 1 ? "s" : ""} registered under <span className="text-surface-700">{company.uae_presence.mohap}</span></p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-96 overflow-y-auto pr-1">
                     {products.map((mol) => <MolMiniCard key={mol.molecule} mol={mol} />)}
                   </div>
@@ -419,11 +419,11 @@ export default function OutreachPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
-            <Users className="w-6 h-6 text-pharma-400" />
+          <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
+            <Users className="w-6 h-6 text-pharma-900" />
             Outreach Agent
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <p className="text-sm text-surface-500 mt-1">
             Find top CDMOs by country, check UAE presence, discover BD contacts
           </p>
         </div>
@@ -433,46 +433,46 @@ export default function OutreachPage() {
         {/* ── Left panel: run form + history ── */}
         <div className="space-y-6">
           {/* Run form */}
-          <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl p-6 space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-300">New Run</h2>
+          <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl p-6 space-y-4">
+            <h2 className="text-sm font-semibold text-surface-700">New Run</h2>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Country</label>
+              <label className="block text-xs font-medium text-surface-600 mb-1.5">Country</label>
               <input
                 type="text"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !running && startRun()}
                 placeholder="e.g. Portugal, India, Germany..."
-                className="w-full bg-surface-800 border border-zinc-700/50 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pharma-500/50 transition-colors"
+                className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Model</label>
+              <label className="block text-xs font-medium text-surface-600 mb-1.5">Model</label>
               <div className="relative">
                 <select value={model} onChange={(e) => setModel(e.target.value)}
-                  className="w-full appearance-none bg-surface-800 border border-zinc-700/50 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pharma-500/50 transition-colors">
+                  className="w-full appearance-none bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 focus:outline-none focus:border-pharma-300 transition-colors">
                   {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500 pointer-events-none" />
               </div>
             </div>
 
             {error && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
                 {error}
               </p>
             )}
 
             {running ? (
               <button onClick={stopRun}
-                className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm">
+                className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" /> Stop Run
               </button>
             ) : (
               <button onClick={startRun} disabled={!country.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-pharma-500 hover:bg-pharma-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm">
+                className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
                 <Play className="w-4 h-4" /> Run Outreach
               </button>
             )}
@@ -480,19 +480,19 @@ export default function OutreachPage() {
 
           {/* Status log */}
           {statusLog.length > 0 && (
-            <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl p-4 space-y-1 max-h-48 overflow-y-auto">
-              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Progress</p>
+            <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl p-4 space-y-1 max-h-48 overflow-y-auto">
+              <p className="text-xs font-medium text-surface-500 uppercase tracking-wider mb-2">Progress</p>
               {statusLog.map((msg, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs">
                   <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${
                     i === statusLog.length - 1 && running ? "bg-pharma-400 animate-pulse" : "bg-zinc-700"
                   }`} />
-                  <span className="text-zinc-400">{msg}</span>
+                  <span className="text-surface-600">{msg}</span>
                 </div>
               ))}
               <div ref={logEndRef} />
               {runComplete && !running && (
-                <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/50">
+                <div className="flex items-center gap-2 pt-1 border-t border-surface-200">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span className="text-xs text-emerald-400 font-medium">Run complete · Saved</span>
                 </div>
@@ -501,37 +501,37 @@ export default function OutreachPage() {
           )}
 
           {/* Previous runs */}
-          <div className="bg-surface-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50">
-              <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-zinc-500" /> Previous Runs
+          <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-surface-200">
+              <h2 className="text-sm font-semibold text-surface-700 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-surface-500" /> Previous Runs
               </h2>
-              {loadingHistory && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-600" />}
+              {loadingHistory && <Loader2 className="w-3.5 h-3.5 animate-spin text-surface-400" />}
             </div>
             {prevRuns.length === 0 ? (
-              <p className="text-xs text-zinc-600 p-4">
+              <p className="text-xs text-surface-400 p-4">
                 {loadingHistory ? "Loading..." : "No saved runs yet."}
               </p>
             ) : (
               <div className="divide-y divide-zinc-800/50 max-h-72 overflow-y-auto">
                 {prevRuns.map((run) => (
                   <button key={run.run_id} onClick={() => viewRun(run)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/30 transition-colors group ${
-                      selectedRun?.run_id === run.run_id ? "bg-pharma-500/5 border-l-2 border-pharma-500" : ""
+                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-100 transition-colors group ${
+                      selectedRun?.run_id === run.run_id ? "bg-pharma-900 text-white/5 border-l-2 border-pharma-500" : ""
                     }`}>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-zinc-200">{run.country}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">
+                      <p className="text-sm font-medium text-surface-800">{run.country}</p>
+                      <p className="text-xs text-surface-500 mt-0.5">
                         {run.run_date} · {run.companies_found} companies · {run.contacts_found} contacts
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={(e) => deleteRun(run.run_id, e)}
-                        className="p-1 rounded text-zinc-700 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all">
+                        className="p-1 rounded text-surface-300 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <ChevronRight className="w-4 h-4 text-zinc-600" />
+                      <ChevronRight className="w-4 h-4 text-surface-400" />
                     </div>
                   </button>
                 ))}
@@ -546,15 +546,15 @@ export default function OutreachPage() {
           {/* Header — shows context of what's displayed */}
           {(displayedCompanies.length > 0 || loadingRun) && (
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-300">
+              <h2 className="text-sm font-semibold text-surface-700">
                 {selectedRun
-                  ? <>{selectedRun.country} <span className="text-zinc-500 font-normal">· {selectedRun.run_date}</span></>
-                  : <>{country} <span className="text-zinc-500 font-normal">· live run</span></>
+                  ? <>{selectedRun.country} <span className="text-surface-500 font-normal">· {selectedRun.run_date}</span></>
+                  : <>{country} <span className="text-surface-500 font-normal">· live run</span></>
                 }
               </h2>
               {selectedRun && (
                 <button onClick={() => { setSelectedRun(null); }}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                  className="text-xs text-surface-500 hover:text-surface-800 transition-colors">
                   ← Clear
                 </button>
               )}
@@ -563,8 +563,8 @@ export default function OutreachPage() {
 
           {/* Loading a historical run */}
           {loadingRun && (
-            <div className="flex items-center gap-3 text-zinc-500 text-sm py-8 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-pharma-400" />
+            <div className="flex items-center gap-3 text-surface-500 text-sm py-8 justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-pharma-900" />
               Loading run...
             </div>
           )}
@@ -577,9 +577,9 @@ export default function OutreachPage() {
           {/* Empty state */}
           {!loadingRun && displayedCompanies.length === 0 && !running && (
             <div className="flex flex-col items-center justify-center h-64 text-center">
-              <Users className="w-12 h-12 text-zinc-700 mb-4" />
-              <p className="text-zinc-500 text-sm">Enter a country and run the agent</p>
-              <p className="text-zinc-600 text-xs mt-1">
+              <Users className="w-12 h-12 text-surface-300 mb-4" />
+              <p className="text-surface-500 text-sm">Enter a country and run the agent</p>
+              <p className="text-surface-400 text-xs mt-1">
                 Finds top 5 CDMOs · checks UAE presence · discovers BD contacts
               </p>
             </div>
@@ -589,7 +589,7 @@ export default function OutreachPage() {
           {running && displayedCompanies.length === 0 && (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-surface-800/50 border border-zinc-800/50 rounded-xl p-5 space-y-3">
+                <div key={i} className="bg-surface-50 border-surface-200 border border-surface-200 rounded-xl p-5 space-y-3">
                   <div className="skeleton h-5 w-48 rounded" />
                   <div className="skeleton h-3 w-full rounded" />
                   <div className="skeleton h-3 w-3/4 rounded" />

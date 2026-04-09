@@ -37,19 +37,19 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold gradient-text">COMIX BD</h1>
-          <p className="text-sm text-zinc-500 mt-1">Intelligence Platform</p>
+          <p className="text-sm text-surface-500 mt-1">Intelligence Platform</p>
         </div>
 
         {/* Card */}
-        <div className="bg-surface-900/80 border border-zinc-800/50 rounded-2xl p-8 backdrop-blur-xl">
+        <div className="bg-white/80 border border-surface-200 rounded-2xl p-8 backdrop-blur-xl">
           <div className="flex items-center gap-2 mb-6">
-            <Lock className="w-4 h-4 text-zinc-500" />
-            <h2 className="text-sm font-medium text-zinc-400">Team Access</h2>
+            <Lock className="w-4 h-4 text-surface-500" />
+            <h2 className="text-sm font-medium text-surface-600">Team Access</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              <label className="block text-xs font-medium text-surface-600 mb-1.5">
                 Password
               </label>
               <input
@@ -58,12 +58,12 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter team password"
                 autoFocus
-                className="w-full bg-surface-800 border border-zinc-700/50 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pharma-500/50 focus:ring-1 focus:ring-pharma-500/20 transition-colors"
+                className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 focus:ring-1 focus:ring-pharma-500/20 transition-colors"
               />
             </div>
 
             {error && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
                 {error}
               </p>
             )}
@@ -71,7 +71,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !password}
-              className="w-full flex items-center justify-center gap-2 bg-pharma-500 hover:bg-pharma-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {loading ? "Signing in..." : "Sign In"}
@@ -79,7 +79,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-zinc-600 mt-6">
+        <p className="text-center text-xs text-surface-400 mt-6">
           COMIX Business Development · Internal Use Only
         </p>
       </div>
