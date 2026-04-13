@@ -348,6 +348,60 @@ def delete_outreach_run(run_id: str):
     return {"ok": True}
 
 
+# ─── My Portfolio ────────────────────────────────────────────────────────────
+
+@app.get("/api/portfolio")
+def get_portfolio():
+    from store import get_my_portfolio
+    return {"portfolio": get_my_portfolio()}
+
+
+@app.post("/api/portfolio/upload")
+async def save_portfolio_upload(file: UploadFile = File(...), company: str = Form(...)):
+    from agent_runner import extract_and_enrich
+    from store import save_my_portfolio
+    content = await file.read()
+    try:
+        result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
+        save_my_portfolio(company, result)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SavePortfolioEnrichRequest(BaseModel):
+    molecules: list[str]
+    company:   str = "My Portfolio"
+
+@app.post("/api/portfolio/enrich")
+def save_portfolio_enrich(body: SavePortfolioEnrichRequest):
+    from agent_runner import enrich_molecules
+    from store import save_my_portfolio
+    try:
+        result = enrich_molecules(body.molecules, body.company, _state["dfs"])
+        save_my_portfolio(body.company, result)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SavePortfolioReportRequest(BaseModel):
+    report: str
+
+@app.post("/api/portfolio/report")
+def save_portfolio_report(body: SavePortfolioReportRequest):
+    from store import save_my_portfolio_report
+    save_my_portfolio_report(body.report)
+    return {"ok": True}
+
+
+@app.delete("/api/portfolio")
+def clear_portfolio():
+    from store import delete_my_portfolio
+    delete_my_portfolio()
+    return {"ok": True}
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 @app.get("/")
 def health():

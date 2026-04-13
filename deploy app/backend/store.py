@@ -12,6 +12,7 @@ from pathlib import Path
 
 STORE_PATH          = Path(__file__).parent / "data" / "analyses.json"
 OUTREACH_STORE_PATH = Path(__file__).parent / "data" / "outreach.json"
+MY_PORTFOLIO_PATH   = Path(__file__).parent / "data" / "my_portfolio.json"
 
 
 def _load() -> list[dict]:
@@ -85,3 +86,39 @@ def delete_analysis(run_id: str) -> bool:
         return False
     _save(new)
     return True
+
+
+# ─── My Portfolio ─────────────────────────────────────────────────────────────
+
+def get_my_portfolio() -> dict | None:
+    if not MY_PORTFOLIO_PATH.exists():
+        return None
+    try:
+        return json.loads(MY_PORTFOLIO_PATH.read_text())
+    except Exception:
+        return None
+
+
+def save_my_portfolio(company_name: str, result: dict) -> None:
+    MY_PORTFOLIO_PATH.write_text(json.dumps({
+        "company_name": company_name,
+        "result":       result,
+        "report":       "",
+        "saved_at":     datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+    }, indent=2))
+
+
+def save_my_portfolio_report(report: str) -> bool:
+    data = get_my_portfolio()
+    if data is None:
+        return False
+    data["report"] = report
+    MY_PORTFOLIO_PATH.write_text(json.dumps(data, indent=2))
+    return True
+
+
+def delete_my_portfolio() -> bool:
+    if MY_PORTFOLIO_PATH.exists():
+        MY_PORTFOLIO_PATH.unlink()
+        return True
+    return False
