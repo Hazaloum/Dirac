@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FlaskConical, Users } from "lucide-react";
+import { FlaskConical, Users, Briefcase } from "lucide-react";
 
 const navigation = [
-  { name: "Analysis Agent", href: "/analysis", icon: FlaskConical },
-  { name: "Outreach Agent", href: "/outreach", icon: Users },
+  { name: "My Portfolio",   href: "/portfolio", icon: Briefcase },
+  { name: "Analysis Agent", href: "/analysis",  icon: FlaskConical },
+  { name: "Outreach Agent", href: "/outreach",  icon: Users },
 ];
 
 export function Sidebar() {

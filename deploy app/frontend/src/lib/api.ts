@@ -97,6 +97,32 @@ export const api = {
 
   deleteOutreachRun: (runId: string) =>
     req(`/api/outreach/runs/${runId}`, { method: "DELETE" }),
+
+  // My Portfolio
+  getMyPortfolio: () => req<{ portfolio: MyPortfolio | null }>("/api/portfolio"),
+
+  savePortfolioUpload: (file: File, company: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("company", company);
+    return req<AnalysisResult>("/api/portfolio/upload", { method: "POST", body: form });
+  },
+
+  savePortfolioEnrich: (molecules: string[], company: string) =>
+    req<AnalysisResult>("/api/portfolio/enrich", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ molecules, company }),
+    }),
+
+  savePortfolioReport: (report: string) =>
+    req("/api/portfolio/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report }),
+    }),
+
+  clearMyPortfolio: () => req("/api/portfolio", { method: "DELETE" }),
 };
 
 // ─── SSE helpers ─────────────────────────────────────────────────────────────
@@ -293,6 +319,13 @@ export interface OutreachRunDetail extends OutreachRun {
     };
     contacts: { name: string; title: string; email?: string; linkedin_url?: string }[];
   }[];
+}
+
+export interface MyPortfolio {
+  company_name: string;
+  result:       AnalysisResult;
+  report:       string;
+  saved_at:     string;
 }
 
 export interface OutreachEvent {
