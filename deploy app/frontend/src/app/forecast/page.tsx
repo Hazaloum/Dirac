@@ -28,49 +28,43 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1 — Summary
-  const summaryRows = forecasts.map(f => ({
-    Molecule:               f.molecule,
-    "Top Product":          f.product,
-    "Analysis Year":        f.analysis_year,
-    Competitors:            f.competitors,
-    "Penetration Rate":     f.penetration_pct,
-    "Growth Rate Applied":  `${Math.round(growthRate * 100)}%`,
-    "Market Units":         Math.round(f.total_market_units),
-    "Market Value (AED)":   Math.round(f.total_market_value),
-    "Y1 Units":             Math.round(f.summary.total_y1_units),
-    "Y2 Units":             Math.round(f.summary.total_y2_units),
-    "Y3 Units":             Math.round(f.summary.total_y3_units),
-    "Y1 Revenue (AED)":     Math.round(f.summary.total_y1_revenue),
-    "Y2 Revenue (AED)":     Math.round(f.summary.total_y2_revenue),
-    "Y3 Revenue (AED)":     Math.round(f.summary.total_y3_revenue),
-    "Total 3Y Revenue (AED)": Math.round(
-      f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue
-    ),
-  }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
-
-  // Sheet 2 — SKU Detail
-  const skuRows = forecasts.flatMap(f =>
+  // Sheet 1 — Pack detail, formatted exactly like the app table
+  const packRows = forecasts.flatMap(f =>
     f.packs.map(p => ({
-      Molecule:             f.molecule,
-      Product:              f.product,
-      Manufacturer:         p.manufacturer,
-      Pack:                 p.pack,
-      "Retail Price (AED)": p.retail_price,
-      "CIF Price (AED)":    parseFloat(p.cif_price.toFixed(2)),
-      "Retail Price (USD)": parseFloat(p.retail_price_usd.toFixed(2)),
-      "CIF Price (USD)":    parseFloat(p.cif_price_usd.toFixed(2)),
-      "Pack Share (%)":     parseFloat((p.pack_share * 100).toFixed(1)),
-      "Y1 Units":           Math.round(p.y1_units),
-      "Y2 Units":           Math.round(p.y2_units),
-      "Y3 Units":           Math.round(p.y3_units),
-      "Y1 Revenue (AED)":   Math.round(p.y1_revenue),
-      "Y2 Revenue (AED)":   Math.round(p.y2_revenue),
-      "Y3 Revenue (AED)":   Math.round(p.y3_revenue),
+      "MOLECULE":       f.molecule,
+      "MANUFACTURER":   p.manufacturer,
+      "PACK":           p.pack,
+      "RETAIL (AED)":   parseFloat(p.retail_price.toFixed(2)),
+      "CIF (AED)":      parseFloat(p.cif_price.toFixed(2)),
+      "SHARE":          `${(p.pack_share * 100).toFixed(1)}%`,
+      "Y1 UNITS":       fmtUnits(p.y1_units),
+      "Y2 UNITS":       fmtUnits(p.y2_units),
+      "Y3 UNITS":       fmtUnits(p.y3_units),
+      "Y1 REV":         fmtAed(p.y1_revenue),
+      "Y2 REV":         fmtAed(p.y2_revenue),
+      "Y3 REV":         fmtAed(p.y3_revenue),
     }))
   );
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skuRows), "SKU Detail");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(packRows), "Forecast");
+
+  // Sheet 2 — Molecule summary
+  const summaryRows = forecasts.map(f => ({
+    "MOLECULE":           f.molecule,
+    "TOP PRODUCT":        f.product,
+    "YEAR":               f.analysis_year,
+    "COMPETITORS":        f.competitors,
+    "PENETRATION":        f.penetration_pct,
+    "GROWTH RATE":        `${Math.round(growthRate * 100)}%`,
+    "MARKET VALUE":       fmtAed(f.total_market_value),
+    "Y1 UNITS":           fmtUnits(f.summary.total_y1_units),
+    "Y2 UNITS":           fmtUnits(f.summary.total_y2_units),
+    "Y3 UNITS":           fmtUnits(f.summary.total_y3_units),
+    "Y1 REV":             fmtAed(f.summary.total_y1_revenue),
+    "Y2 REV":             fmtAed(f.summary.total_y2_revenue),
+    "Y3 REV":             fmtAed(f.summary.total_y3_revenue),
+    "3Y TOTAL":           fmtAed(f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue),
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
 
   XLSX.writeFile(wb, `COMIX_Forecast_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
