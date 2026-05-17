@@ -7,14 +7,7 @@ import {
   FlaskConical, AlertTriangle,
 } from "lucide-react";
 import { api, type MoleculeCard, type MoleculeForecast, type ForecastResult } from "@/lib/api";
-
-// ─── localStorage session key ─────────────────────────────────────────────────
-export const FORECAST_SESSION_KEY = "comix_forecast_session";
-
-export interface ForecastSession {
-  molecules:        MoleculeCard[];        // shortlisted IQVIA-matched cards
-  molecules_by_atc1: Record<string, string[]>;
-}
+import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtAed(v: number) {

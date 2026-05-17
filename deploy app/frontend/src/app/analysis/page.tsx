@@ -8,7 +8,7 @@ import {
   History, Trash2, ChevronRight, CheckCircle2, XCircle, Star,
   TrendingUp,
 } from "lucide-react";
-import { FORECAST_SESSION_KEY, type ForecastSession } from "@/app/forecast/page";
+import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
