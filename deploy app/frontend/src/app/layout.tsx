@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "COMIX BD Intelligence",
+  title: "Pharma BD Intelligence",
   description: "Pharmaceutical business development intelligence platform",
 };
 

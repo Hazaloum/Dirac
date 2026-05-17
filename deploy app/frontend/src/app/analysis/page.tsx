@@ -6,10 +6,11 @@ import {
   Upload, Search, FlaskConical, LayoutGrid, Map,
   FileText, Play, Loader2, X, Plus, ChevronDown,
   History, Trash2, ChevronRight, CheckCircle2, XCircle, Star,
+  TrendingUp, ChevronUp,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
+import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun, type ForecastResult, type MoleculeForecast } from "@/lib/api";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
@@ -175,6 +176,13 @@ export default function AnalysisPage() {
     setShortlistStatusMap(prev => ({ ...prev, [key]: prev[key] === status ? null : status }));
   };
 
+  // Forecast state
+  const [forecastData,    setForecastData]    = useState<ForecastResult | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError,   setForecastError]   = useState("");
+  const [growthRate,      setGrowthRate]      = useState(0.10);
+  const [expandedForecast, setExpandedForecast] = useState<Set<string>>(new Set());
+
   const abortRef        = useRef<AbortController | null>(null);
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
 
@@ -313,6 +321,9 @@ export default function AnalysisPage() {
     setCompanyName("");
     setEnrichError("");
     setShowHistory(false);
+    setForecastData(null);
+    setForecastError("");
+    setExpandedForecast(new Set());
   };
 
   const loadFromHistory = async (runId: string) => {
@@ -367,6 +378,42 @@ export default function AnalysisPage() {
     if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`;
     if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`;
     return v.toFixed(0);
+  };
+
+  const fmtUnits = (v?: number | null) => {
+    if (v == null) return "0";
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+    return Math.round(v).toLocaleString();
+  };
+
+  const shortlistedIqviaMols = result
+    ? scoredCards.filter(m => isShortlisted(m.molecule) && m.in_iqvia)
+    : [];
+
+  const runForecast = async () => {
+    if (!shortlistedIqviaMols.length) return;
+    setForecastLoading(true);
+    setForecastError("");
+    try {
+      const data = await api.getForecast(
+        shortlistedIqviaMols.map(m => m.molecule),
+        growthRate,
+      );
+      setForecastData(data);
+    } catch (e: unknown) {
+      setForecastError(e instanceof Error ? e.message : "Forecast failed");
+    } finally {
+      setForecastLoading(false);
+    }
+  };
+
+  const toggleForecastExpand = (mol: string) => {
+    setExpandedForecast(prev => {
+      const next = new Set(prev);
+      next.has(mol) ? next.delete(mol) : next.add(mol);
+      return next;
+    });
   };
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -1024,6 +1071,167 @@ export default function AnalysisPage() {
                   moleculeMetrics={result.molecule_metrics}
                   onMoleculeClick={(mol) => setChartMolecule(mol)}
                 />
+              )}
+
+              {/* ── Forecast action bar ── */}
+              {shortlistedIqviaMols.length > 0 && (
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-pharma-50 border border-pharma-200">
+                  <TrendingUp className="w-5 h-5 text-pharma-900 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-pharma-900">
+                      {shortlistedIqviaMols.length} molecule{shortlistedIqviaMols.length !== 1 ? "s" : ""} shortlisted
+                    </p>
+                    <p className="text-xs text-pharma-700/70">Generate a Y1–Y3 revenue forecast for your selection</p>
+                  </div>
+
+                  {/* Growth rate slider */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-pharma-700 whitespace-nowrap">Growth rate</span>
+                    <input
+                      type="range" min={5} max={30} step={5}
+                      value={Math.round(growthRate * 100)}
+                      onChange={e => setGrowthRate(Number(e.target.value) / 100)}
+                      className="w-24 accent-pharma-900"
+                    />
+                    <span className="text-xs font-semibold text-pharma-900 w-8">
+                      {Math.round(growthRate * 100)}%
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={runForecast}
+                    disabled={forecastLoading}
+                    className="flex items-center gap-2 bg-pharma-900 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-pharma-800 disabled:opacity-60 transition-colors shrink-0"
+                  >
+                    {forecastLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Forecasting...</>
+                      : <><TrendingUp className="w-4 h-4" /> Generate Forecasts</>
+                    }
+                  </button>
+                </div>
+              )}
+
+              {/* ── Forecast results panel ── */}
+              {forecastError && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700">{forecastError}</div>
+              )}
+
+              {forecastData && forecastData.forecasts.length > 0 && (
+                <div className="space-y-4">
+                  {/* Portfolio summary */}
+                  <div className="p-5 rounded-xl bg-surface-50 border border-surface-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <TrendingUp className="w-4 h-4 text-pharma-900" />
+                      <h3 className="text-sm font-semibold text-surface-800">
+                        Forecast Summary — {forecastData.forecasts.length} molecule{forecastData.forecasts.length !== 1 ? "s" : ""}
+                        <span className="ml-2 text-xs font-normal text-surface-500">
+                          ({Math.round(forecastData.growth_rate * 100)}% growth rate · {forecastData.forecasts[0]?.analysis_year} base year)
+                        </span>
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {([
+                        { label: "Year 1", rev: "total_y1_revenue", units: "total_y1_units" },
+                        { label: "Year 2", rev: "total_y2_revenue", units: "total_y2_units" },
+                        { label: "Year 3", rev: "total_y3_revenue", units: "total_y3_units" },
+                      ] as { label: string; rev: keyof MoleculeForecast["summary"]; units: keyof MoleculeForecast["summary"] }[]).map(({ label, rev, units }) => (
+                        <div key={label} className="bg-white rounded-xl border border-surface-200 px-4 py-3 text-center">
+                          <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-1">{label}</p>
+                          <p className="text-lg font-bold text-pharma-900">
+                            AED {fmtAed(forecastData.forecasts.reduce((s, f) => s + f.summary[rev], 0))}
+                          </p>
+                          <p className="text-xs text-surface-500">
+                            {fmtUnits(forecastData.forecasts.reduce((s, f) => s + f.summary[units], 0))} units
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Per-molecule forecast cards */}
+                  {forecastData.forecasts.map((fc: MoleculeForecast) => {
+                    const expanded = expandedForecast.has(fc.molecule);
+                    return (
+                      <div key={fc.molecule} className="rounded-xl bg-white border border-surface-200 overflow-hidden">
+                        {/* Header row */}
+                        <button
+                          onClick={() => toggleForecastExpand(fc.molecule)}
+                          className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-surface-50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-surface-900">{fc.molecule}</span>
+                              <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded-full">
+                                {fc.product}
+                              </span>
+                              <span className="text-[10px] bg-pharma-50 text-pharma-900 border border-pharma-200 px-1.5 py-0.5 rounded-full">
+                                {fc.competitors} competitor{fc.competitors !== 1 ? "s" : ""} · {fc.penetration_pct} penetration
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6 shrink-0 text-right">
+                            {([
+                              { y: "Y1", key: "total_y1_revenue" },
+                              { y: "Y2", key: "total_y2_revenue" },
+                              { y: "Y3", key: "total_y3_revenue" },
+                            ] as { y: string; key: keyof MoleculeForecast["summary"] }[]).map(({ y, key }) => (
+                              <div key={y}>
+                                <p className="text-[10px] text-surface-500">{y}</p>
+                                <p className="text-sm font-bold text-pharma-900">AED {fmtAed(fc.summary[key])}</p>
+                              </div>
+                            ))}
+                            {expanded
+                              ? <ChevronUp className="w-4 h-4 text-surface-400" />
+                              : <ChevronDown className="w-4 h-4 text-surface-400" />
+                            }
+                          </div>
+                        </button>
+
+                        {/* Pack-level detail table */}
+                        {expanded && (
+                          <div className="border-t border-surface-200 overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-surface-50">
+                                <tr>
+                                  {["Manufacturer", "Pack", "Retail (AED)", "CIF (AED)", "Share", "Y1 Units", "Y2 Units", "Y3 Units", "Y1 Rev (AED)", "Y2 Rev (AED)", "Y3 Rev (AED)"].map(h => (
+                                    <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-surface-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-surface-100">
+                                {fc.packs.map((p, idx) => (
+                                  <tr key={idx} className="hover:bg-surface-50 transition-colors">
+                                    <td className="px-3 py-2 text-surface-700 font-medium whitespace-nowrap">{p.manufacturer}</td>
+                                    <td className="px-3 py-2 text-surface-600 whitespace-nowrap">{p.pack}</td>
+                                    <td className="px-3 py-2 text-surface-700 text-right">{p.retail_price.toFixed(2)}</td>
+                                    <td className="px-3 py-2 text-surface-700 text-right">{p.cif_price.toFixed(2)}</td>
+                                    <td className="px-3 py-2 text-surface-600 text-right">{(p.pack_share * 100).toFixed(1)}%</td>
+                                    <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y1_units)}</td>
+                                    <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y2_units)}</td>
+                                    <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y3_units)}</td>
+                                    <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y1_revenue)}</td>
+                                    <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y2_revenue)}</td>
+                                    <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y3_revenue)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Errors — molecules not found */}
+                  {forecastData.errors.length > 0 && (
+                    <div className="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700 space-y-1">
+                      <p className="font-semibold">Could not forecast {forecastData.errors.length} molecule{forecastData.errors.length !== 1 ? "s" : ""}:</p>
+                      {forecastData.errors.map(e => (
+                        <p key={e.molecule}>{e.molecule}: {e.error}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Click any card to open the detail drawer */}

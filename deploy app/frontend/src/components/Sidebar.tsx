@@ -25,7 +25,7 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="text-lg font-semibold tracking-tight">
-            <span className="gradient-text">COMIX BD</span>
+            <span className="gradient-text">Pharma BD</span>
           </h1>
           <p className="text-[10px] text-surface-500 uppercase tracking-widest">Intelligence Platform</p>
         </div>

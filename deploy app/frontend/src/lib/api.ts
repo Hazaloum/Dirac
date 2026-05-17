@@ -89,6 +89,14 @@ export const api = {
   deleteHistoryRun: (runId: string) =>
     req(`/api/analysis/history/${runId}`, { method: "DELETE" }),
 
+  // Forecast
+  getForecast: (molecules: string[], growthRate: number) =>
+    req<ForecastResult>("/api/analysis/forecast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ molecules, growth_rate: growthRate }),
+    }),
+
   // Outreach
   getOutreachRuns: () => req<{ runs: OutreachRun[] }>("/api/outreach/runs"),
 
@@ -326,6 +334,50 @@ export interface MyPortfolio {
   result:       AnalysisResult;
   report:       string;
   saved_at:     string;
+}
+
+export interface ForecastPackData {
+  manufacturer: string;
+  pack: string;
+  pack_units: number;
+  pack_share: number;
+  y1_units: number;
+  y2_units: number;
+  y3_units: number;
+  retail_price: number;
+  cif_price: number;
+  retail_price_usd: number;
+  cif_price_usd: number;
+  y1_revenue: number;
+  y2_revenue: number;
+  y3_revenue: number;
+}
+
+export interface MoleculeForecast {
+  molecule: string;
+  product: string;
+  competitors: number;
+  penetration: number;
+  penetration_pct: string;
+  analysis_year: number;
+  growth_rate: number;
+  total_market_units: number;
+  total_market_value: number;
+  summary: {
+    total_y1_units: number;
+    total_y2_units: number;
+    total_y3_units: number;
+    total_y1_revenue: number;
+    total_y2_revenue: number;
+    total_y3_revenue: number;
+  };
+  packs: ForecastPackData[];
+}
+
+export interface ForecastResult {
+  forecasts: MoleculeForecast[];
+  errors: { molecule: string; error: string }[];
+  growth_rate: number;
 }
 
 export interface OutreachEvent {

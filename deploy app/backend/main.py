@@ -204,6 +204,26 @@ def delete_history_run(run_id: str):
     return {"ok": True}
 
 
+# ─── Forecast — Y1-Y3 revenue for shortlisted molecules ──────────────────────
+
+class ForecastRequest(BaseModel):
+    molecules:   list[str]
+    growth_rate: float = 0.10
+
+@app.post("/api/analysis/forecast")
+def forecast_molecules(body: ForecastRequest):
+    """Generate Y1-Y3 revenue forecasts for a list of IQVIA-matched molecules."""
+    from DetailedForecast import forecast_top_product
+    df_iqvia = _state["dfs"]["iqvia"]
+    results, errors = [], []
+    for mol in body.molecules:
+        try:
+            results.append(forecast_top_product(df_iqvia, mol, body.growth_rate))
+        except Exception as e:
+            errors.append({"molecule": mol, "error": str(e)})
+    return {"forecasts": results, "errors": errors, "growth_rate": body.growth_rate}
+
+
 # ─── Manufacturer breakdown (pie chart data) ──────────────────────────────────
 @app.get("/api/analysis/manufacturers/{molecule}")
 def get_manufacturers(molecule: str):
