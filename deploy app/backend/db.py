@@ -49,9 +49,29 @@ def init_db() -> None:
                 overview        TEXT,
                 uae_mohap       TEXT,
                 uae_upp         TEXT,
-                mohap_agents    TEXT,   -- JSON array
-                upp_agents      TEXT,   -- JSON array
-                contacts        TEXT    -- JSON array of {name, title, email, linkedin_url}
+                mohap_agents    TEXT,
+                upp_agents      TEXT,
+                contacts        TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS analysis_runs (
+                run_id      TEXT PRIMARY KEY,
+                source_name TEXT NOT NULL,
+                source_type TEXT DEFAULT 'upload',
+                model       TEXT DEFAULT '',
+                saved_at    TEXT NOT NULL,
+                stats       TEXT DEFAULT '{}',
+                result      TEXT DEFAULT '{}',
+                report      TEXT DEFAULT '',
+                has_report  INTEGER DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS my_portfolio (
+                id           INTEGER PRIMARY KEY CHECK (id = 1),
+                company_name TEXT NOT NULL,
+                result       TEXT DEFAULT '{}',
+                report       TEXT DEFAULT '',
+                saved_at     TEXT NOT NULL
             );
         """)
 
