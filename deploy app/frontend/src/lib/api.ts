@@ -90,11 +90,11 @@ export const api = {
     req(`/api/analysis/history/${runId}`, { method: "DELETE" }),
 
   // Forecast
-  getForecast: (molecules: string[], growthRate: number) =>
+  getForecast: (molecules: string[]) =>
     req<ForecastResult>("/api/analysis/forecast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ molecules, growth_rate: growthRate }),
+      body: JSON.stringify({ molecules }),
     }),
 
   // Outreach

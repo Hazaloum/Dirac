@@ -33,7 +33,7 @@ function applyFmts(ws: Record<string, any>, colFmts: Record<number, string>, nRo
   }
 }
 
-async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
+async function exportXlsx(forecasts: MoleculeForecast[]) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
@@ -71,7 +71,7 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
     "YEAR":               f.analysis_year,
     "COMPETITORS":        f.competitors,
     "PENETRATION (%)":    parseFloat(f.penetration_pct.replace("%", "")),
-    "GROWTH RATE (%)":    Math.round(growthRate * 100),
+    "GROWTH RATE (%)":    15,
     "MARKET VALUE (AED)": Math.round(f.total_market_value),
     "Y1 UNITS":           Math.round(f.summary.total_y1_units),
     "Y2 UNITS":           Math.round(f.summary.total_y2_units),
@@ -98,7 +98,6 @@ export default function ForecastPage() {
   const router = useRouter();
 
   const [session,      setSession]      = useState<ForecastSession | null>(null);
-  const [growthRate,   setGrowthRate]   = useState(0.10);
   const [forecastData, setForecastData] = useState<ForecastResult | null>(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
@@ -114,14 +113,14 @@ export default function ForecastPage() {
 
   // Auto-run forecast when session loads
   useEffect(() => {
-    if (session && session.molecules.length > 0) runForecast(session, growthRate);
+    if (session && session.molecules.length > 0) runForecast(session);
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runForecast = async (s: ForecastSession, gr: number) => {
+  const runForecast = async (s: ForecastSession) => {
     setLoading(true);
     setError("");
     try {
-      const data = await api.getForecast(s.molecules.map(m => m.molecule), gr);
+      const data = await api.getForecast(s.molecules.map(m => m.molecule));
       setForecastData(data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Forecast failed");
@@ -131,7 +130,7 @@ export default function ForecastPage() {
   };
 
   const handleRegenerate = () => {
-    if (session) runForecast(session, growthRate);
+    if (session) runForecast(session);
   };
 
   const toggleExpand = (mol: string) =>
@@ -187,7 +186,7 @@ export default function ForecastPage() {
 
         {forecastData && (
           <button
-            onClick={() => exportXlsx(forecastData.forecasts, growthRate)}
+            onClick={() => exportXlsx(forecastData.forecasts)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
           >
             <Download className="w-4 h-4" /> Export XLSX
@@ -207,7 +206,7 @@ export default function ForecastPage() {
         </div>
         <div className="bg-white rounded-xl border border-surface-200 px-4 py-3">
           <p className="text-[10px] text-surface-500 uppercase tracking-wider">Growth Rate</p>
-          <p className="text-2xl font-bold text-surface-900">{Math.round(growthRate * 100)}%</p>
+          <p className="text-2xl font-bold text-surface-900">15%</p>
         </div>
         <div className="bg-white rounded-xl border border-surface-200 px-4 py-3">
           <p className="text-[10px] text-surface-500 uppercase tracking-wider">Total 3Y Revenue</p>
@@ -280,35 +279,17 @@ export default function ForecastPage() {
         })()}
       </div>
 
-      {/* ── Growth rate + generate ── */}
-      <div className="flex items-center gap-6 p-5 bg-white rounded-xl border border-surface-200">
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-surface-600 mb-2">
-            Growth Rate — applied on top of market penetration
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range" min={5} max={30} step={5}
-              value={Math.round(growthRate * 100)}
-              onChange={e => setGrowthRate(Number(e.target.value) / 100)}
-              className="flex-1 accent-pharma-900"
-            />
-            <span className="text-lg font-bold text-pharma-900 w-12 text-right">
-              {Math.round(growthRate * 100)}%
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px] text-surface-400 mt-1 px-0.5">
-            {[5, 10, 15, 20, 25, 30].map(v => <span key={v}>{v}%</span>)}
-          </div>
-        </div>
+      {/* ── Generate button ── */}
+      <div className="flex items-center justify-between p-5 bg-white rounded-xl border border-surface-200">
+        <p className="text-xs text-surface-500">15% year-on-year growth · competitor-adjusted penetration</p>
         <button
           onClick={handleRegenerate}
           disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pharma-900 text-white text-sm font-medium hover:bg-pharma-800 disabled:opacity-60 transition-colors shrink-0"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pharma-900 text-white text-sm font-medium hover:bg-pharma-800 disabled:opacity-60 transition-colors"
         >
           {loading
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-            : <><TrendingUp className="w-4 h-4" /> Generate Forecast</>
+            : <><TrendingUp className="w-4 h-4" /> Regenerate</>
           }
         </button>
       </div>
@@ -458,7 +439,7 @@ export default function ForecastPage() {
           {/* Bottom export button */}
           <div className="flex justify-end">
             <button
-              onClick={() => exportXlsx(forecastData.forecasts, growthRate)}
+              onClick={() => exportXlsx(forecastData.forecasts)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
             >
               <Download className="w-4 h-4" /> Export XLSX
