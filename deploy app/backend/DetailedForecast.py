@@ -30,9 +30,9 @@ def forecast_molecule_product(
       2–4             → 10%
       5+              →  5%
 
-    Growth: fixed 15% per year
-      Y2 = Y1 × 1.15
-      Y3 = Y2 × 1.15
+    Growth: user-selected rate (default 15%)
+      Y2 = Y1 × (1 + growth_rate)
+      Y3 = Y2 × (1 + growth_rate)
 
     Combination molecules (e.g. DRUG A + DRUG B) have their units/values
     divided by the number of constituent molecules to avoid double-counting.
@@ -80,8 +80,8 @@ def forecast_molecule_product(
     packs["Pack Share"] = packs["Pack_Units"] / (total_prod_units or 1)
 
     packs["Y1 Units"] = packs["Pack Share"] * total_mol_units * penetration
-    packs["Y2 Units"] = packs["Y1 Units"] * 1.15
-    packs["Y3 Units"] = packs["Y2 Units"] * 1.15
+    packs["Y2 Units"] = packs["Y1 Units"] * (1 + growth_rate)
+    packs["Y3 Units"] = packs["Y2 Units"] * (1 + growth_rate)
 
     packs["CIF Price"]         = (packs["Retail Price"] / 1.4) * 0.4
     packs["Retail Price (USD)"] = packs["Retail Price"] / 3.68
