@@ -162,6 +162,10 @@ export default function AnalysisPage() {
   const [showHistory,    setShowHistory]    = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Manual save
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedOk,  setSavedOk]  = useState(false);
+
   // Selected molecule for pie chart (report phase charts tab)
   const [chartMolecule, setChartMolecule] = useState<string | null>(null);
 
@@ -377,6 +381,33 @@ export default function AnalysisPage() {
   const shortlistedIqviaMols = result
     ? scoredCards.filter(m => isShortlisted(m.molecule) && m.in_iqvia)
     : [];
+
+  const savePortfolioNow = async () => {
+    if (!result) return;
+    setIsSaving(true);
+    try {
+      const saved = await api.saveAnalysis({
+        source_name: companyName || "Portfolio",
+        source_type: mode === "upload" ? "upload" : "craft",
+        model:       scoringModel,
+        result,
+        report:      reportText,
+      });
+      setHistory(prev => [{
+        run_id:      saved.run_id,
+        source_name: companyName || "Portfolio",
+        source_type: mode === "upload" ? "upload" : "craft",
+        model:       scoringModel,
+        saved_at:    new Date().toISOString().slice(0, 16).replace("T", " "),
+        stats:       result.stats,
+        has_report:  false,
+      }, ...prev]);
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 2500);
+    } catch { /* ignore */ } finally {
+      setIsSaving(false);
+    }
+  };
 
   const goToForecast = () => {
     if (!shortlistedIqviaMols.length || !result) return;
@@ -665,6 +696,26 @@ export default function AnalysisPage() {
 
             {/* Spacer */}
             <div className="flex-1" />
+
+            {/* Save portfolio button */}
+            {phase === "portfolio" && (
+              <button
+                onClick={savePortfolioNow}
+                disabled={isSaving || savedOk}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  savedOk
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-white border border-surface-300 text-surface-600 hover:text-surface-900 hover:bg-surface-100"
+                }`}
+              >
+                {isSaving
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  : savedOk
+                  ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
+                  : "Save Portfolio"
+                }
+              </button>
+            )}
 
             {/* View toggle (only in portfolio phase) */}
             {phase === "portfolio" && (
