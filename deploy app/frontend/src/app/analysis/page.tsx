@@ -871,6 +871,15 @@ export default function AnalysisPage() {
                                           </span>
                                         </div>
                                       )}
+                                      {(mol.mohap_manufacturers != null || mol.upp_manufacturers != null) && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-surface-500">MOHAP:</span>
+                                          <span className="font-semibold text-surface-700">{mol.mohap_manufacturers ?? 0}</span>
+                                          <span className="text-surface-400 mx-0.5">·</span>
+                                          <span className="text-surface-500">UPP:</span>
+                                          <span className="font-semibold text-surface-700">{mol.upp_manufacturers ?? 0}</span>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </button>
@@ -1024,6 +1033,15 @@ export default function AnalysisPage() {
                                           <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-900' : 'text-surface-600'}`}>
                                             {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
                                           </span>
+                                        </div>
+                                      )}
+                                      {(mol.mohap_manufacturers != null || mol.upp_manufacturers != null) && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-surface-500">MOHAP:</span>
+                                          <span className="font-semibold text-surface-700">{mol.mohap_manufacturers ?? 0}</span>
+                                          <span className="text-surface-400 mx-0.5">·</span>
+                                          <span className="text-surface-500">UPP:</span>
+                                          <span className="font-semibold text-surface-700">{mol.upp_manufacturers ?? 0}</span>
                                         </div>
                                       )}
                                     </div>
