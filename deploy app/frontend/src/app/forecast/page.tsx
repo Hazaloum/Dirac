@@ -28,7 +28,7 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1 — Pack detail, formatted exactly like the app table
+  // Sheet 1 — Pack detail, columns match app table, values are actual numbers
   const packRows = forecasts.flatMap(f =>
     f.packs.map(p => ({
       "MOLECULE":       f.molecule,
@@ -36,33 +36,33 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
       "PACK":           p.pack,
       "RETAIL (AED)":   parseFloat(p.retail_price.toFixed(2)),
       "CIF (AED)":      parseFloat(p.cif_price.toFixed(2)),
-      "SHARE":          `${(p.pack_share * 100).toFixed(1)}%`,
-      "Y1 UNITS":       fmtUnits(p.y1_units),
-      "Y2 UNITS":       fmtUnits(p.y2_units),
-      "Y3 UNITS":       fmtUnits(p.y3_units),
-      "Y1 REV":         fmtAed(p.y1_revenue),
-      "Y2 REV":         fmtAed(p.y2_revenue),
-      "Y3 REV":         fmtAed(p.y3_revenue),
+      "SHARE (%)":      parseFloat((p.pack_share * 100).toFixed(1)),
+      "Y1 UNITS":       Math.round(p.y1_units),
+      "Y2 UNITS":       Math.round(p.y2_units),
+      "Y3 UNITS":       Math.round(p.y3_units),
+      "Y1 REV (AED)":   Math.round(p.y1_revenue),
+      "Y2 REV (AED)":   Math.round(p.y2_revenue),
+      "Y3 REV (AED)":   Math.round(p.y3_revenue),
     }))
   );
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(packRows), "Forecast");
 
-  // Sheet 2 — Molecule summary
+  // Sheet 2 — Molecule summary, actual numbers
   const summaryRows = forecasts.map(f => ({
     "MOLECULE":           f.molecule,
     "TOP PRODUCT":        f.product,
     "YEAR":               f.analysis_year,
     "COMPETITORS":        f.competitors,
-    "PENETRATION":        f.penetration_pct,
-    "GROWTH RATE":        `${Math.round(growthRate * 100)}%`,
-    "MARKET VALUE":       fmtAed(f.total_market_value),
-    "Y1 UNITS":           fmtUnits(f.summary.total_y1_units),
-    "Y2 UNITS":           fmtUnits(f.summary.total_y2_units),
-    "Y3 UNITS":           fmtUnits(f.summary.total_y3_units),
-    "Y1 REV":             fmtAed(f.summary.total_y1_revenue),
-    "Y2 REV":             fmtAed(f.summary.total_y2_revenue),
-    "Y3 REV":             fmtAed(f.summary.total_y3_revenue),
-    "3Y TOTAL":           fmtAed(f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue),
+    "PENETRATION (%)":    parseFloat(f.penetration_pct.replace("%", "")),
+    "GROWTH RATE (%)":    Math.round(growthRate * 100),
+    "MARKET VALUE (AED)": Math.round(f.total_market_value),
+    "Y1 UNITS":           Math.round(f.summary.total_y1_units),
+    "Y2 UNITS":           Math.round(f.summary.total_y2_units),
+    "Y3 UNITS":           Math.round(f.summary.total_y3_units),
+    "Y1 REV (AED)":       Math.round(f.summary.total_y1_revenue),
+    "Y2 REV (AED)":       Math.round(f.summary.total_y2_revenue),
+    "Y3 REV (AED)":       Math.round(f.summary.total_y3_revenue),
+    "3Y TOTAL (AED)":     Math.round(f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue),
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
 
