@@ -24,11 +24,20 @@ function fmtUnits(v: number) {
 }
 
 // ─── XLSX export ──────────────────────────────────────────────────────────────
+function applyFmts(ws: Record<string, any>, colFmts: Record<number, string>, nRows: number, XLSX: any) {
+  for (const [col, fmt] of Object.entries(colFmts)) {
+    for (let row = 1; row <= nRows; row++) {
+      const addr = XLSX.utils.encode_cell({ r: row, c: Number(col) });
+      if (ws[addr]) ws[addr].z = fmt;
+    }
+  }
+}
+
 async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1 — Pack detail, columns match app table, values are actual numbers
+  // Sheet 1 — Pack detail
   const packRows = forecasts.flatMap(f =>
     f.packs.map(p => ({
       "MOLECULE":       f.molecule,
@@ -45,9 +54,17 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
       "Y3 REV (AED)":   Math.round(p.y3_revenue),
     }))
   );
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(packRows), "Forecast");
+  const packWs = XLSX.utils.json_to_sheet(packRows);
+  // col index → Excel format: 3=RETAIL, 4=CIF, 5=SHARE, 6-8=UNITS, 9-11=REV
+  applyFmts(packWs, {
+    3: '#,##0.00', 4: '#,##0.00',
+    5: '0.0"%"',
+    6: '#,##0', 7: '#,##0', 8: '#,##0',
+    9: '#,##0', 10: '#,##0', 11: '#,##0',
+  }, packRows.length, XLSX);
+  XLSX.utils.book_append_sheet(wb, packWs, "Forecast");
 
-  // Sheet 2 — Molecule summary, actual numbers
+  // Sheet 2 — Molecule summary
   const summaryRows = forecasts.map(f => ({
     "MOLECULE":           f.molecule,
     "TOP PRODUCT":        f.product,
@@ -64,7 +81,14 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
     "Y3 REV (AED)":       Math.round(f.summary.total_y3_revenue),
     "3Y TOTAL (AED)":     Math.round(f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue),
   }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
+  const summaryWs = XLSX.utils.json_to_sheet(summaryRows);
+  applyFmts(summaryWs, {
+    4: '0.0"%"', 5: '0"%"',
+    6: '#,##0',
+    7: '#,##0', 8: '#,##0', 9: '#,##0',
+    10: '#,##0', 11: '#,##0', 12: '#,##0', 13: '#,##0',
+  }, summaryRows.length, XLSX);
+  XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
 
   XLSX.writeFile(wb, `COMIX_Forecast_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
