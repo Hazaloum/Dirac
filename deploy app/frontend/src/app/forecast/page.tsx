@@ -38,29 +38,35 @@ async function exportXlsx(forecasts: MoleculeForecast[], growthRate: number) {
   const wb = XLSX.utils.book_new();
 
   // Sheet 1 — Pack detail
-  const packRows = forecasts.flatMap(f =>
-    f.packs.map(p => ({
-      "MOLECULE":       f.molecule,
-      "MANUFACTURER":   p.manufacturer,
-      "PACK":           p.pack,
-      "RETAIL (AED)":   parseFloat(p.retail_price.toFixed(2)),
-      "CIF (AED)":      parseFloat(p.cif_price.toFixed(2)),
-      "SHARE (%)":      parseFloat((p.pack_share * 100).toFixed(1)),
-      "Y1 UNITS":       Math.round(p.y1_units),
-      "Y2 UNITS":       Math.round(p.y2_units),
-      "Y3 UNITS":       Math.round(p.y3_units),
-      "Y1 REV (AED)":   Math.round(p.y1_revenue),
-      "Y2 REV (AED)":   Math.round(p.y2_revenue),
-      "Y3 REV (AED)":   Math.round(p.y3_revenue),
-    }))
-  );
+  const packRows = forecasts.flatMap(f => {
+    const topMfr = [...f.packs].sort((a, b) => b.pack_share - a.pack_share)[0]?.manufacturer ?? "";
+    return f.packs.map(p => ({
+      "MOLECULE":                f.molecule,
+      "TOP PRODUCT":             f.product,
+      "TOP MANUFACTURER":        topMfr,
+      "TOTAL MKT UNITS":         Math.round(f.total_market_units),
+      "TOTAL MKT VALUE (AED)":   Math.round(f.total_market_value),
+      "MANUFACTURER":            p.manufacturer,
+      "PACK":                    p.pack,
+      "RETAIL (AED)":            parseFloat(p.retail_price.toFixed(2)),
+      "CIF (AED)":               parseFloat(p.cif_price.toFixed(2)),
+      "SHARE (%)":               parseFloat((p.pack_share * 100).toFixed(1)),
+      "Y1 UNITS":                Math.round(p.y1_units),
+      "Y2 UNITS":                Math.round(p.y2_units),
+      "Y3 UNITS":                Math.round(p.y3_units),
+      "Y1 REV (AED)":            Math.round(p.y1_revenue),
+      "Y2 REV (AED)":            Math.round(p.y2_revenue),
+      "Y3 REV (AED)":            Math.round(p.y3_revenue),
+    }));
+  });
   const packWs = XLSX.utils.json_to_sheet(packRows);
-  // col index → Excel format: 3=RETAIL, 4=CIF, 5=SHARE, 6-8=UNITS, 9-11=REV
+  // col 3=TOTAL MKT UNITS, 4=TOTAL MKT VALUE, 7=RETAIL, 8=CIF, 9=SHARE, 10-12=UNITS, 13-15=REV
   applyFmts(packWs, {
-    3: '#,##0.00', 4: '#,##0.00',
-    5: '0.0"%"',
-    6: '#,##0', 7: '#,##0', 8: '#,##0',
-    9: '#,##0', 10: '#,##0', 11: '#,##0',
+    3: '#,##0', 4: '#,##0',
+    7: '#,##0.00', 8: '#,##0.00',
+    9: '0.0"%"',
+    10: '#,##0', 11: '#,##0', 12: '#,##0',
+    13: '#,##0', 14: '#,##0', 15: '#,##0',
   }, packRows.length, XLSX);
   XLSX.utils.book_append_sheet(wb, packWs, "Forecast");
 
