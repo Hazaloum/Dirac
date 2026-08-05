@@ -250,7 +250,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .portfolio-empty-state button { margin-top: 5px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 7px; color: #fff; background: var(--accent); font-size: 10px; font-weight: 600; }
 .portfolio-stream-cursor { display: inline-block; width: 7px; height: 15px; margin-left: 3px; background: var(--accent); animation: fadeIn .7s infinite alternate; }
 
-.portfolio-forecast-bar { position: sticky; z-index: 20; bottom: 16px; display: flex; align-items: center; gap: 22px; padding: 13px 15px 13px 18px; border: 1px solid rgba(12,92,76,.2); border-radius: 10px; background: rgba(239,246,241,.96); box-shadow: 0 10px 35px rgba(20,33,29,.12); backdrop-filter: blur(12px); }
+.portfolio-forecast-bar { display: flex; align-items: center; gap: 22px; margin-top: 20px; padding: 13px 15px 13px 18px; border: 1px solid rgba(12,92,76,.2); border-radius: 10px; background: rgba(239,246,241,.96); box-shadow: 0 10px 35px rgba(20,33,29,.08); }
 .portfolio-forecast-bar > div { display: flex; align-items: center; gap: 10px; flex: 1; }
 .portfolio-forecast-bar > div > svg { width: 18px; height: 18px; color: var(--accent); }
 .portfolio-forecast-bar strong, .portfolio-forecast-bar small { display: block; }
@@ -262,9 +262,54 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .portfolio-forecast-bar > button { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border: 0; border-radius: 7px; color: #fff; background: var(--accent); font-size: 10px; font-weight: 600; }
 .portfolio-forecast-bar > button svg { width: 13px; height: 13px; }
 
+/* Match the Meridien Overview value-distribution page exactly. */
+.portfolio-overview { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.portfolio-value-map { width: 100%; min-width: 0; padding: 24px; border: 1px solid rgba(20,33,29,.10); border-radius: 14px; background: #fff; }
+.portfolio-value-map .portfolio-section__heading { align-items: flex-end; margin-bottom: 6px; }
+.portfolio-value-map .portfolio-section__heading h3 { margin-top: 10px; font: 500 23px/1.2 var(--font-newsreader), Georgia, serif; letter-spacing: 0; }
+.portfolio-eyebrow-accent { color: var(--accent) !important; font-size: 11px; letter-spacing: .12em; }
+.portfolio-eyebrow-good { color: var(--good) !important; font-size: 11px; letter-spacing: .12em; }
+.portfolio-total-value { flex: none; text-align: right; }
+.portfolio-total-value span { display: block; color: #8a938e; font: 400 10px/1 var(--font-plex-mono), monospace; letter-spacing: .08em; text-transform: uppercase; }
+.portfolio-total-value strong { display: block; margin-top: 8px; color: var(--ink); font: 500 26px/1 var(--font-newsreader), Georgia, serif; white-space: nowrap; }
+.portfolio-value-lede { max-width: 74ch; margin: 0 0 20px; color: #5a655f; font: 400 14px/1.55 var(--font-plex-sans), sans-serif; }
+.portfolio-area-strip { display: flex; width: 100%; min-width: 0; gap: 8px; height: 300px; min-height: 300px; overflow: hidden; }
+.portfolio-area-tile { min-width: 66px; display: flex; flex-direction: column; align-items: stretch; padding: 18px 20px; border: 0; border-radius: 10px; color: #fff; cursor: pointer; overflow: hidden; text-align: left; font-family: inherit; transition: filter .15s, box-shadow .15s, transform .15s; }
+.portfolio-area-tile:hover { filter: brightness(1.08); }
+.portfolio-area-tile.is-selected { box-shadow: 0 0 0 3px #fff, 0 0 0 5px currentColor; transform: translateY(-2px); }
+.portfolio-area-name { display: block; overflow: hidden; color: #fff; font: 600 14px/1.25 var(--font-plex-sans), sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.portfolio-area-value { display: block; margin-top: auto; color: #fff; font: 500 26px/1 var(--font-newsreader), Georgia, serif; letter-spacing: -.01em; }
+.portfolio-area-tile > span { display: block; margin-top: 8px; color: rgba(255,255,255,.86); font: 400 11px/1.3 var(--font-plex-mono), monospace; }
+.portfolio-area-tile > em { display: block; margin-top: 8px; overflow: hidden; color: rgba(255,255,255,.80); font: 400 11px/1.3 var(--font-plex-sans), sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.portfolio-mosaic-caption { margin-top: 14px; color: #8a938e; font: 400 11px/1 var(--font-plex-mono), monospace; }
+.portfolio-area-molecules { margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(20,33,29,.10); }
+.portfolio-area-expanded-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; }
+.portfolio-area-expanded-heading > span { width: 11px; height: 11px; flex: none; border-radius: 3px; }
+.portfolio-area-expanded-heading > strong { flex: 1; color: var(--ink); font: 500 18px/1.1 var(--font-newsreader), Georgia, serif; }
+.portfolio-area-expanded-heading > button { padding: 0; border: 0; color: #5a655f; background: none; cursor: pointer; font: 400 13px var(--font-plex-sans), sans-serif; }
+.portfolio-area-expanded-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.portfolio-area-molecule-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid rgba(20,33,29,.10); border-radius: 12px; background: #fbfbf9; text-align: left; cursor: pointer; }
+.portfolio-area-molecule-card:hover { border-color: rgba(20,33,29,.28); box-shadow: 0 8px 24px rgba(20,33,29,.06); }
+.portfolio-area-molecule-card > strong { color: var(--ink); font: 500 16px/1.2 var(--font-newsreader), Georgia, serif; }
+.portfolio-area-molecule-card > small { color: #5a655f; font: 400 12px/1.4 var(--font-plex-sans), sans-serif; }
+.portfolio-area-molecule-card > em { color: #8a938e; font: 400 12px/1 var(--font-plex-mono), monospace; }
+.portfolio-priority-list { padding: 24px; border: 1px solid rgba(20,33,29,.10); border-radius: 14px; background: #fff; }
+.portfolio-priority-list .portfolio-section__heading { margin-bottom: 16px; }
+.portfolio-priority-list .portfolio-section__heading h3 { margin-top: 10px; font: 500 23px/1.2 var(--font-newsreader), Georgia, serif; }
+.portfolio-priority-list > button.portfolio-priority-card { display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-height: 118px; padding: 16px; border: 1px solid rgba(20,33,29,.10); border-radius: 12px; background: #fbfbf9; text-align: left; cursor: pointer; }
+.portfolio-priority-list > button.portfolio-priority-card:hover { border-color: rgba(20,33,29,.28); box-shadow: 0 8px 24px rgba(20,33,29,.06); }
+.portfolio-priority-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.portfolio-priority-list .portfolio-section__heading { grid-column: 1 / -1; }
+.portfolio-priority-list > button.portfolio-priority-card > strong { color: var(--ink); font: 500 17px/1.15 var(--font-newsreader), Georgia, serif; }
+.portfolio-priority-list > button.portfolio-priority-card > small { color: #8a938e; font: 400 12px/1 var(--font-plex-mono), monospace; }
+.portfolio-priority-card__top { display: flex; align-items: center; justify-content: space-between; }
+.portfolio-priority-card__top b { color: var(--ink); font: 600 15px var(--font-plex-mono), monospace; }
+.portfolio-priority-list > .portfolio-empty-state { grid-column: 1 / -1; }
+
 @media (max-width: 1120px) {
   .portfolio-overview { grid-template-columns: 1fr; }
   .portfolio-scorecards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portfolio-priority-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -275,6 +320,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .portfolio-kpis article:nth-child(4) { border-top: 1px solid var(--line); }
   .portfolio-scorecards { grid-template-columns: 1fr; }
   .portfolio-area-molecules { grid-template-columns: 1fr; }
+  .portfolio-area-strip { height: 260px; min-height: 260px; }
+  .portfolio-area-tile { padding: 15px; }
+  .portfolio-area-value { font-size: 22px; }
+  .portfolio-priority-list { grid-template-columns: 1fr; }
   .portfolio-matrix { min-height: 480px; margin-left: 35px; }
   .portfolio-forecast-bar { position: static; align-items: stretch; flex-direction: column; }
   .portfolio-forecast-bar label { justify-content: space-between; }

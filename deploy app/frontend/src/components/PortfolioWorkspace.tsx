@@ -45,7 +45,36 @@ interface PortfolioWorkspaceProps {
   onGrowthRateChange: (value: number) => void;
 }
 
-const AREA_COLORS = ["#0c5c4c", "#1f6f6b", "#3f5c86", "#7a4f6d", "#9c5638", "#7c6a35", "#597064"];
+const AREA_COLORS = ["#0c5c4c", "#1f6f6b", "#7c6a35", "#3f5c86", "#7a4f6d", "#9c5638", "#597064"];
+const AREA_COLOR_BY_NAME: Record<string, string> = {
+  Metabolic: "#0c5c4c",
+  Cardiovascular: "#1f6f6b",
+  Musculoskeletal: "#7c6a35",
+  CNS: "#3f5c86",
+  Oncology: "#7a4f6d",
+  Haematology: "#9c5638",
+};
+const AREA_NAMES: Record<string, string> = {
+  A0: "Metabolic",
+  B0: "Haematology",
+  C0: "Cardiovascular",
+  D0: "Dermatology",
+  G0: "Genito-urinary",
+  H0: "Systemic hormones",
+  J0: "Anti-infectives",
+  L0: "Oncology",
+  M0: "Musculoskeletal",
+  N0: "CNS",
+  R0: "Respiratory",
+  S0: "Sensory",
+  V0: "Various",
+};
+
+function areaLabel(value?: string | null) {
+  if (!value) return "Unclassified";
+  const code = value.trim().slice(0, 2).toUpperCase();
+  return AREA_NAMES[code] || value.replace(/^[A-Z]\d\s+/, "");
+}
 
 function fmtAed(value?: number | null) {
   if (!value) return "AED 0";
@@ -53,6 +82,14 @@ function fmtAed(value?: number | null) {
   if (value >= 1_000_000) return `AED ${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `AED ${(value / 1_000).toFixed(0)}K`;
   return `AED ${value.toFixed(0)}`;
+}
+
+function fmtMarketValue(value?: number | null) {
+  if (!value) return "0 AED";
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B AED`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M AED`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K AED`;
+  return `${value.toFixed(0)} AED`;
 }
 
 function fmtPct(value?: number | null) {
@@ -103,6 +140,7 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
   const [tab, setTab] = useState<WorkspaceTab>("overview");
   const [sortKey, setSortKey] = useState<SortKey>("ai_score");
   const [sortDesc, setSortDesc] = useState(true);
+  const [selectedArea, setSelectedArea] = useState<string | null>(null);
 
   const matched = useMemo(() => props.molecules.filter((molecule) => molecule.in_iqvia), [props.molecules]);
   const totalValue = matched.reduce((sum, molecule) => sum + (molecule.market_value_aed ?? 0), 0);
@@ -121,13 +159,19 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
     }
     return Array.from(groups.entries())
       .map(([name, areaMolecules], index) => ({
-        name,
+        name: areaLabel(name),
         molecules: areaMolecules.sort((a, b) => (b.market_value_aed ?? 0) - (a.market_value_aed ?? 0)),
         value: areaMolecules.reduce((sum, molecule) => sum + (molecule.market_value_aed ?? 0), 0),
-        color: AREA_COLORS[index % AREA_COLORS.length],
+        color: AREA_COLOR_BY_NAME[areaLabel(name)] || AREA_COLORS[index % AREA_COLORS.length],
       }))
       .sort((a, b) => b.value - a.value);
   }, [matched]);
+
+  const largestMolecule = [...matched].sort((a, b) => (b.market_value_aed ?? 0) - (a.market_value_aed ?? 0))[0];
+  const leadArea = areas[0];
+  const valueLead = leadArea && largestMolecule
+    ? `${leadArea.name} drives ${Math.round((leadArea.value / Math.max(totalValue, 1)) * 100)}% of catalogue value across ${leadArea.molecules.length} molecules. ${largestMolecule.molecule} is the single largest at ${fmtMarketValue(largestMolecule.market_value_aed)} — and the agent flags ${pursueCount} of ${props.molecules.length} molecules as worth pursuing.`
+    : "Upload a portfolio to see its UAE market value distribution and agent priorities.";
 
   const matrixPoints = useMemo(() => {
     const values = matched.map((molecule) => Math.log10(Math.max(1, molecule.market_value_aed ?? 1)));
@@ -215,35 +259,49 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
         <div className="portfolio-overview">
           <section className="portfolio-section portfolio-value-map">
             <div className="portfolio-section__heading">
-              <div><p className="matthew-eyebrow">Market composition</p><h3>Where the portfolio value sits</h3></div>
-              <span>Sized by UAE market value</span>
+              <div><p className="matthew-eyebrow portfolio-eyebrow-accent">Value distribution</p><h3>Where the catalogue&apos;s value sits</h3></div>
+              <div className="portfolio-total-value"><span>Total UAE market value</span><strong>{fmtMarketValue(totalValue)}</strong></div>
             </div>
+            <p className="portfolio-value-lede">{valueLead}</p>
             <div className="portfolio-area-strip">
               {areas.map((area) => (
-                <article key={area.name} style={{ flexGrow: Math.max(area.value, totalValue * .08), backgroundColor: area.color }}>
-                  <small>{area.name}</small>
-                  <strong>{fmtAed(area.value)}</strong>
-                  <span>{area.molecules.length} molecule{area.molecules.length === 1 ? "" : "s"}</span>
-                </article>
+                <button
+                  key={area.name}
+                  type="button"
+                  className={`portfolio-area-tile${selectedArea === area.name ? " is-selected" : ""}`}
+                  onClick={() => setSelectedArea((current) => current === area.name ? null : area.name)}
+                  style={{ flex: `${Math.max(area.value, 1)} 1 0`, backgroundColor: area.color }}
+                  aria-label={`Open ${area.name} area`}
+                >
+                  <strong className="portfolio-area-name">{area.name}</strong>
+                  <strong className="portfolio-area-value">{fmtMarketValue(area.value)}</strong>
+                  <span>{area.molecules.length} molecules · {area.molecules.filter((molecule) => (molecule.ai_score ?? 0) >= 8).length} pursue</span>
+                  <em>Largest: {area.molecules[0]?.molecule || "—"}</em>
+                </button>
               ))}
             </div>
-            <div className="portfolio-area-molecules">
-              {areas.slice(0, 4).map((area) => (
-                <div key={area.name}>
-                  <h4><span style={{ backgroundColor: area.color }} />{area.name}</h4>
-                  {area.molecules.slice(0, 5).map((molecule) => (
-                    <button key={molecule.molecule} type="button" onClick={() => props.onMoleculeOpen(molecule)}>
-                      <span>{molecule.molecule}</span><strong>{fmtAed(molecule.market_value_aed)}</strong>
-                    </button>
-                  ))}
+            <div className="portfolio-mosaic-caption">Blocks sized by UAE market value · click an area to expand its molecules below</div>
+            {selectedArea && (() => {
+              const area = areas.find((candidate) => candidate.name === selectedArea);
+              if (!area) return null;
+              return (
+                <div className="portfolio-area-molecules">
+                  <div className="portfolio-area-expanded-heading"><span style={{ backgroundColor: area.color }} /><strong>{area.name} · {area.molecules.length} molecules · {fmtMarketValue(area.value)}</strong><button type="button" onClick={() => setSelectedArea(null)}>Collapse ×</button></div>
+                  <div className="portfolio-area-expanded-grid">
+                    {area.molecules.map((molecule) => (
+                      <button key={molecule.molecule} type="button" className="portfolio-area-molecule-card" onClick={() => props.onMoleculeOpen(molecule)}>
+                        <span className="portfolio-tier is-pending">{scoreMeta(molecule.ai_score).label}</span><strong>{molecule.molecule}</strong><small>{molecule.atc4_class || "Unclassified"}</small><em>{fmtMarketValue(molecule.market_value_aed)} · {fmtPct(molecule.value_cagr_pct)} CAGR</em>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </section>
 
-          <aside className="portfolio-section portfolio-priority-list">
+          <section className="portfolio-section portfolio-priority-list">
             <div className="portfolio-section__heading">
-              <div><p className="matthew-eyebrow">Agent priorities</p><h3>Highest-scoring opportunities</h3></div>
+              <div><p className="matthew-eyebrow portfolio-eyebrow-good">Recommended to pursue · {pursueCount}</p><h3>Highest-scoring opportunities</h3></div>
             </div>
             {[...props.molecules]
               .filter((molecule) => molecule.ai_score != null)
@@ -252,18 +310,17 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
               .map((molecule, index) => {
                 const meta = scoreMeta(molecule.ai_score);
                 return (
-                  <button key={molecule.molecule} type="button" onClick={() => props.onMoleculeOpen(molecule)}>
-                    <span className="portfolio-priority-rank">{index + 1}</span>
-                    <span className="portfolio-priority-copy"><strong>{molecule.molecule}</strong><small>{molecule.atc4_class || "Unclassified"}</small></span>
-                    <span className={`portfolio-tier is-${meta.className}`}>{meta.label}</span>
-                    <b>{molecule.ai_score}/10</b>
+                  <button key={molecule.molecule} type="button" className="portfolio-priority-card" onClick={() => props.onMoleculeOpen(molecule)}>
+                    <span className="portfolio-priority-card__top"><span className={`portfolio-tier is-${meta.className}`}>{meta.label}</span><b>{molecule.ai_score}/10</b></span>
+                    <strong>{molecule.molecule}</strong>
+                    <small>{fmtMarketValue(molecule.market_value_aed)} · {fmtPct(molecule.value_cagr_pct)} CAGR</small>
                   </button>
                 );
               })}
             {!scored.length && (
               <div className="portfolio-empty-state"><Sparkles /><strong>Scoring the portfolio</strong><p>Scorecards and priorities populate as soon as the agent finishes.</p></div>
             )}
-          </aside>
+          </section>
         </div>
       )}
 

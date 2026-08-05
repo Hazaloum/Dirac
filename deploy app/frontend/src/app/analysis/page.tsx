@@ -514,7 +514,14 @@ export default function AnalysisPage() {
           {!historyLoading && history.length > 0 && (
             <div className="divide-y divide-surface-200 max-h-80 overflow-y-auto">
               {history.map((run) => (
-                <button key={run.run_id} onClick={() => loadFromHistory(run.run_id)}
+                <div key={run.run_id} role="button" tabIndex={0}
+                  onClick={() => loadFromHistory(run.run_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      void loadFromHistory(run.run_id);
+                    }
+                  }}
                   className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-100 transition-colors group">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -537,7 +544,7 @@ export default function AnalysisPage() {
                     </button>
                     <ChevronRight className="w-4 h-4 text-surface-400 group-hover:text-surface-700 transition-colors" />
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
