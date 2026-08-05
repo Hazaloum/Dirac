@@ -15,6 +15,7 @@ import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
+import { PortfolioWorkspace } from "@/components/PortfolioWorkspace";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Mode      = "upload" | "craft" | "molecule";
@@ -268,6 +269,7 @@ export default function AnalysisPage() {
       // Default chart molecule to first IQVIA-matched one
       const first = res.molecules.find((m) => m.in_iqvia);
       if (first) setChartMolecule(first.molecule);
+      runPhase2(res);
     } catch (e: unknown) {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -276,21 +278,21 @@ export default function AnalysisPage() {
   };
 
   // ── Phase 2: stream report ──
-  const runPhase2 = () => {
-    if (!result) return;
+  const runPhase2 = (analysisResult: AnalysisResult | null = result) => {
+    if (!analysisResult) return;
     setReportStreaming(true);
     setReportDone(false);
     setReportText("");
-    setPhase("report");
+    setPhase("portfolio");
     setReportTab("report");
 
     abortRef.current = streamScore(
       {
-        companies:     result.companies,
-        enriched_data: result.enriched_data,
+        companies:     analysisResult.companies,
+        enriched_data: analysisResult.enriched_data,
         source_name:   companyName || "Portfolio",
         model:         scoringModel,
-        atc4_context:  result.atc4_context,
+        atc4_context:  analysisResult.atc4_context,
       },
       (chunk) => setReportText((prev) => prev + chunk),
       () => {
@@ -704,8 +706,31 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* ── PORTFOLIO PHASE ── */}
+      {/* ── MERIDIEN PORTFOLIO WORKSPACE ── */}
       {(phase === "portfolio" || phase === "report") && result && (
+        <PortfolioWorkspace
+          portfolioName={companyName || result.companies[0]?.name || "Portfolio"}
+          result={result}
+          molecules={scoredCards}
+          reportText={reportText}
+          reportStreaming={reportStreaming}
+          reportDone={reportDone}
+          scoringModelLabel={MODELS.find((model) => model.id === scoringModel)?.label || scoringModel}
+          isSaving={isSaving}
+          savedOk={savedOk}
+          growthRate={growthRate}
+          decisionFor={(molecule) => shortlistStatus[molecule.toUpperCase()] ?? null}
+          onDecision={toggleShortlist}
+          onMoleculeOpen={setDrawerMolecule}
+          onGenerateScores={() => runPhase2()}
+          onSave={savePortfolioNow}
+          onForecast={goToForecast}
+          onGrowthRateChange={setGrowthRate}
+        />
+      )}
+
+      {/* Legacy catalogue result view can be re-enabled during the migration if needed. */}
+      {result && process.env.NEXT_PUBLIC_ENABLE_LEGACY_CATALOGUE === "true" && (phase === "portfolio" || phase === "report") && (
         <div className="space-y-6">
           {/* Stats bar */}
           <div className="flex items-center gap-6 p-4 bg-white shadow-sm border-surface-200 rounded-xl border border-surface-200">
@@ -773,7 +798,7 @@ export default function AnalysisPage() {
                   <FileText className="w-4 h-4" /> View Report
                 </button>
               ) : (
-                <button onClick={runPhase2} disabled={reportStreaming}
+                <button onClick={() => runPhase2()} disabled={reportStreaming}
                   className="flex items-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-pharma-900 text-white font-medium/60 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
                   {reportStreaming
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
