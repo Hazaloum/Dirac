@@ -306,17 +306,17 @@ export default function MyPortfolioPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 lg:p-10">
       {/* ── Page header ── */}
       <div className="flex items-center justify-between mb-8">
         <div>
+          <p className="matthew-eyebrow mb-3">In-licensed &amp; commercialised</p>
           <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
-            <Briefcase className="w-6 h-6 text-pharma-900" />
             My Portfolio
           </h1>
           <p className="text-sm text-surface-500 mt-1">
             {phase === "empty" || phase === "upload"
-              ? "Upload your portfolio once — it stays here permanently"
+              ? "The molecules COMIX currently in-licenses and commercialises in the UAE."
               : `${companyName} · saved ${savedAt}`
             }
           </p>
@@ -666,8 +666,8 @@ export default function MyPortfolioPage() {
                                   className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                                 >
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
-                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-zinc-900">
-                                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-surface-50">
+                                      <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">

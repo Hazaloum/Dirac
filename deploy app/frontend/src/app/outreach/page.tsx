@@ -415,16 +415,16 @@ export default function OutreachPage() {
     selectedRun ? selectedRun.companies as CompanyResult[] : companies;
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 lg:p-10">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
+          <p className="matthew-eyebrow mb-3">Partner intelligence</p>
           <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
-            <Users className="w-6 h-6 text-pharma-900" />
-            Outreach Agent
+            Outreach
           </h1>
           <p className="text-sm text-surface-500 mt-1">
-            Find top CDMOs by country, check UAE presence, discover BD contacts
+            Find manufacturers by market, verify UAE presence, and identify business-development contacts.
           </p>
         </div>
       </div>
@@ -513,27 +513,28 @@ export default function OutreachPage() {
                 {loadingHistory ? "Loading..." : "No saved runs yet."}
               </p>
             ) : (
-              <div className="divide-y divide-zinc-800/50 max-h-72 overflow-y-auto">
+              <div className="divide-y divide-surface-200 max-h-72 overflow-y-auto">
                 {prevRuns.map((run) => (
-                  <button key={run.run_id} onClick={() => viewRun(run)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-100 transition-colors group ${
-                      selectedRun?.run_id === run.run_id ? "bg-pharma-900 text-white font-medium/5 border-l-2 border-pharma-500" : ""
+                  <div key={run.run_id}
+                    className={`group flex w-full items-stretch transition-colors hover:bg-surface-100 ${
+                      selectedRun?.run_id === run.run_id ? "border-l-2 border-pharma-500 bg-pharma-50" : ""
                     }`}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-surface-800">{run.country}</p>
-                      <p className="text-xs text-surface-500 mt-0.5">
-                        {run.run_date} · {run.companies_found} companies · {run.contacts_found} contacts
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={(e) => deleteRun(run.run_id, e)}
-                        className="p-1 rounded text-surface-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-all">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <ChevronRight className="w-4 h-4 text-surface-400" />
-                    </div>
-                  </button>
+                    <button onClick={() => viewRun(run)} className="flex min-w-0 flex-1 items-center justify-between px-4 py-3 text-left">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-surface-800">{run.country}</p>
+                        <p className="text-xs text-surface-500 mt-0.5">
+                          {run.run_date} · {run.companies_found} companies · {run.contacts_found} contacts
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-surface-400" />
+                    </button>
+                    <button
+                      onClick={(e) => deleteRun(run.run_id, e)}
+                      aria-label={`Delete ${run.country} outreach run`}
+                      className="mr-3 self-center rounded p-1.5 text-surface-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-700 group-hover:opacity-100 focus:opacity-100">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

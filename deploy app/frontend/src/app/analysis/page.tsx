@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Upload, Search, FlaskConical, LayoutGrid, Map,
   FileText, Play, Loader2, X, Plus, ChevronDown,
-  History, Trash2, ChevronRight, CheckCircle2, XCircle, Star,
+  History, Trash2, ChevronRight, CheckCircle2, MinusCircle, XCircle, Star,
   TrendingUp,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
@@ -173,12 +173,33 @@ export default function AnalysisPage() {
   const [drawerMolecule, setDrawerMolecule] = useState<MolCardType | null>(null);
 
   // Shortlist / disqualify state
-  const [shortlistStatus, setShortlistStatusMap] = useState<Record<string, "shortlisted" | "disqualified" | null>>({});
+  const [shortlistStatus, setShortlistStatusMap] = useState<Record<string, "shortlisted" | "maybe" | "disqualified" | null>>({});
   const isShortlisted  = (mol: string) => shortlistStatus[mol.toUpperCase()] === "shortlisted";
+  const isMaybe        = (mol: string) => shortlistStatus[mol.toUpperCase()] === "maybe";
   const isDisqualified = (mol: string) => shortlistStatus[mol.toUpperCase()] === "disqualified";
-  const toggleShortlist = (mol: string, status: "shortlisted" | "disqualified") => {
+  const toggleShortlist = (mol: string, status: "shortlisted" | "maybe" | "disqualified") => {
     const key = mol.toUpperCase();
-    setShortlistStatusMap(prev => ({ ...prev, [key]: prev[key] === status ? null : status }));
+    const next = shortlistStatus[key] === status ? null : status;
+    setShortlistStatusMap(prev => ({ ...prev, [key]: next }));
+
+    if (!next) {
+      api.clearPipelineDecision(key).catch(() => {});
+      return;
+    }
+
+    const base = result?.molecules.find((item) => item.molecule.toUpperCase() === key);
+    if (!base) return;
+    const score = scoredMolecules[key];
+    api.setPipelineDecision({
+      molecule: key,
+      decision: next === "shortlisted" ? "yes" : next === "disqualified" ? "no" : "maybe",
+      source_name: companyName || result?.companies[0]?.name || "Catalogue",
+      snapshot: {
+        ...base,
+        ai_score: score?.score,
+        ai_reasoning: score?.reasoning,
+      },
+    }).catch(() => {});
   };
 
   // Forecast
@@ -189,8 +210,17 @@ export default function AnalysisPage() {
 
   // Load molecule list for craft/single modes
   useEffect(() => {
-    api.getMolecules()
-      .then((d) => setAllMolecules(d.molecules))
+    Promise.all([api.getMolecules(), api.getPipeline()])
+      .then(([moleculesData, pipelineData]) => {
+        setAllMolecules(moleculesData.molecules);
+        const persisted: Record<string, "shortlisted" | "maybe" | "disqualified"> = {};
+        for (const row of pipelineData.decisions) {
+          persisted[row.molecule.toUpperCase()] = row.decision === "yes"
+            ? "shortlisted"
+            : row.decision === "no" ? "disqualified" : "maybe";
+        }
+        setShortlistStatusMap(persisted);
+      })
       .catch(() => {});
   }, []);
 
@@ -301,7 +331,7 @@ export default function AnalysisPage() {
         }, ...prev]);
       }).catch(() => {});
     }
-  }, [reportDone, reportText]);
+  }, [companyName, mode, reportDone, reportText, result, scoringModel]);
 
   // Merge scores into molecule cards
   const scoredCards: MolCardType[] = result?.molecules.map((m) => {
@@ -422,16 +452,16 @@ export default function AnalysisPage() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 lg:p-10">
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
+          <p className="matthew-eyebrow mb-3">Manufacturer intelligence</p>
           <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
-            <FlaskConical className="w-6 h-6 text-pharma-900" />
-            Analysis Agent
+            Catalogues
           </h1>
           <p className="text-sm text-surface-500 mt-1">
-            Score manufacturer portfolios against UAE market data
+            Analyse manufacturer portfolios against UAE IQVIA, MOHAP, and UPP market evidence.
           </p>
         </div>
 
@@ -443,7 +473,7 @@ export default function AnalysisPage() {
                 : "border-surface-300 text-surface-600 hover:text-surface-900 hover:bg-surface-100"
             }`}>
             <History className="w-4 h-4" />
-            Saved Portfolios
+            Analysed catalogues
             {history.length > 0 && (
               <span className="bg-pharma-100 text-pharma-900 text-xs px-1.5 py-0.5 rounded-full">{history.length}</span>
             )}
@@ -451,7 +481,7 @@ export default function AnalysisPage() {
           {phase !== "input" && (
             <button onClick={reset}
               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors">
-              <X className="w-4 h-4" /> New Analysis
+              <X className="w-4 h-4" /> Analyse catalogue
             </button>
           )}
         </div>
@@ -462,7 +492,7 @@ export default function AnalysisPage() {
         <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-surface-200 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-surface-700 flex items-center gap-2">
-              <History className="w-4 h-4 text-surface-500" /> Saved Portfolios
+              <History className="w-4 h-4 text-surface-500" /> Analysed catalogues
             </h2>
             <button onClick={() => setShowHistory(false)} className="text-surface-400 hover:text-surface-700">
               <X className="w-4 h-4" />
@@ -480,7 +510,7 @@ export default function AnalysisPage() {
           )}
 
           {!historyLoading && history.length > 0 && (
-            <div className="divide-y divide-zinc-800/50 max-h-80 overflow-y-auto">
+            <div className="divide-y divide-surface-200 max-h-80 overflow-y-auto">
               {history.map((run) => (
                 <button key={run.run_id} onClick={() => loadFromHistory(run.run_id)}
                   className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-100 transition-colors group">
@@ -518,9 +548,9 @@ export default function AnalysisPage() {
           {/* Mode selector */}
           <div className="grid grid-cols-3 gap-3">
             {([
-              { id: "upload",   label: "Upload Portfolio", icon: Upload,       desc: "PDF, CSV, or Excel" },
-              { id: "craft",    label: "Craft Portfolio",  icon: Plus,         desc: "Search & select molecules" },
-              { id: "molecule", label: "Single Molecule",  icon: FlaskConical, desc: "Analyse one molecule" },
+              { id: "upload",   label: "Upload catalogue", icon: Upload,       desc: "PDF, CSV, or Excel" },
+              { id: "craft",    label: "Craft a list",      icon: Plus,         desc: "Search & select molecules" },
+              { id: "molecule", label: "Single molecule",   icon: FlaskConical, desc: "Run an ad-hoc lookup" },
             ] as const).map(({ id, label, icon: Icon, desc }) => (
               <button key={id} onClick={() => { setMode(id); setCraftMolecules([]); }}
                 className={`p-4 rounded-xl border text-left transition-all ${
@@ -668,7 +698,7 @@ export default function AnalysisPage() {
               disabled={enrichLoading || (mode === "upload" && !file) || (mode !== "upload" && craftMolecules.length === 0)}
               className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
               {enrichLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {enrichLoading ? "Extracting & enriching molecules..." : "Analyse Portfolio"}
+              {enrichLoading ? "Extracting & enriching molecules..." : "Analyse catalogue"}
             </button>
           </div>
         </div>
@@ -800,9 +830,12 @@ export default function AnalysisPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {cards.map((mol, idx) => {
                             const shortlisted = isShortlisted(mol.molecule);
+                            const maybe = isMaybe(mol.molecule);
                             const disqualified = isDisqualified(mol.molecule);
                             const cardBorder = shortlisted
                               ? "border-emerald-800 bg-emerald-50"
+                              : maybe
+                              ? "border-amber-300 bg-amber-50"
                               : disqualified
                               ? "border-surface-300 bg-surface-50 opacity-60"
                               : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
@@ -826,6 +859,17 @@ export default function AnalysisPage() {
                                     <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-700/10' : ''}`} />
                                   </button>
                                   <button
+                                    onClick={() => toggleShortlist(mol.molecule, "maybe")}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      maybe
+                                        ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                                        : 'text-surface-500 hover:text-amber-700 hover:bg-amber-50'
+                                    }`}
+                                    title={maybe ? "Remove from watchlist" : "Mark as maybe"}
+                                  >
+                                    <MinusCircle className={`w-5 h-5 ${maybe ? 'fill-amber-700/10' : ''}`} />
+                                  </button>
+                                  <button
                                     onClick={() => toggleShortlist(mol.molecule, "disqualified")}
                                     className={`p-1.5 rounded-lg transition-all ${
                                       disqualified
@@ -844,8 +888,8 @@ export default function AnalysisPage() {
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
-                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-zinc-900">
-                                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-surface-50">
+                                      <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">
@@ -966,9 +1010,12 @@ export default function AnalysisPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {ungrouped.map((mol, idx) => {
                             const shortlisted = isShortlisted(mol.molecule);
+                            const maybe = isMaybe(mol.molecule);
                             const disqualified = isDisqualified(mol.molecule);
                             const cardBorder = shortlisted
                               ? "border-emerald-800 bg-emerald-50"
+                              : maybe
+                              ? "border-amber-300 bg-amber-50"
                               : disqualified
                               ? "border-surface-300 bg-surface-50 opacity-60"
                               : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
@@ -991,6 +1038,17 @@ export default function AnalysisPage() {
                                     <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-700/10' : ''}`} />
                                   </button>
                                   <button
+                                    onClick={() => toggleShortlist(mol.molecule, "maybe")}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      maybe
+                                        ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                                        : 'text-surface-500 hover:text-amber-700 hover:bg-amber-50'
+                                    }`}
+                                    title={maybe ? "Remove from watchlist" : "Mark as maybe"}
+                                  >
+                                    <MinusCircle className={`w-5 h-5 ${maybe ? 'fill-amber-700/10' : ''}`} />
+                                  </button>
+                                  <button
                                     onClick={() => toggleShortlist(mol.molecule, "disqualified")}
                                     className={`p-1.5 rounded-lg transition-all ${
                                       disqualified
@@ -1008,8 +1066,8 @@ export default function AnalysisPage() {
                                 >
                                   {/* Top-5 star badge */}
                                   {top5Molecules.has(mol.molecule.toUpperCase()) && (
-                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-zinc-900">
-                                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-surface-50">
+                                      <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 mb-1 pr-2">

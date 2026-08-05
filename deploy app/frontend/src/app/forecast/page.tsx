@@ -171,7 +171,7 @@ export default function ForecastPage() {
     : null;
 
   return (
-    <div className="min-h-screen p-8 space-y-6">
+    <div className="min-h-screen p-8 lg:p-10 space-y-6">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -181,9 +181,9 @@ export default function ForecastPage() {
             <ArrowLeft className="w-4 h-4" /> Analysis
           </button>
           <div>
+            <p className="matthew-eyebrow mb-3">Commercial modelling</p>
             <h1 className="text-2xl font-bold text-surface-900 flex items-center gap-3">
-              <TrendingUp className="w-6 h-6 text-pharma-900" />
-              Revenue Forecast
+              Financial forecast
             </h1>
             <p className="text-sm text-surface-500 mt-0.5">
               Y1–Y3 projections for {totalMolecules} shortlisted molecule{totalMolecules !== 1 ? "s" : ""}

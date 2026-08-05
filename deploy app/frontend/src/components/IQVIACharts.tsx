@@ -51,18 +51,17 @@ export function ManufacturerPieChart({ molecule }: Props) {
             textposition: "inside",
             marker: {
               colors: [
-                "#14b890","#2dd4a8","#5eebc4","#0d9474","#0f7660",
-                "#3b82f6","#6366f1","#8b5cf6","#ec4899","#f97316",
+                "#0c5c4c", "#2f8f5b", "#1f6f6b", "#3f5c86", "#7a4f6d",
+                "#9c5638", "#7c6a35", "#5a655f", "#8ca79a", "#c2a25a",
               ],
-              line: { width: 1, color: "#18181b" },
+              line: { width: 2, color: "#fbfcfa" },
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any]}
           layout={{
             autosize: true, height: 300,
             margin: { t: 10, l: 10, r: 10, b: 10 },
             paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-            font: { family: "system-ui, sans-serif", color: "#a1a1aa", size: 11 },
+            font: { family: "IBM Plex Sans, system-ui, sans-serif", color: "#5a655f", size: 11 },
             showlegend: false,
           }}
           config={{ displayModeBar: false, responsive: true }}

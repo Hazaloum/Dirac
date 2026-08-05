@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 load_dotenv(override=True)
 
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="COMIX BD API", lifespan=lifespan)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
-origins = ["http://localhost:3000"]
+origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if FRONTEND_URL:
     origins.extend([u.strip() for u in FRONTEND_URL.split(",") if u.strip()])
 
@@ -419,6 +419,43 @@ def save_portfolio_report(body: SavePortfolioReportRequest):
 def clear_portfolio():
     from store import delete_my_portfolio
     delete_my_portfolio()
+    return {"ok": True}
+
+
+# ─── Evaluation pipeline ────────────────────────────────────────────────────
+
+class PipelineDecisionRequest(BaseModel):
+    molecule:    str
+    decision:    str
+    source_name: str = ""
+    snapshot:    dict = Field(default_factory=dict)
+
+
+@app.get("/api/pipeline")
+def get_pipeline():
+    from store import list_pipeline_decisions
+    return {"decisions": list_pipeline_decisions()}
+
+
+@app.put("/api/pipeline")
+def set_pipeline_decision(body: PipelineDecisionRequest):
+    if body.decision not in {"yes", "maybe", "no"}:
+        raise HTTPException(status_code=422, detail="Decision must be yes, maybe, or no")
+    if not body.molecule.strip():
+        raise HTTPException(status_code=422, detail="Molecule is required")
+    from store import save_pipeline_decision
+    return save_pipeline_decision(
+        molecule=body.molecule.strip(),
+        decision=body.decision,
+        source_name=body.source_name.strip(),
+        snapshot=body.snapshot,
+    )
+
+
+@app.delete("/api/pipeline/{molecule}")
+def remove_pipeline_decision(molecule: str):
+    from store import delete_pipeline_decision
+    delete_pipeline_decision(molecule)
     return {"ok": True}
 
 

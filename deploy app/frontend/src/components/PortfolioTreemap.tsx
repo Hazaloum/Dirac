@@ -18,21 +18,21 @@ const Plot = dynamic(() => import("react-plotly.js"), {
 });
 
 const ATC1_COLORS: Record<string, string> = {
-  "A ALIMENTARY TRACT AND METABOLISM":            "#22c55e",
-  "B BLOOD AND BLOOD FORMING ORGANS":             "#ef4444",
-  "C CARDIOVASCULAR SYSTEM":                      "#f97316",
-  "D DERMATOLOGICALS":                            "#eab308",
-  "G GENITO URINARY SYSTEM AND SEX HORMONES":    "#ec4899",
-  "H SYSTEMIC HORMONAL PREPARATIONS":             "#a855f7",
-  "J ANTIINFECTIVES FOR SYSTEMIC USE":            "#14b8a6",
-  "L ANTINEOPLASTIC AND IMMUNOMODULATING AGENTS": "#6366f1",
-  "M MUSCULO-SKELETAL SYSTEM":                    "#84cc16",
-  "N NERVOUS SYSTEM":                             "#3b82f6",
-  "P ANTIPARASITIC PRODUCTS":                     "#f472b6",
-  "R RESPIRATORY SYSTEM":                         "#06b6d4",
-  "S SENSORY ORGANS":                             "#8b5cf6",
-  "V VARIOUS":                                    "#64748b",
-  "Unknown":                                      "#71717a",
+  "A ALIMENTARY TRACT AND METABOLISM":            "#0c5c4c",
+  "B BLOOD AND BLOOD FORMING ORGANS":             "#9c5638",
+  "C CARDIOVASCULAR SYSTEM":                      "#1f6f6b",
+  "D DERMATOLOGICALS":                            "#a9824a",
+  "G GENITO URINARY SYSTEM AND SEX HORMONES":     "#7a4f6d",
+  "H SYSTEMIC HORMONAL PREPARATIONS":             "#68577f",
+  "J ANTIINFECTIVES FOR SYSTEMIC USE":            "#2f8065",
+  "L ANTINEOPLASTIC AND IMMUNOMODULATING AGENTS": "#66526e",
+  "M MUSCULO-SKELETAL SYSTEM":                    "#7c6a35",
+  "N NERVOUS SYSTEM":                             "#3f5c86",
+  "P ANTIPARASITIC PRODUCTS":                     "#8d6c58",
+  "R RESPIRATORY SYSTEM":                         "#4d7b78",
+  "S SENSORY ORGANS":                             "#706287",
+  "V VARIOUS":                                    "#66736d",
+  "Unknown":                                      "#8a938e",
 };
 
 function getAtc1Color(atc1: string): string {
@@ -68,7 +68,7 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
     const hoverText: string[] = [];
 
     ids.push("Portfolio"); labels.push("Portfolio"); parents.push(""); values.push(0);
-    colors.push("#18181b"); text.push("Portfolio"); hoverText.push("Portfolio");
+    colors.push("#16211d"); text.push("Portfolio"); hoverText.push("Portfolio");
 
     Object.entries(moleculesByAtc1).forEach(([atc1, mols]) => {
       const atc1Total = mols.reduce((s, m) => s + (moleculeMetrics[m]?.value || 0), 0);
@@ -102,7 +102,6 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
     [moleculeMetrics]
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleClick = (event: any) => {
     if (!event.points?.[0]) return;
     const { id, label } = event.points[0];
@@ -174,15 +173,14 @@ export function PortfolioTreemap({ moleculesByAtc1, moleculeMetrics, onMoleculeC
             branchvalues: "remainder",
             textinfo: "text",
             hoverinfo: "text",
-            marker: { colors: treemapData.colors, line: { width: 2, color: "#27272a" } },
-            textfont: { family: "system-ui, sans-serif", size: 11, color: "#ffffff" },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            marker: { colors: treemapData.colors, line: { width: 2, color: "#f4f5f3" } },
+            textfont: { family: "IBM Plex Sans, system-ui, sans-serif", size: 11, color: "#ffffff" },
           } as any]}
           layout={{
             autosize: true, height: 450,
             margin: { t: 20, l: 20, r: 20, b: 20 },
             paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-            font: { family: "system-ui, sans-serif", color: "#a1a1aa" },
+            font: { family: "IBM Plex Sans, system-ui, sans-serif", color: "#5a655f" },
             uirevision: "portfolio-treemap",
           }}
           config={{ displayModeBar: false, responsive: true, doubleClick: "reset" }}

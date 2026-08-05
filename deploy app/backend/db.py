@@ -73,6 +73,14 @@ def init_db() -> None:
                 report       TEXT DEFAULT '',
                 saved_at     TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS pipeline_decisions (
+                molecule    TEXT PRIMARY KEY,
+                decision    TEXT NOT NULL CHECK (decision IN ('yes', 'maybe', 'no')),
+                source_name TEXT DEFAULT '',
+                snapshot    TEXT DEFAULT '{}',
+                updated_at  TEXT NOT NULL
+            );
         """)
 
 

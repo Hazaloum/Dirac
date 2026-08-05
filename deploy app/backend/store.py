@@ -149,3 +149,60 @@ def delete_my_portfolio() -> bool:
     with _conn() as con:
         cur = con.execute("DELETE FROM my_portfolio WHERE id=1")
     return cur.rowcount > 0
+
+
+# ─── Evaluation pipeline ─────────────────────────────────────────────────────
+
+def list_pipeline_decisions() -> list[dict]:
+    """Return all cross-catalogue molecule decisions, most recently updated first."""
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT * FROM pipeline_decisions ORDER BY updated_at DESC, molecule"
+        ).fetchall()
+    return [
+        {
+            "molecule": r["molecule"],
+            "decision": r["decision"],
+            "source_name": r["source_name"] or "",
+            "snapshot": json.loads(r["snapshot"] or "{}"),
+            "updated_at": r["updated_at"],
+        }
+        for r in rows
+    ]
+
+
+def save_pipeline_decision(
+    molecule: str,
+    decision: str,
+    source_name: str,
+    snapshot: dict,
+) -> dict:
+    """Upsert a molecule's Yes/Maybe/No evaluation decision."""
+    updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    with _conn() as con:
+        con.execute(
+            """INSERT INTO pipeline_decisions
+               (molecule, decision, source_name, snapshot, updated_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(molecule) DO UPDATE SET
+                   decision    = excluded.decision,
+                   source_name = excluded.source_name,
+                   snapshot    = excluded.snapshot,
+                   updated_at  = excluded.updated_at""",
+            (molecule.upper(), decision, source_name, json.dumps(snapshot), updated_at),
+        )
+    return {
+        "molecule": molecule.upper(),
+        "decision": decision,
+        "source_name": source_name,
+        "snapshot": snapshot,
+        "updated_at": updated_at,
+    }
+
+
+def delete_pipeline_decision(molecule: str) -> bool:
+    with _conn() as con:
+        cur = con.execute(
+            "DELETE FROM pipeline_decisions WHERE molecule=?", (molecule.upper(),)
+        )
+    return cur.rowcount > 0

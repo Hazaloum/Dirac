@@ -131,6 +131,23 @@ export const api = {
     }),
 
   clearMyPortfolio: () => req("/api/portfolio", { method: "DELETE" }),
+
+  // Cross-catalogue evaluation pipeline
+  getPipeline: () => req<{ decisions: PipelineDecision[] }>("/api/pipeline"),
+
+  setPipelineDecision: (payload: {
+    molecule: string;
+    decision: PipelineDecisionValue;
+    source_name: string;
+    snapshot: MoleculeCard;
+  }) => req<PipelineDecision>("/api/pipeline", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }),
+
+  clearPipelineDecision: (molecule: string) =>
+    req(`/api/pipeline/${encodeURIComponent(molecule)}`, { method: "DELETE" }),
 };
 
 // ─── SSE helpers ─────────────────────────────────────────────────────────────
@@ -258,6 +275,16 @@ export interface MoleculeCard {
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
+}
+
+export type PipelineDecisionValue = "yes" | "maybe" | "no";
+
+export interface PipelineDecision {
+  molecule: string;
+  decision: PipelineDecisionValue;
+  source_name: string;
+  snapshot: MoleculeCard;
+  updated_at: string;
 }
 
 export interface MoleculeMetrics {

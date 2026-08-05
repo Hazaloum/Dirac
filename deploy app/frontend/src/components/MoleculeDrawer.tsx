@@ -128,8 +128,8 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 <FlaskConical className="w-4 h-4" />
               </div>
               {isTop5 && (
-                <div className="w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center ring-2 ring-zinc-900 shrink-0">
-                  <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
+                <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center ring-2 ring-surface-50 shrink-0">
+                  <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
                 </div>
               )}
               {!m.in_iqvia && (
