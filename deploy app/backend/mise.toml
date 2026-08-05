@@ -1,0 +1,4 @@
+[settings]
+# Python 3.11.9 predates GitHub artifact attestations in python-build-standalone.
+# Keep the runtime pinned while allowing Railway/Railpack to install that artifact.
+python.github_attestations = false
