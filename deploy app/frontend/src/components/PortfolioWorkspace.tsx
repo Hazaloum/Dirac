@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Grid2X2,
   LayoutDashboard,
@@ -141,6 +143,8 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
   const [sortKey, setSortKey] = useState<SortKey>("ai_score");
   const [sortDesc, setSortDesc] = useState(true);
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
+  const [hoveredArea, setHoveredArea] = useState<string | null>(null);
+  const areaStripRef = useRef<HTMLDivElement>(null);
 
   const matched = useMemo(() => props.molecules.filter((molecule) => molecule.in_iqvia), [props.molecules]);
   const totalValue = matched.reduce((sum, molecule) => sum + (molecule.market_value_aed ?? 0), 0);
@@ -207,6 +211,35 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
     }
   };
 
+  const scrollAreas = (direction: number) => {
+    areaStripRef.current?.scrollBy({ left: direction * 420, behavior: "smooth" });
+  };
+
+  const revealArea = (areaName: string, element: HTMLElement | null) => {
+    setHoveredArea(areaName);
+    if (!element) return;
+    window.setTimeout(() => {
+      const strip = areaStripRef.current;
+      const activeButton = element.querySelector("button");
+      const stillActive = element.matches(":hover") || document.activeElement === activeButton;
+      if (!strip || !stillActive) return;
+      const stripRect = strip.getBoundingClientRect();
+      const cardRect = element.getBoundingClientRect();
+      const edgePadding = 12;
+      let nextLeft = strip.scrollLeft;
+      if (cardRect.right > stripRect.right - edgePadding) {
+        nextLeft += cardRect.right - (stripRect.right - edgePadding);
+      } else if (cardRect.left < stripRect.left + edgePadding) {
+        nextLeft -= (stripRect.left + edgePadding) - cardRect.left;
+      }
+      const maxLeft = Math.max(0, strip.scrollWidth - strip.clientWidth);
+      const clampedLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+      if (Math.abs(clampedLeft - strip.scrollLeft) > 1) {
+        strip.scrollTo({ left: clampedLeft, behavior: "smooth" });
+      }
+    }, 320);
+  };
+
   const tabs: { id: WorkspaceTab; label: string; Icon: typeof LayoutDashboard }[] = [
     { id: "overview", label: "Overview", Icon: LayoutDashboard },
     { id: "scorecards", label: "Scorecards", Icon: Grid2X2 },
@@ -263,24 +296,53 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
               <div className="portfolio-total-value"><span>Total UAE market value</span><strong>{fmtMarketValue(totalValue)}</strong></div>
             </div>
             <p className="portfolio-value-lede">{valueLead}</p>
-            <div className="portfolio-area-strip">
-              {areas.map((area) => (
-                <button
-                  key={area.name}
-                  type="button"
-                  className={`portfolio-area-tile${selectedArea === area.name ? " is-selected" : ""}`}
-                  onClick={() => setSelectedArea((current) => current === area.name ? null : area.name)}
-                  style={{ flex: `${Math.max(area.value, 1)} 1 0`, backgroundColor: area.color }}
-                  aria-label={`Open ${area.name} area`}
-                >
-                  <strong className="portfolio-area-name">{area.name}</strong>
-                  <strong className="portfolio-area-value">{fmtMarketValue(area.value)}</strong>
-                  <span>{area.molecules.length} molecules · {area.molecules.filter((molecule) => (molecule.ai_score ?? 0) >= 8).length} pursue</span>
-                  <em>Largest: {area.molecules[0]?.molecule || "—"}</em>
-                </button>
-              ))}
+            <div className="portfolio-area-carousel">
+              <button type="button" className="portfolio-area-nav is-left" onClick={() => scrollAreas(-1)} aria-label="Show previous therapeutic areas"><ChevronLeft /></button>
+              <div
+                ref={areaStripRef}
+                className="portfolio-area-strip"
+                onWheel={(event) => {
+                  if (Math.abs(event.deltaY) >= Math.abs(event.deltaX) && event.currentTarget.scrollWidth > event.currentTarget.clientWidth) {
+                    event.currentTarget.scrollLeft += event.deltaY;
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {areas.map((area) => {
+                  const baseWidth = Math.max(180, Math.min(560, 110 + ((area.value / Math.max(totalValue, 1)) * 900)));
+                  const isHovered = hoveredArea === area.name;
+                  return (
+                    <div
+                      key={area.name}
+                      className={`portfolio-area-tile-wrap${isHovered ? " is-hovered" : ""}`}
+                      style={{ flexBasis: `${baseWidth + (isHovered ? 160 : 0)}px` }}
+                      onMouseEnter={(event) => revealArea(area.name, event.currentTarget)}
+                      onMouseLeave={() => setHoveredArea(null)}
+                    >
+                      <button
+                        type="button"
+                        className={`portfolio-area-tile${selectedArea === area.name ? " is-selected" : ""}${isHovered ? " is-hovered" : ""}`}
+                        onClick={() => setSelectedArea((current) => current === area.name ? null : area.name)}
+                        onFocus={(event) => revealArea(area.name, event.currentTarget.parentElement)}
+                        onBlur={(event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHoveredArea(null);
+                        }}
+                        style={{ backgroundColor: area.color }}
+                        aria-label={`Open ${area.name} area`}
+                      >
+                        <strong className="portfolio-area-name">{area.name}</strong>
+                        <strong className="portfolio-area-value">{fmtMarketValue(area.value)}</strong>
+                        <span>{area.molecules.length} molecules · {area.molecules.filter((molecule) => (molecule.ai_score ?? 0) >= 8).length} pursue</span>
+                        <em>Largest: {area.molecules[0]?.molecule || "—"}</em>
+                        {isHovered && <small className="portfolio-area-hover-hint">Click to view molecules</small>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button type="button" className="portfolio-area-nav is-right" onClick={() => scrollAreas(1)} aria-label="Show next therapeutic areas"><ChevronRight /></button>
             </div>
-            <div className="portfolio-mosaic-caption">Blocks sized by UAE market value · click an area to expand its molecules below</div>
+            <div className="portfolio-mosaic-caption">Hover to expand · use the arrows or scroll horizontally · click an area to expand its molecules below</div>
             {selectedArea && (() => {
               const area = areas.find((candidate) => candidate.name === selectedArea);
               if (!area) return null;
