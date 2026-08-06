@@ -4,10 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   BookOpenText,
   BriefcaseBusiness,
-  Building2,
   ChartNoAxesCombined,
   ChevronDown,
   FlaskConical,
@@ -18,6 +16,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { api, type MoleculeCard } from "@/lib/api";
 
@@ -28,57 +27,6 @@ const shortcuts = [
   { href: "/portfolio", icon: BriefcaseBusiness, title: "Evaluate a Portfolio", blurb: "Open and manage your saved portfolio" },
   { href: "/outreach", icon: Radar, title: "Find Manufacturers", blurb: "Source partners and BD contacts by country" },
 ];
-
-function formatAed(value?: number | null) {
-  if (value == null) return "N/A";
-  if (value >= 1_000_000_000) return `AED ${(value / 1_000_000_000).toFixed(2)}B`;
-  if (value >= 1_000_000) return `AED ${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `AED ${(value / 1_000).toFixed(0)}K`;
-  return `AED ${value.toFixed(0)}`;
-}
-
-function formatPercent(value?: number | null, signed = false) {
-  if (value == null) return "N/A";
-  return `${signed && value > 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function Metric({ label, value, detail, tone = "default" }: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: "default" | "good" | "watch" | "bad";
-}) {
-  const toneClass = {
-    default: "text-surface-900",
-    good: "text-emerald-700",
-    watch: "text-amber-700",
-    bad: "text-rose-700",
-  }[tone];
-
-  return (
-    <div className="rounded-xl border border-surface-200 bg-white px-4 py-4">
-      <p className="matthew-eyebrow">{label}</p>
-      <p className={`mt-3 font-serif text-2xl font-medium tracking-tight ${toneClass}`}>{value}</p>
-      {detail && <p className="mt-1 text-[11px] leading-relaxed text-surface-500">{detail}</p>}
-    </div>
-  );
-}
-
-function SectionHeading({ icon, eyebrow, title }: {
-  icon: React.ReactNode;
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <div className="mb-5 flex items-center gap-3">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-pharma-50 text-pharma-900">{icon}</span>
-      <div>
-        <p className="matthew-eyebrow">{eyebrow}</p>
-        <h2 className="mt-1 font-serif text-xl font-medium tracking-tight text-surface-900">{title}</h2>
-      </div>
-    </div>
-  );
-}
 
 export default function SearchPage() {
   const [allMolecules, setAllMolecules] = useState<string[]>([]);
@@ -146,12 +94,6 @@ export default function SearchPage() {
     setShowSuggestions(false);
   };
 
-  const cagrTone = result?.value_cagr_pct == null
-    ? "default"
-    : result.value_cagr_pct >= 0 ? "good" : "bad";
-  const competitionTone = result?.num_competitors == null
-    ? "default"
-    : result.num_competitors <= 3 ? "good" : result.num_competitors <= 6 ? "watch" : "bad";
 
   return (
     <div className={`min-h-[calc(100vh-86px)] px-5 py-8 sm:px-8 lg:px-12 ${result ? "pb-16" : "flex items-center"}`}>
@@ -243,67 +185,26 @@ export default function SearchPage() {
         {result && (
           <section className="animate-slide-up space-y-5">
             <div className="flex flex-col justify-between gap-4 rounded-2xl border border-surface-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:p-8">
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="matthew-eyebrow text-pharma-900">Molecule brief</span>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-emerald-700">IQVIA matched</span>
                 </div>
                 <h2 className="mt-3 font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl">{result.molecule}</h2>
-                <p className="mt-2 text-sm text-surface-500">{result.atc4_class || result.atc3_class || "UAE pharmaceutical market"}</p>
+                <p className="mt-2 text-sm text-surface-500">
+                  {result.atc4_class || result.atc3_class || "UAE pharmaceutical market"}
+                  {result.launch_year ? ` · launched ${result.launch_year}` : ""}
+                </p>
+                <div className="mt-4">
+                  <VerdictStrip molecule={result} />
+                </div>
               </div>
-              <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
+              <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
                 <FlaskConical className="h-4 w-4" /> Open full molecule view
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Metric label="UAE market value" value={formatAed(result.market_value_aed)} detail={result.launch_year ? `Launch year ${result.launch_year}` : undefined} />
-              <Metric label="Value CAGR" value={formatPercent(result.value_cagr_pct, true)} detail={`Units CAGR ${formatPercent(result.unit_cagr_pct, true)}`} tone={cagrTone} />
-              <Metric label="IQVIA competitors" value={result.num_competitors == null ? "N/A" : String(result.num_competitors)} detail={result.num_competitors != null && result.num_competitors <= 3 ? "Low competition — entry viable" : undefined} tone={competitionTone} />
-              <Metric label="Launch year" value={result.launch_year == null ? "N/A" : String(result.launch_year)} detail={result.atc1_class || "Therapeutic area not available"} />
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-              <section className="rounded-2xl border border-surface-200 bg-white p-6 sm:p-7">
-                <SectionHeading icon={<BarChart3 className="h-4 w-4" />} eyebrow="Market structure" title="Who owns the market" />
-                <div className="divide-y divide-surface-100">
-                  <div className="flex items-center justify-between gap-5 py-3 first:pt-0">
-                    <span className="text-sm text-surface-500">Market leader</span>
-                    <span className="text-right text-sm font-semibold text-surface-900">{result.market_leader || "N/A"}<small className="ml-2 font-mono text-[10px] font-normal text-surface-400">{formatPercent(result.leader_share_pct)}</small></span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 py-3">
-                    <span className="text-sm text-surface-500">Second player</span>
-                    <span className="text-right text-sm font-semibold text-surface-900">{result.second_player || "N/A"}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 py-3">
-                    <span className="text-sm text-surface-500">Top 3 company share</span>
-                    <span className="text-sm font-semibold text-surface-900">{formatPercent(result.top3_company_share)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-5 py-3 last:pb-0">
-                    <span className="text-sm text-surface-500">Price signal (δCAGR)</span>
-                    <span className={`text-sm font-semibold ${result.cagr_delta != null && result.cagr_delta > 0 ? "text-emerald-700" : result.cagr_delta != null && result.cagr_delta < 0 ? "text-rose-700" : "text-surface-900"}`}>{formatPercent(result.cagr_delta, true)}</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-surface-200 bg-white p-6 sm:p-7">
-                <SectionHeading icon={<Building2 className="h-4 w-4" />} eyebrow="UAE access" title="Routes to market" />
-                <div className="space-y-5">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm"><span className="text-surface-500">Private channel</span><strong className="text-surface-900">{formatPercent(result.private_pct)}</strong></div>
-                    <div className="h-2 overflow-hidden rounded-full bg-surface-100"><div className="h-full rounded-full bg-pharma-900" style={{ width: `${Math.max(0, Math.min(100, result.private_pct ?? 0))}%` }} /></div>
-                  </div>
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm"><span className="text-surface-500">LPO / government</span><strong className="text-surface-900">{formatPercent(result.lpo_pct)}</strong></div>
-                    <div className="h-2 overflow-hidden rounded-full bg-surface-100"><div className="h-full rounded-full bg-surface-500" style={{ width: `${Math.max(0, Math.min(100, result.lpo_pct ?? 0))}%` }} /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 border-t border-surface-100 pt-4">
-                    <div><p className="matthew-eyebrow">UPP manufacturers</p><p className="mt-2 font-serif text-2xl text-surface-900">{result.upp_manufacturers ?? "N/A"}</p></div>
-                    <div><p className="matthew-eyebrow">MOHAP holders</p><p className="mt-2 font-serif text-2xl text-surface-900">{result.mohap_manufacturers ?? "N/A"}</p></div>
-                  </div>
-                </div>
-              </section>
-            </div>
+            <MoleculeDashboard molecule={result} />
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pharma-200 bg-pharma-50/70 px-5 py-4 text-sm text-pharma-950">
               <span>One-time lookup complete. No portfolio or scoring workflow was started.</span>
