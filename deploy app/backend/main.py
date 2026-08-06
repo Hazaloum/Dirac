@@ -234,6 +234,16 @@ def get_trend(molecule: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ─── ATC lineage (class-position cascade) ─────────────────────────────────────
+@app.get("/api/analysis/lineage/{molecule}")
+def get_lineage(molecule: str):
+    from agent_runner import get_molecule_lineage
+    try:
+        return get_molecule_lineage(molecule.upper(), _state["dfs"]["iqvia"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ─── Manufacturer breakdown (pie chart data) ──────────────────────────────────
 @app.get("/api/analysis/manufacturers/{molecule}")
 def get_manufacturers(molecule: str):

@@ -508,6 +508,78 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
     }
 
 
+def get_molecule_lineage(molecule: str, df_iqvia) -> dict:
+    """
+    ATC1→ATC4 drill-down for the class-position cascade: per level, the class
+    value, CAGR, molecule count, this molecule's rank and share, and how much
+    of the level the next level represents (child_share_pct).
+
+    Class sums are raw (no combination divisor) so rank/share compare like
+    with like; the molecule's own headline value elsewhere uses the divisor.
+    """
+    mol_upper = molecule.upper()
+    mol_df = df_iqvia[df_iqvia["Molecule Combination"].str.upper() == mol_upper]
+    if mol_df.empty:
+        return {"found": False}
+
+    all_years = sorted(int(c.split()[0]) for c in df_iqvia.columns if c.endswith("LC Value"))
+    years = all_years[:-1]
+    end_year = years[-1]
+    end_col = f"{end_year} LC Value"
+
+    def class_cagr(frame) -> float | None:
+        end_val = float(frame[end_col].sum())
+        if end_val <= 0:
+            return None
+        for year in years[:-1]:
+            start = float(frame[f"{year} LC Value"].sum())
+            if start > 0:
+                return round(((end_val / start) ** (1 / (end_year - year)) - 1) * 100, 1)
+        return None
+
+    levels = []
+    for level in ["ATC1", "ATC2", "ATC3", "ATC4"]:
+        if level not in mol_df.columns:
+            continue
+        cls = mol_df[level].mode()
+        if cls.empty:
+            continue
+        cls = str(cls.iloc[0])
+        class_df = df_iqvia[df_iqvia[level] == cls]
+        by_mol = class_df.groupby("Molecule Combination")[end_col].sum().sort_values(ascending=False)
+        class_value = float(by_mol.sum())
+        mol_value = float(by_mol.get(mol_upper, 0.0))
+        parts = cls.split(" ", 1)
+        levels.append({
+            "level": level,
+            "code": parts[0],
+            "name": parts[1] if len(parts) == 2 else cls,
+            "value": round(class_value, 0),
+            "cagr_pct": class_cagr(class_df),
+            "molecule_count": int(class_df["Molecule Combination"].nunique()),
+            "rank": int(list(by_mol.index).index(mol_upper) + 1) if mol_upper in by_mol.index else None,
+            "share_pct": round(mol_value / class_value * 100, 1) if class_value else None,
+        })
+
+    # How much of each level the next level keeps (last level's child is the molecule).
+    for i, lv in enumerate(levels):
+        child_value = levels[i + 1]["value"] if i + 1 < len(levels) else float(mol_df[end_col].sum())
+        lv["child_share_pct"] = round(child_value / lv["value"] * 100, 1) if lv["value"] else None
+
+    num_molecules = len(mol_upper.split(" + ")) if " + " in mol_upper else 1
+    mol_series = {y: float(mol_df[f"{y} LC Value"].sum()) / num_molecules for y in years}
+    mol_cagr, _ = _series_cagr(mol_series)
+
+    return {
+        "found": True,
+        "molecule": mol_upper,
+        "year": end_year,
+        "levels": levels,
+        "molecule_value": round(mol_series[end_year], 0),
+        "molecule_cagr_pct": mol_cagr,
+    }
+
+
 # ─── Manufacturer breakdown for pie chart ────────────────────────────────────
 
 def get_manufacturer_breakdown(molecule: str, df_iqvia) -> dict:

@@ -16,6 +16,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { AtcCascade } from "@/components/AtcCascade";
 import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { api, type MoleculeCard } from "@/lib/api";
@@ -184,8 +185,8 @@ export default function SearchPage() {
 
         {result && (
           <section className="animate-slide-up space-y-5">
-            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-surface-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:p-8">
-              <div className="min-w-0">
+            <div className="grid gap-8 rounded-2xl border border-surface-200 bg-white p-6 shadow-sm sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+              <div className="flex min-w-0 flex-col">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="matthew-eyebrow text-pharma-900">Molecule brief</span>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-emerald-700">IQVIA matched</span>
@@ -198,10 +199,13 @@ export default function SearchPage() {
                 <div className="mt-4">
                   <VerdictStrip molecule={result} />
                 </div>
+                <div className="mt-auto pt-5">
+                  <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
+                    <FlaskConical className="h-4 w-4" /> Open full molecule view
+                  </button>
+                </div>
               </div>
-              <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
-                <FlaskConical className="h-4 w-4" /> Open full molecule view
-              </button>
+              {result.in_iqvia && <AtcCascade molecule={result.molecule} />}
             </div>
 
             <MoleculeDashboard molecule={result} />

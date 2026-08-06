@@ -53,6 +53,9 @@ export const api = {
   getMoleculeTrend: (molecule: string) =>
     req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
 
+  getMoleculeLineage: (molecule: string) =>
+    req<MoleculeLineage>(`/api/analysis/lineage/${encodeURIComponent(molecule)}`),
+
   getCompanyProducts: (mohapName: string) =>
     req<{ molecules: MoleculeCard[]; total: number }>(
       `/api/outreach/company-products?mohap_name=${encodeURIComponent(mohapName)}`
@@ -341,6 +344,27 @@ export interface MoleculeSlices {
   partial_year: number;
   competitor: Record<"total" | "private" | "lpo", SliceMetrics>;
   dims: Partial<Record<"channel" | "product" | "strength" | "nfc3", SliceMetrics>>;
+}
+
+export interface LineageLevel {
+  level: string;             // "ATC1" … "ATC4"
+  code: string;              // e.g. "N06A4"
+  name: string;              // e.g. "SSRI ANTIDEPRESSANTS"
+  value: number;
+  cagr_pct: number | null;
+  molecule_count: number;
+  rank: number | null;
+  share_pct: number | null;        // this molecule's share of the level
+  child_share_pct: number | null;  // next level's share of this level
+}
+
+export interface MoleculeLineage {
+  found: boolean;
+  molecule: string;
+  year: number;
+  levels: LineageLevel[];
+  molecule_value: number;
+  molecule_cagr_pct: number | null;
 }
 
 export interface ScorePayload {

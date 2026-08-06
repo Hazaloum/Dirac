@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  AlertTriangle, BarChart2, Building2, Check, Layers,
+  AlertTriangle, BarChart2, Building2, Check,
 } from "lucide-react";
 import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
 import type { MoleculeCard } from "@/lib/api";
@@ -102,26 +102,6 @@ function Panel({ title, icon, children }: {
   );
 }
 
-function ClassRow({ name, valueAed, cagr, rank, pct }: {
-  name: string;
-  valueAed?: number;
-  cagr?: number;
-  rank?: string;
-  pct?: number;
-}) {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-surface-100 py-2.5 last:border-0">
-      <span className="min-w-0 flex-1 truncate text-sm text-surface-600">{name}</span>
-      <span className="flex items-baseline gap-3 font-mono text-[11px] text-surface-500">
-        <span>{fmtAed(valueAed)}</span>
-        <span className={cagr != null && cagr < 0 ? "text-rose-700" : "text-emerald-700"}>{fmtPct(cagr, true)}</span>
-        {rank && <span className="font-sans text-xs font-semibold text-surface-800">rank {rank}</span>}
-        {pct != null && <span>{pct.toFixed(0)}% of class</span>}
-      </span>
-    </div>
-  );
-}
-
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 // The molecule's front page: trajectory → competitors → channel → context.
 
@@ -152,32 +132,6 @@ export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {m.in_iqvia && (m.atc4_class || m.atc3_class) && (
-          <Panel title="Class context" icon={<Layers className="h-4 w-4" />}>
-            {m.atc4_class && (
-              <ClassRow
-                name={m.atc4_class}
-                valueAed={m.atc4_class_value_aed}
-                cagr={m.atc4_class_cagr}
-                rank={m.atc4_value_rank}
-                pct={m.atc4_value_pct}
-              />
-            )}
-            {m.atc3_class && (
-              <ClassRow
-                name={m.atc3_class}
-                valueAed={m.atc3_class_value_aed}
-                cagr={m.atc3_class_cagr}
-                rank={m.atc3_value_rank}
-                pct={m.atc3_value_pct}
-              />
-            )}
-            {m.atc1_class && (
-              <p className="mt-2 text-[11px] text-surface-400">{m.atc1_class}</p>
-            )}
-          </Panel>
-        )}
-
         <Panel title="Registration pressure" icon={<Building2 className="h-4 w-4" />}>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-surface-50 p-3.5 text-center">
