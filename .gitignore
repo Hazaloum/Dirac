@@ -24,3 +24,4 @@ deploy app/frontend/node_modules/
 
 # Logs
 *.log
+deploy app/frontend/tsconfig.tsbuildinfo

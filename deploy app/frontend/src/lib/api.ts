@@ -50,6 +50,9 @@ export const api = {
   getManufacturers: (molecule: string) =>
     req<ManufacturerBreakdown>(`/api/analysis/manufacturers/${encodeURIComponent(molecule)}`),
 
+  getMoleculeTrend: (molecule: string) =>
+    req<MoleculeTrend>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
+
   getCompanyProducts: (mohapName: string) =>
     req<{ molecules: MoleculeCard[]; total: number }>(
       `/api/outreach/company-products?mohap_name=${encodeURIComponent(mohapName)}`
@@ -272,6 +275,16 @@ export interface MoleculeCard {
   top3_company_share?: number;
   upp_manufacturers?: number;
   mohap_manufacturers?: number;
+  atc4_class_value_aed?: number;
+  atc4_class_cagr?: number;
+  atc4_molecule_count?: number;
+  atc4_value_rank?: string;
+  atc4_value_pct?: number;
+  atc3_class_value_aed?: number;
+  atc3_class_cagr?: number;
+  atc3_molecule_count?: number;
+  atc3_value_rank?: string;
+  atc3_value_pct?: number;
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
@@ -311,6 +324,35 @@ export interface ManufacturerBreakdown {
   manufacturers: { name: string; value: number; share_pct: number }[];
   total: number;
   year: string;
+}
+
+export interface TrendManufacturer {
+  name: string;
+  values: number[];
+  share_pct: number;
+  cagr_pct: number | null;
+  anchor_year: number | null;
+  entered: boolean;
+}
+
+export interface MoleculeTrend {
+  found: boolean;
+  molecule: string;
+  years: number[];
+  total_value: number[];
+  total_units: number[];
+  value_cagr_pct: number | null;
+  unit_cagr_pct: number | null;
+  cagr_delta: number | null;
+  partial: { year: number; value: number; units: number };
+  manufacturers: TrendManufacturer[];
+  channel: {
+    private: number[];
+    lpo: number[];
+    private_share_pct: (number | null)[];
+    private_cagr_pct: number | null;
+    lpo_cagr_pct: number | null;
+  };
 }
 
 export interface ScorePayload {

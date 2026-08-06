@@ -224,6 +224,16 @@ def forecast_molecules(body: ForecastRequest):
     return {"forecasts": results, "errors": errors, "growth_rate": body.growth_rate}
 
 
+# ─── Yearly trend (molecule dashboard) ────────────────────────────────────────
+@app.get("/api/analysis/trend/{molecule}")
+def get_trend(molecule: str):
+    from agent_runner import get_molecule_trend
+    try:
+        return get_molecule_trend(molecule.upper(), _state["dfs"]["iqvia"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ─── Manufacturer breakdown (pie chart data) ──────────────────────────────────
 @app.get("/api/analysis/manufacturers/{molecule}")
 def get_manufacturers(molecule: str):

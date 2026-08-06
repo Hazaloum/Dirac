@@ -218,6 +218,16 @@ def _build_response(companies, lookups, enriched_data, atc4_context, contexts) -
                 "top3_company_share": d.get("top3_company_share"),
                 "upp_manufacturers":  d.get("upp_manufacturers", 0),
                 "mohap_manufacturers":d.get("mohap_manufacturers", 0),
+                "atc4_class_value_aed": d.get("atc4_class_value_aed"),
+                "atc4_class_cagr":      d.get("atc4_class_cagr"),
+                "atc4_molecule_count":  d.get("atc4_molecule_count"),
+                "atc4_value_rank":      d.get("atc4_value_rank"),
+                "atc4_value_pct":       d.get("atc4_value_pct"),
+                "atc3_class_value_aed": d.get("atc3_class_value_aed"),
+                "atc3_class_cagr":      d.get("atc3_class_cagr"),
+                "atc3_molecule_count":  d.get("atc3_molecule_count"),
+                "atc3_value_rank":      d.get("atc3_value_rank"),
+                "atc3_value_pct":       d.get("atc3_value_pct"),
             })
             atc1 = d.get("atc1_class") or "Unknown"
             molecules_by_atc1.setdefault(atc1, []).append(mol_name)
@@ -379,6 +389,120 @@ def score_stream(
         for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+
+
+# ─── Yearly trend for molecule dashboard ─────────────────────────────────────
+
+def _series_cagr(values: dict) -> tuple:
+    """CAGR anchored at the first non-zero year. Returns (cagr_pct, anchor_year)."""
+    years = sorted(values)
+    end_year = years[-1]
+    end_val = values[end_year]
+    if end_val <= 0:
+        return None, None
+    for year in years[:-1]:
+        if values[year] > 0:
+            n = end_year - year
+            return round(((end_val / values[year]) ** (1 / n) - 1) * 100, 1), year
+    return None, None
+
+
+def get_molecule_trend(molecule: str, df_iqvia) -> dict:
+    """
+    Yearly value/units series for the molecule dashboard:
+    totals, per-manufacturer stack (top 4 + Other), and private/LPO channel split.
+    All aggregations divided by num_molecules (combination double-counting).
+    Full years only, except the trailing partial year which is reported separately.
+    """
+    df = df_iqvia[df_iqvia["Molecule Combination"].str.upper() == molecule.upper()].copy()
+    if df.empty:
+        return {"found": False}
+
+    num_molecules = len(molecule.split(" + ")) if " + " in molecule else 1
+
+    all_years = sorted(int(c.split()[0]) for c in df.columns if c.endswith("LC Value"))
+    years = all_years[:-1]          # complete years — years[-2] rule
+    partial_year = all_years[-1]
+
+    def year_sum(frame, year: int, suffix: str) -> float:
+        col = f"{year} {suffix}"
+        if col not in frame.columns:
+            return 0.0
+        return float(frame[col].sum()) / num_molecules
+
+    total_value = {y: year_sum(df, y, "LC Value") for y in years}
+    total_units = {y: year_sum(df, y, "Units") for y in years}
+    value_cagr, _ = _series_cagr(total_value)
+    unit_cagr, _ = _series_cagr(total_units)
+
+    # ── Manufacturer stack: top 4 by end-year value + Other ──
+    end_year = years[-1]
+    by_mfr = df.groupby("Manufacturer")[f"{end_year} LC Value"].sum().sort_values(ascending=False)
+    top_names = [str(n) for n in by_mfr.head(4).index]
+    end_total = total_value[end_year]
+
+    manufacturers = []
+    for name in top_names:
+        sub = df[df["Manufacturer"] == name]
+        values = {y: year_sum(sub, y, "LC Value") for y in years}
+        cagr, anchor = _series_cagr(values)
+        manufacturers.append({
+            "name": name,
+            "values": [round(values[y], 0) for y in years],
+            "share_pct": round(values[end_year] / end_total * 100, 1) if end_total else 0,
+            "cagr_pct": cagr,
+            "anchor_year": anchor,
+            "entered": anchor is not None and anchor > years[0],
+        })
+    other = df[~df["Manufacturer"].isin(top_names)]
+    if len(other) > 0:
+        values = {y: year_sum(other, y, "LC Value") for y in years}
+        if any(v > 0 for v in values.values()):
+            cagr, anchor = _series_cagr(values)
+            manufacturers.append({
+                "name": "Other",
+                "values": [round(values[y], 0) for y in years],
+                "share_pct": round(values[end_year] / end_total * 100, 1) if end_total else 0,
+                "cagr_pct": cagr,
+                "anchor_year": anchor,
+                "entered": False,
+            })
+
+    # ── Channel split (value-based, so chart and CAGR always agree) ──
+    private_df = df[df["Market"].str.contains("PRIVATE", na=False)]
+    lpo_df = df[df["Market"].str.contains("LPO", na=False)]
+    private = {y: year_sum(private_df, y, "LC Value") for y in years}
+    lpo = {y: year_sum(lpo_df, y, "LC Value") for y in years}
+    private_cagr, _ = _series_cagr(private)
+    lpo_cagr, _ = _series_cagr(lpo)
+    private_share = [
+        round(private[y] / (private[y] + lpo[y]) * 100, 1) if (private[y] + lpo[y]) > 0 else None
+        for y in years
+    ]
+
+    return {
+        "found": True,
+        "molecule": molecule.upper(),
+        "years": years,
+        "total_value": [round(total_value[y], 0) for y in years],
+        "total_units": [round(total_units[y], 0) for y in years],
+        "value_cagr_pct": value_cagr,
+        "unit_cagr_pct": unit_cagr,
+        "cagr_delta": round(value_cagr - unit_cagr, 2) if value_cagr is not None and unit_cagr is not None else None,
+        "partial": {
+            "year": partial_year,
+            "value": round(year_sum(df, partial_year, "LC Value"), 0),
+            "units": round(year_sum(df, partial_year, "Units"), 0),
+        },
+        "manufacturers": manufacturers,
+        "channel": {
+            "private": [round(private[y], 0) for y in years],
+            "lpo": [round(lpo[y], 0) for y in years],
+            "private_share_pct": private_share,
+            "private_cagr_pct": private_cagr,
+            "lpo_cagr_pct": lpo_cagr,
+        },
+    }
 
 
 # ─── Manufacturer breakdown for pie chart ────────────────────────────────────
