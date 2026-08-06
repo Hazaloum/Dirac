@@ -252,7 +252,7 @@ Database: `backend/data/contacts.db` — mounted as a persistent volume on Railw
 
 2. **`load_all()` called once at startup** — DataFrames live in `_state`. Never re-read CSVs per request.
 
-3. **IQVIA end_year = `years[-2]`** — most recent year is partial data. Do not change to `years[-1]`.
+3. **IQVIA end_year = `years[-2]`** — most recent year is partial data. Do not change to `years[-1]`. The converter deliberately keeps one trailing partial year so this convention holds.
 
 4. **Combination molecule division** — all value/unit aggregations divided by `num_molecules` to correct IQVIA double-counting. Never remove.
 
@@ -263,6 +263,28 @@ Database: `backend/data/contacts.db` — mounted as a persistent volume on Railw
 7. **SQLite over JSON files** — Railway containers wipe the filesystem on restart. The `data/` directory is a persistent volume. Do not write ephemeral state to JSON files.
 
 8. **Forecast formula** — `Y2 = Y1 × (1 + growth_rate)`, `Y3 = Y2 × (1 + growth_rate)`. Growth rate is user-chosen (default 15%). No hidden ramp multipliers.
+
+---
+
+## Updating the IQVIA dataset
+
+IQVIA is **never uploaded through the app** and never enters SQLite — it is a flat CSV read once at startup. To refresh it:
+
+```bash
+python scripts/convert_iqvia_export.py "~/Downloads/UAE_LPO_COM_MOL_<date>.xlsx"
+```
+
+Then restart the backend. `Molecule Combination` and the `num_molecules` divisor rebuild from scratch on every boot.
+
+The raw IQVIA export is **quarterly** and needs three transformations, all handled by the converter:
+
+1. **Coalesce the `Year to Date` dimension.** IQVIA splits each product's series across sibling rows: `NOT APPLICABLE` holds Q2–Q4 of every year, and each `YTD Mar YYYY` row holds *only* Q1 of that year. The partition is disjoint, so grouping on the dimension columns and summing reunites the series. **Filtering to `NOT APPLICABLE` would silently drop Q1 from every year** (~25% of each annual total). The converter asserts disjointness and aborts if any quarter is populated in two sibling rows.
+2. **Roll quarters into calendar years.** Incomplete years are dropped, except the most recent, kept as the sacrificial `years[-2]` column.
+3. **Normalise headers** to `Molecule`, `2025 LC Value`, `2025 Units`, …
+
+Requirements for the export: both **LC Value and Units** per quarter (units drive the forecast, unit CAGR, and the private/LPO split — a value-only export makes those go dark), plus `Molecule`, `Product`, `Manufacturer`, `Market`, `ATC1`–`ATC4`, `Launch Year`, `Retail Price`, `Pack`.
+
+**Changing the year window shifts every CAGR.** `_flexible_cagr` anchors on the first non-zero year, so a shorter or later-starting window rebases growth. The Jul-2026 export (2022 base) roughly halved market-wide CAGRs versus the previous file (2020 base, COVID-depressed) — which moved more molecules across the `value_cagr < 10%` hard disqualifier. Expect scores to shift after a refresh; old saved runs in `analysis_runs` were scored on the old basis and are not comparable.
 
 ---
 
