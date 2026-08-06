@@ -8,9 +8,11 @@ import {
   ChartNoAxesCombined,
   GitCompareArrows,
   Radar,
+  Search,
 } from "lucide-react";
 
 const navigation = [
+  { name: "Just Search", href: "/search", icon: Search },
   { name: "Catalogues", href: "/analysis", icon: BookOpenText },
   { name: "Pipeline", href: "/pipeline", icon: GitCompareArrows },
   { name: "Forecast", href: "/forecast", icon: ChartNoAxesCombined },
@@ -24,7 +26,7 @@ export function Sidebar() {
   return (
     <header className="matthew-header">
       <div className="matthew-header__inner">
-        <Link href="/analysis" className="matthew-brand" aria-label="Dirac home">
+        <Link href="/search" className="matthew-brand" aria-label="Dirac home">
           <span className="matthew-mark" aria-hidden="true">
             <span />
           </span>
