@@ -214,9 +214,15 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
           </p>
         </div>
         {privateShare != null && privateSeries && lpoSeries && (
-          <p className="text-xs text-surface-500">
-            private {privateShare.toFixed(0)}% of {endYear} {metric} · LPO {fmtCagr(cagr(lpoSeries.values))}/yr vs private {fmtCagr(cagr(privateSeries.values))}/yr
-          </p>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-surface-400">Private / LPO {endYear}</p>
+            <p className="mt-0.5 text-lg font-semibold text-surface-900">
+              {privateShare.toFixed(0)}<span className="text-surface-400"> / </span>{(100 - privateShare).toFixed(0)}
+            </p>
+            <p className="text-[10px] text-surface-400">
+              private {fmtCagr(cagr(privateSeries.values))}/yr · LPO {fmtCagr(cagr(lpoSeries.values))}/yr
+            </p>
+          </div>
         )}
       </div>
 
