@@ -248,7 +248,23 @@ def _build_response(companies, lookups, enriched_data, atc4_context, contexts) -
 
 
 def _extract_text(content: bytes, filename: str) -> str:
+    """Extract searchable document text with AnyDoc as the primary parser.
+
+    AnyDoc gives us a consistent Markdown representation for supported office
+    documents and PDFs.  The legacy parsers remain deliberately available as
+    fallbacks so a missing/incompatible AnyDoc wheel, an unsupported format, or
+    a malformed upload does not break catalogue analysis.
+    """
     suffix = Path(filename).suffix.lower()
+
+    # AnyDoc handles PDF, CSV, Excel, and the other common office formats. CSV
+    # is the one supported format that cannot be identified from file bytes, so
+    # pass its extension explicitly. For all other formats content detection
+    # is more reliable than trusting the uploaded filename.
+    anydoc_text = _extract_with_anydoc(content, suffix)
+    if anydoc_text:
+        return anydoc_text
+
     if suffix in (".csv", ".xlsx", ".xls"):
         import pandas as pd
         buf = io.BytesIO(content)
@@ -266,6 +282,12 @@ def _extract_text(content: bytes, filename: str) -> str:
             if t:
                 text += t + " "
     except Exception:
+        text = ""
+
+    # PyPDF2 can complete without raising while still returning no usable
+    # text (common with unusual font encodings), so try pdfplumber in that
+    # case as well as when PyPDF2 fails outright.
+    if not text.strip():
         try:
             import pdfplumber
             with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -276,6 +298,35 @@ def _extract_text(content: bytes, filename: str) -> str:
         except Exception:
             pass
     return text
+
+
+def _extract_with_anydoc(content: bytes, suffix: str) -> str:
+    """Return AnyDoc's Markdown output, or an empty string when unavailable.
+
+    The import is intentionally lazy: the backend can still start when an
+    older environment has not installed AnyDoc yet, and the caller can then
+    use the existing PyPDF2/pdfplumber or pandas fallback paths.
+    """
+    supported_suffixes = {
+        ".csv", ".doc", ".docm", ".docx", ".epub", ".ods", ".odp", ".odt",
+        ".pdf", ".pot", ".ppt", ".pptm", ".pptx", ".pps", ".ppsm", ".ppsx",
+        ".rtf", ".xls", ".xlsb", ".xlsm", ".xlsx",
+    }
+    if suffix not in supported_suffixes:
+        return ""
+
+    try:
+        import anydoc
+
+        format_hint = "csv" if suffix == ".csv" else None
+        text = anydoc.to_markdown_bytes(content, format_hint)
+        return text if isinstance(text, str) and text.strip() else ""
+    except Exception:
+        # AnyDoc exposes format-specific exceptions, but keeping this boundary
+        # broad is intentional: the legacy extractors must handle corrupt,
+        # encrypted, or unsupported uploads without surfacing parser details
+        # to the request handler.
+        return ""
 
 
 # ─── Phase 2: Scoring stream ─────────────────────────────────────────────────
