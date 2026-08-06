@@ -183,18 +183,35 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
     : "Upload a portfolio to see its UAE market value distribution and agent priorities.";
 
   const matrixPoints = useMemo(() => {
-    const values = matched.map((molecule) => Math.log10(Math.max(1, molecule.market_value_aed ?? 1)));
-    const min = Math.min(...values, 0);
-    const max = Math.max(...values, 1);
-    return matched.map((molecule) => {
-      const logValue = Math.log10(Math.max(1, molecule.market_value_aed ?? 1));
-      const valuePosition = max === min ? 50 : 8 + ((logValue - min) / (max - min)) * 84;
+    const values = matched.map((molecule) => Math.max(0.1, molecule.market_value_aed ?? 0));
+    const maxValue = Math.max(...values, 1);
+    const logValues = values.map((value) => Math.log10(value + 1));
+    const minLog = Math.min(...logValues, 0);
+    const maxLog = Math.max(...logValues, 1);
+    const laidOut: Array<{ molecule: MoleculeCard; x: number; y: number; size: number }> = [];
+
+    matched
+      .map((molecule, index) => ({ molecule, value: values[index], logValue: logValues[index] }))
+      .sort((a, b) => b.value - a.value)
+      .forEach(({ molecule, value, logValue }) => {
+      const valuePosition = maxLog === minLog ? 50 : 8 + ((logValue - minLog) / (maxLog - minLog)) * 84;
       const competitors = Math.min(molecule.num_competitors ?? 0, 15) / 15;
       const leader = Math.min(molecule.leader_share_pct ?? 0, 100) / 100;
       const risk = Math.min(1, competitors * .62 + leader * .38);
-      const size = 34 + Math.min(30, Math.max(0, logValue - min) * 8);
-      return { molecule, x: valuePosition, y: 8 + risk * 82, size };
+      const size = 30 + Math.sqrt(value / maxValue) * 48;
+      const preferredY = 8 + risk * 84;
+      const yOffsets = [0, -5, 5, -10, 10, -15, 15, -20, 20, -25, 25];
+      const y = yOffsets
+        .map((offset) => Math.max(8, Math.min(92, preferredY + offset)))
+        .find((candidateY) => laidOut.every((point) => {
+          const dx = (valuePosition - point.x) * 10;
+          const dy = (candidateY - point.y) * 6.2;
+          return Math.hypot(dx, dy) >= ((size + point.size) / 2) + 9;
+        })) ?? preferredY;
+      laidOut.push({ molecule, x: valuePosition, y, size });
     });
+
+    return laidOut;
   }, [matched]);
 
   const sortedMolecules = useMemo(() => {
@@ -473,7 +490,7 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
         <section className="portfolio-section portfolio-matrix-section">
           <div className="portfolio-section__heading">
             <div><p className="matthew-eyebrow">Value matrix</p><h3>Market value × competitive risk</h3></div>
-            <span>Bubble size reflects UAE market value</span>
+            <span>Bubble size reflects UAE market value · hover a bubble for the full molecule</span>
           </div>
           <div className="portfolio-matrix">
             <div className="portfolio-matrix__quadrant is-top-left"><strong>Niche openings</strong><span>Lower value · lower risk</span></div>
@@ -489,6 +506,7 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
                   className="portfolio-matrix__point"
                   onClick={() => props.onMoleculeOpen(molecule)}
                   style={{ left: `${x}%`, top: `${y}%`, width: size, height: size, backgroundColor: meta.color }}
+                  aria-label={`${molecule.molecule}: ${fmtAed(molecule.market_value_aed)} market value, ${molecule.num_competitors ?? 0} competitors`}
                   title={`${molecule.molecule}: ${fmtAed(molecule.market_value_aed)}, ${molecule.num_competitors ?? 0} competitors`}
                 >
                   <span>{molecule.molecule}</span>
