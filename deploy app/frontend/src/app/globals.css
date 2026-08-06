@@ -39,26 +39,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 ::-webkit-scrollbar-thumb { background: #b9c0bb; border-radius: 99px; }
 
 .matthew-app { min-height: 100vh; }
-.matthew-main { min-height: calc(100vh - 66px); }
+.matthew-main { min-height: calc(100vh - 86px); }
 .matthew-main > div { width: min(1460px, 100%); margin-inline: auto; }
 
 .matthew-header {
   position: sticky;
   top: 0;
   z-index: 60;
-  height: 66px;
-  border-bottom: 1px solid rgba(22, 33, 29, .12);
-  background: rgba(251, 252, 250, .94);
-  backdrop-filter: blur(18px);
+  padding: 14px 20px 10px;
+  background: transparent;
+  pointer-events: none;
 }
 .matthew-header__inner {
   width: min(1500px, 100%);
-  height: 100%;
+  height: 62px;
   margin: 0 auto;
-  padding: 0 28px;
+  padding: 0 22px 0 24px;
   display: flex;
   align-items: center;
   gap: 28px;
+  pointer-events: auto;
+  border: 1px solid rgba(22, 33, 29, .1);
+  border-radius: 999px;
+  background: rgba(251, 252, 250, .82);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 10px 30px rgba(20, 33, 29, .09), 0 1px 2px rgba(20, 33, 29, .05);
 }
 .matthew-brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; min-width: 214px; }
 .matthew-brand strong { display: block; font-family: var(--font-newsreader), Georgia, serif; font-size: 22px; font-weight: 600; line-height: 1; }
@@ -350,8 +355,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .skeleton { background: linear-gradient(90deg,#edf0ec 25%,#e2e6e1 50%,#edf0ec 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; }
 
 @media (max-width: 980px) {
-  .matthew-header { height: auto; position: relative; }
-  .matthew-header__inner { padding: 14px 18px; flex-wrap: wrap; gap: 12px; }
+  .matthew-header { position: relative; padding: 12px 14px 8px; }
+  .matthew-header__inner { height: auto; padding: 14px 18px; flex-wrap: wrap; gap: 12px; border-radius: 22px; }
   .matthew-brand { min-width: 0; }
   .matthew-nav { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
   .matthew-nav a { white-space: nowrap; }
@@ -359,7 +364,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 640px) {
-  .matthew-header__inner { padding-inline: 14px; }
+  .matthew-header__inner { padding-inline: 14px; border-radius: 18px; }
   .matthew-nav a span { display: none; }
   .matthew-nav a { padding: 9px 12px; }
   .matthew-main > div { padding: 22px 16px !important; }

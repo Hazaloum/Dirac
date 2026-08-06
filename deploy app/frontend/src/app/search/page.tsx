@@ -1,19 +1,33 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
+  BookOpenText,
+  BriefcaseBusiness,
   Building2,
+  ChartNoAxesCombined,
   ChevronDown,
   FlaskConical,
+  GitCompareArrows,
   Loader2,
+  Radar,
   Search as SearchIcon,
   Sparkles,
   X,
 } from "lucide-react";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { api, type MoleculeCard } from "@/lib/api";
+
+const shortcuts = [
+  { href: "/analysis", icon: BookOpenText, title: "Evaluate a Catalogue", blurb: "Upload a supplier list and score every molecule" },
+  { href: "/pipeline", icon: GitCompareArrows, title: "Compare a Pipeline", blurb: "Stack shortlisted molecules side by side" },
+  { href: "/forecast", icon: ChartNoAxesCombined, title: "Build a Forecast", blurb: "Y1–Y3 units and revenue per pack" },
+  { href: "/portfolio", icon: BriefcaseBusiness, title: "Evaluate a Portfolio", blurb: "Open and manage your saved portfolio" },
+  { href: "/outreach", icon: Radar, title: "Find Manufacturers", blurb: "Source partners and BD contacts by country" },
+];
 
 function formatAed(value?: number | null) {
   if (value == null) return "N/A";
@@ -140,8 +154,8 @@ export default function SearchPage() {
     : result.num_competitors <= 3 ? "good" : result.num_competitors <= 6 ? "watch" : "bad";
 
   return (
-    <div className={`min-h-[calc(100vh-66px)] px-5 py-8 sm:px-8 lg:px-12 ${result ? "pb-16" : "flex items-center"}`}>
-      <div className={`mx-auto w-full max-w-6xl ${result ? "" : "-mt-10"}`}>
+    <div className={`min-h-[calc(100vh-86px)] px-5 py-8 sm:px-8 lg:px-12 ${result ? "pb-16" : "flex items-center"}`}>
+      <div className="mx-auto w-full max-w-6xl">
         <section className={result ? "mb-10" : "text-center"}>
           <div className={result ? "" : "mx-auto max-w-2xl"}>
             <p className="matthew-eyebrow text-pharma-900">IQVIA molecule intelligence</p>
@@ -201,6 +215,29 @@ export default function SearchPage() {
           )}
 
           {error && <p role="alert" className="mt-4 text-center text-sm text-rose-700">{error}</p>}
+
+          {!result && (
+            <div className="mx-auto mt-9 max-w-3xl">
+              <p className="matthew-eyebrow mb-3 text-center">Or start a workflow</p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {shortcuts.map(({ href, icon: Icon, title, blurb }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="group flex aspect-square flex-col justify-between rounded-2xl border border-surface-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-pharma-300 hover:shadow-[0_14px_34px_rgba(20,33,29,.10)]"
+                  >
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-pharma-50 text-pharma-900 transition-colors group-hover:bg-pharma-900 group-hover:text-white">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span>
+                      <span className="block text-[13px] font-semibold leading-tight text-surface-900">{title}</span>
+                      <span className="mt-1.5 block text-[10px] leading-snug text-surface-500">{blurb}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {result && (
