@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -145,6 +145,11 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [hoveredArea, setHoveredArea] = useState<string | null>(null);
   const areaStripRef = useRef<HTMLDivElement>(null);
+  const areaAutoScrollRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (areaAutoScrollRef.current !== null) window.cancelAnimationFrame(areaAutoScrollRef.current);
+  }, []);
 
   const matched = useMemo(() => props.molecules.filter((molecule) => molecule.in_iqvia), [props.molecules]);
   const totalValue = matched.reduce((sum, molecule) => sum + (molecule.market_value_aed ?? 0), 0);
@@ -213,6 +218,30 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
 
   const scrollAreas = (direction: number) => {
     areaStripRef.current?.scrollBy({ left: direction * 420, behavior: "smooth" });
+  };
+
+  const stopAreaAutoScroll = () => {
+    if (areaAutoScrollRef.current !== null) {
+      window.cancelAnimationFrame(areaAutoScrollRef.current);
+      areaAutoScrollRef.current = null;
+    }
+  };
+
+  const startAreaAutoScroll = (direction: number) => {
+    stopAreaAutoScroll();
+    const tick = () => {
+      const strip = areaStripRef.current;
+      if (!strip) return;
+      const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth);
+      const nextScroll = Math.max(0, Math.min(maxScroll, strip.scrollLeft + (direction * 1.8)));
+      if (nextScroll === strip.scrollLeft) {
+        stopAreaAutoScroll();
+        return;
+      }
+      strip.scrollLeft = nextScroll;
+      areaAutoScrollRef.current = window.requestAnimationFrame(tick);
+    };
+    areaAutoScrollRef.current = window.requestAnimationFrame(tick);
   };
 
   const revealArea = (areaName: string, element: HTMLElement | null) => {
@@ -297,7 +326,17 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
             </div>
             <p className="portfolio-value-lede">{valueLead}</p>
             <div className="portfolio-area-carousel">
-              <button type="button" className="portfolio-area-nav is-left" onClick={() => scrollAreas(-1)} aria-label="Show previous therapeutic areas"><ChevronLeft /></button>
+              <button
+                type="button"
+                className="portfolio-area-nav is-left"
+                onClick={() => scrollAreas(-1)}
+                onMouseEnter={() => startAreaAutoScroll(-1)}
+                onMouseLeave={stopAreaAutoScroll}
+                onFocus={() => startAreaAutoScroll(-1)}
+                onBlur={stopAreaAutoScroll}
+                aria-label="Show previous therapeutic areas"
+                title="Hover to scroll back"
+              ><ChevronLeft /></button>
               <div
                 ref={areaStripRef}
                 className="portfolio-area-strip"
@@ -309,7 +348,7 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
                 }}
               >
                 {areas.map((area) => {
-                  const baseWidth = Math.max(180, Math.min(560, 110 + ((area.value / Math.max(totalValue, 1)) * 900)));
+                  const baseWidth = Math.max(148, Math.min(560, 92 + ((area.value / Math.max(totalValue, 1)) * 950)));
                   const isHovered = hoveredArea === area.name;
                   return (
                     <div
@@ -340,9 +379,19 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
                   );
                 })}
               </div>
-              <button type="button" className="portfolio-area-nav is-right" onClick={() => scrollAreas(1)} aria-label="Show next therapeutic areas"><ChevronRight /></button>
+              <button
+                type="button"
+                className="portfolio-area-nav is-right"
+                onClick={() => scrollAreas(1)}
+                onMouseEnter={() => startAreaAutoScroll(1)}
+                onMouseLeave={stopAreaAutoScroll}
+                onFocus={() => startAreaAutoScroll(1)}
+                onBlur={stopAreaAutoScroll}
+                aria-label="Show next therapeutic areas"
+                title="Hover to scroll forward"
+              ><ChevronRight /></button>
             </div>
-            <div className="portfolio-mosaic-caption">Hover to expand · use the arrows or scroll horizontally · click an area to expand its molecules below</div>
+            <div className="portfolio-mosaic-caption">Hover a card to expand · hover an arrow to auto-scroll · click an area to expand its molecules below</div>
             {selectedArea && (() => {
               const area = areas.find((candidate) => candidate.name === selectedArea);
               if (!area) return null;
