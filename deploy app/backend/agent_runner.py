@@ -407,101 +407,104 @@ def _series_cagr(values: dict) -> tuple:
     return None, None
 
 
-def get_molecule_trend(molecule: str, df_iqvia) -> dict:
+def _clean_strength(s: str) -> str:
+    s = str(s).strip()
+    return s.lstrip("0") or s
+
+
+def _clean_nfc3(s: str) -> str:
+    # 'ABC ORAL S ORD FILM-COATED TABS' → 'ORAL S ORD FILM-COATED TABS'
+    parts = str(s).strip().split(" ", 1)
+    return parts[1].title() if len(parts) == 2 else str(s).title()
+
+
+def get_molecule_slices(molecule: str, df_iqvia) -> dict:
     """
-    Yearly value/units series for the molecule dashboard:
-    totals, per-manufacturer stack (top 4 + Other), and private/LPO channel split.
-    All aggregations divided by num_molecules (combination double-counting).
-    Full years only, except the trailing partial year which is reported separately.
+    Slice cube for the unified market-breakdown chart.
+
+    competitor: manufacturer stack (top 4 + Other) per market (total/private/lpo)
+                per metric (value/units) — market filter applies only here.
+    dims:       channel / product / strength / nfc3 stacks, total market only.
+
+    Each series carries full-year values plus the trailing partial year
+    separately (years[-2] rule). All sums divided by num_molecules.
     """
     df = df_iqvia[df_iqvia["Molecule Combination"].str.upper() == molecule.upper()].copy()
     if df.empty:
         return {"found": False}
 
     num_molecules = len(molecule.split(" + ")) if " + " in molecule else 1
-
     all_years = sorted(int(c.split()[0]) for c in df.columns if c.endswith("LC Value"))
-    years = all_years[:-1]          # complete years — years[-2] rule
+    years = all_years[:-1]
     partial_year = all_years[-1]
+    metrics = {"value": "LC Value", "units": "Units"}
 
-    def year_sum(frame, year: int, suffix: str) -> float:
-        col = f"{year} {suffix}"
-        if col not in frame.columns:
-            return 0.0
-        return float(frame[col].sum()) / num_molecules
+    def stack(frame, group_col, suffix, top_n=4, rename=None):
+        """Top-N + Other series over full years, partial year separate."""
+        cols = [f"{y} {suffix}" for y in years + [partial_year] if f"{y} {suffix}" in frame.columns]
+        g = frame.groupby(group_col)[cols].sum() / num_molecules
+        end_col = f"{years[-1]} {suffix}"
+        g = g.sort_values(end_col, ascending=False)
+        top = g.head(top_n)
+        series = []
 
-    total_value = {y: year_sum(df, y, "LC Value") for y in years}
-    total_units = {y: year_sum(df, y, "Units") for y in years}
-    value_cagr, _ = _series_cagr(total_value)
-    unit_cagr, _ = _series_cagr(total_units)
+        def entry(name, row):
+            return {
+                "name": rename(name) if rename else str(name).strip(),
+                "values": [round(float(row.get(f"{y} {suffix}", 0.0)), 0) for y in years],
+                "partial": round(float(row.get(f"{partial_year} {suffix}", 0.0)), 0),
+            }
 
-    # ── Manufacturer stack: top 4 by end-year value + Other ──
-    end_year = years[-1]
-    by_mfr = df.groupby("Manufacturer")[f"{end_year} LC Value"].sum().sort_values(ascending=False)
-    top_names = [str(n) for n in by_mfr.head(4).index]
-    end_total = total_value[end_year]
+        for name, row in top.iterrows():
+            series.append(entry(name, row))
+        rest = g.iloc[top_n:]
+        if len(rest) > 0:
+            summed = rest.sum()
+            if float(summed.sum()) > 0:
+                series.append({
+                    "name": "Other",
+                    "values": [round(float(summed.get(f"{y} {suffix}", 0.0)), 0) for y in years],
+                    "partial": round(float(summed.get(f"{partial_year} {suffix}", 0.0)), 0),
+                })
+        return series
 
-    manufacturers = []
-    for name in top_names:
-        sub = df[df["Manufacturer"] == name]
-        values = {y: year_sum(sub, y, "LC Value") for y in years}
-        cagr, anchor = _series_cagr(values)
-        manufacturers.append({
-            "name": name,
-            "values": [round(values[y], 0) for y in years],
-            "share_pct": round(values[end_year] / end_total * 100, 1) if end_total else 0,
-            "cagr_pct": cagr,
-            "anchor_year": anchor,
-            "entered": anchor is not None and anchor > years[0],
-        })
-    other = df[~df["Manufacturer"].isin(top_names)]
-    if len(other) > 0:
-        values = {y: year_sum(other, y, "LC Value") for y in years}
-        if any(v > 0 for v in values.values()):
-            cagr, anchor = _series_cagr(values)
-            manufacturers.append({
-                "name": "Other",
-                "values": [round(values[y], 0) for y in years],
-                "share_pct": round(values[end_year] / end_total * 100, 1) if end_total else 0,
-                "cagr_pct": cagr,
-                "anchor_year": anchor,
-                "entered": False,
-            })
+    competitor = {}
+    for market_key, market_df in [
+        ("total", df),
+        ("private", df[df["Market"].str.contains("PRIVATE", na=False)]),
+        ("lpo", df[df["Market"].str.contains("LPO", na=False)]),
+    ]:
+        competitor[market_key] = {
+            metric: stack(market_df, "Manufacturer", suffix)
+            for metric, suffix in metrics.items()
+        }
 
-    # ── Channel split (value-based, so chart and CAGR always agree) ──
-    private_df = df[df["Market"].str.contains("PRIVATE", na=False)]
-    lpo_df = df[df["Market"].str.contains("LPO", na=False)]
-    private = {y: year_sum(private_df, y, "LC Value") for y in years}
-    lpo = {y: year_sum(lpo_df, y, "LC Value") for y in years}
-    private_cagr, _ = _series_cagr(private)
-    lpo_cagr, _ = _series_cagr(lpo)
-    private_share = [
-        round(private[y] / (private[y] + lpo[y]) * 100, 1) if (private[y] + lpo[y]) > 0 else None
-        for y in years
-    ]
+    df_channel = df.copy()
+    df_channel["_channel"] = df_channel["Market"].apply(
+        lambda v: "Private" if "PRIVATE" in str(v) else "LPO / government"
+    )
+    dims = {"channel": {
+        metric: stack(df_channel, "_channel", suffix, top_n=2)
+        for metric, suffix in metrics.items()
+    }}
+    for dim, col, rename in [
+        ("product", "Product", None),
+        ("strength", "Strength", _clean_strength),
+        ("nfc3", "NFC3", _clean_nfc3),
+    ]:
+        if col in df.columns:
+            dims[dim] = {
+                metric: stack(df, col, suffix, rename=rename)
+                for metric, suffix in metrics.items()
+            }
 
     return {
         "found": True,
         "molecule": molecule.upper(),
         "years": years,
-        "total_value": [round(total_value[y], 0) for y in years],
-        "total_units": [round(total_units[y], 0) for y in years],
-        "value_cagr_pct": value_cagr,
-        "unit_cagr_pct": unit_cagr,
-        "cagr_delta": round(value_cagr - unit_cagr, 2) if value_cagr is not None and unit_cagr is not None else None,
-        "partial": {
-            "year": partial_year,
-            "value": round(year_sum(df, partial_year, "LC Value"), 0),
-            "units": round(year_sum(df, partial_year, "Units"), 0),
-        },
-        "manufacturers": manufacturers,
-        "channel": {
-            "private": [round(private[y], 0) for y in years],
-            "lpo": [round(lpo[y], 0) for y in years],
-            "private_share_pct": private_share,
-            "private_cagr_pct": private_cagr,
-            "lpo_cagr_pct": lpo_cagr,
-        },
+        "partial_year": partial_year,
+        "competitor": competitor,
+        "dims": dims,
     }
 
 

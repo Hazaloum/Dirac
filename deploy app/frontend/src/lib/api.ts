@@ -51,7 +51,7 @@ export const api = {
     req<ManufacturerBreakdown>(`/api/analysis/manufacturers/${encodeURIComponent(molecule)}`),
 
   getMoleculeTrend: (molecule: string) =>
-    req<MoleculeTrend>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
+    req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
 
   getCompanyProducts: (mohapName: string) =>
     req<{ molecules: MoleculeCard[]; total: number }>(
@@ -326,33 +326,21 @@ export interface ManufacturerBreakdown {
   year: string;
 }
 
-export interface TrendManufacturer {
+export interface SliceSeries {
   name: string;
-  values: number[];
-  share_pct: number;
-  cagr_pct: number | null;
-  anchor_year: number | null;
-  entered: boolean;
+  values: number[];   // full years, aligned with MoleculeSlices.years
+  partial: number;    // trailing partial year (years[-2] rule)
 }
 
-export interface MoleculeTrend {
+export type SliceMetrics = Record<"value" | "units", SliceSeries[]>;
+
+export interface MoleculeSlices {
   found: boolean;
   molecule: string;
   years: number[];
-  total_value: number[];
-  total_units: number[];
-  value_cagr_pct: number | null;
-  unit_cagr_pct: number | null;
-  cagr_delta: number | null;
-  partial: { year: number; value: number; units: number };
-  manufacturers: TrendManufacturer[];
-  channel: {
-    private: number[];
-    lpo: number[];
-    private_share_pct: (number | null)[];
-    private_cagr_pct: number | null;
-    lpo_cagr_pct: number | null;
-  };
+  partial_year: number;
+  competitor: Record<"total" | "private" | "lpo", SliceMetrics>;
+  dims: Partial<Record<"channel" | "product" | "strength" | "nfc3", SliceMetrics>>;
 }
 
 export interface ScorePayload {

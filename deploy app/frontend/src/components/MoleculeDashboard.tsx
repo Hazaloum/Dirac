@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  Activity, AlertTriangle, BarChart2, Building2, Check, Layers, Users,
+  AlertTriangle, BarChart2, Building2, Check, Layers,
 } from "lucide-react";
-import { MoleculeTrendPanels } from "@/components/MoleculeTrendPanels";
+import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
 import type { MoleculeCard } from "@/lib/api";
 
 function fmtAed(v?: number | null) {
@@ -134,34 +134,21 @@ export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
   return (
     <div className="space-y-5">
       {m.in_iqvia && (
-        <MoleculeTrendPanels
-          molecule={m.molecule}
-          render={({ trajectory, competitors, channel }) => (
-            <>
-              <Panel title="Market trajectory" icon={<Activity className="h-4 w-4" />}>
-                {trajectory}
-              </Panel>
-              <Panel title="Competitive structure" icon={<Users className="h-4 w-4" />}>
-                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 text-xs text-surface-500">
-                  <span>
-                    Leader <strong className="text-surface-800">{m.market_leader ?? "N/A"}</strong>
-                    {m.leader_share_pct != null && ` · ${m.leader_share_pct.toFixed(1)}%`}
-                    {m.leader_share_change != null && (
-                      <span className={m.leader_share_change < 0 ? "text-emerald-700" : "text-surface-500"}>
-                        {" "}({fmtPct(m.leader_share_change, true)} share)
-                      </span>
-                    )}
-                  </span>
-                  {m.top3_company_share != null && <span>Top 3 hold {m.top3_company_share.toFixed(1)}%</span>}
-                </div>
-                {competitors}
-              </Panel>
-              <Panel title="Route to market" icon={<BarChart2 className="h-4 w-4" />}>
-                {channel}
-              </Panel>
-            </>
-          )}
-        />
+        <Panel title="Market breakdown" icon={<BarChart2 className="h-4 w-4" />}>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 text-xs text-surface-500">
+            <span>
+              Leader <strong className="text-surface-800">{m.market_leader ?? "N/A"}</strong>
+              {m.leader_share_pct != null && ` · ${m.leader_share_pct.toFixed(1)}%`}
+              {m.leader_share_change != null && (
+                <span className={m.leader_share_change < 0 ? "text-emerald-700" : "text-surface-500"}>
+                  {" "}({fmtPct(m.leader_share_change, true)} share)
+                </span>
+              )}
+            </span>
+            {m.top3_company_share != null && <span>Top 3 hold {m.top3_company_share.toFixed(1)}%</span>}
+          </div>
+          <MarketBreakdownChart molecule={m.molecule} />
+        </Panel>
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
