@@ -203,20 +203,20 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
           <p className="text-[10px] uppercase tracking-wider text-surface-400">
             {byCompetitor ? MARKET_LABELS[market] : "Total"} {metric} {endYear}
           </p>
-          <p className="mt-0.5 font-serif text-2xl font-medium text-surface-900">
+          <p className="mt-0.5 font-serif text-4xl font-medium tracking-tight text-surface-900">
             {metric === "value" ? "AED " : ""}{fmt(series.reduce((sum, s) => sum + s.values[s.values.length - 1], 0))}{metric === "units" ? " units" : ""}
           </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-surface-400">CAGR {years[0]}→{endYear}</p>
-          <p className={`mt-0.5 text-lg font-semibold ${totalsCagr != null && totalsCagr < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+          <p className={`mt-0.5 font-serif text-3xl font-medium tracking-tight ${totalsCagr != null && totalsCagr < 0 ? "text-rose-700" : "text-emerald-700"}`}>
             {fmtCagr(totalsCagr)}
           </p>
         </div>
         {privateShare != null && privateSeries && lpoSeries && (
           <div>
             <p className="text-[10px] uppercase tracking-wider text-surface-400">Private / LPO {endYear}</p>
-            <p className="mt-0.5 text-lg font-semibold text-surface-900">
+            <p className="mt-0.5 font-serif text-3xl font-medium tracking-tight text-surface-900">
               {privateShare.toFixed(0)}<span className="text-surface-400"> / </span>{(100 - privateShare).toFixed(0)}
             </p>
             <p className="text-[10px] text-surface-400">
