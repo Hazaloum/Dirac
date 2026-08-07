@@ -28,14 +28,20 @@ function fmt(v: number) {
   return String(Math.round(v));
 }
 
-// CAGR anchored at the first non-zero full year.
-function cagr(values: number[]): number | null {
+// CAGR anchored at the first non-zero full year; anchorIndex reports which.
+function cagrInfo(values: number[]): { pct: number | null; anchorIndex: number | null } {
   const end = values[values.length - 1];
-  if (end <= 0) return null;
+  if (end <= 0) return { pct: null, anchorIndex: null };
   for (let i = 0; i < values.length - 1; i++) {
-    if (values[i] > 0) return (Math.pow(end / values[i], 1 / (values.length - 1 - i)) - 1) * 100;
+    if (values[i] > 0) {
+      return { pct: (Math.pow(end / values[i], 1 / (values.length - 1 - i)) - 1) * 100, anchorIndex: i };
+    }
   }
-  return null;
+  return { pct: null, anchorIndex: null };
+}
+
+function cagr(values: number[]): number | null {
+  return cagrInfo(values).pct;
 }
 
 function fmtCagr(v: number | null) {
@@ -303,29 +309,31 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-surface-200 bg-surface-50">
-              <th className="px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">
+              <th className="px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-500">
                 {byCompetitor ? "Manufacturer" : SPLIT_LABELS[split]}
               </th>
               {years.map((y) => (
-                <th key={y} className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">{y}</th>
+                <th key={y} className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-500">{y}</th>
               ))}
-              <th className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">Share {endYear}</th>
-              <th className="px-4 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">CAGR</th>
+              <th className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-500">Share {endYear}</th>
+              <th className="px-4 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-500">CAGR {years[0]}→{endYear}</th>
             </tr>
           </thead>
           <tbody>
             {allSeries.map((s) => {
               const share = endTotalsAll > 0 ? (s.values[s.values.length - 1] / endTotalsAll) * 100 : 0;
-              const growth = cagr(s.values);
+              const { pct: growth, anchorIndex } = cagrInfo(s.values);
+              const entered = anchorIndex != null && anchorIndex > 0 ? years[anchorIndex] : null;
               return (
                 <tr key={s.name} className="border-t border-surface-100 first:border-0 hover:bg-surface-50">
                   <td className="max-w-[220px] truncate px-4 py-2 font-medium text-surface-800" title={s.name}>{s.name}</td>
                   {s.values.map((v, i) => (
-                    <td key={i} className="px-3 py-2 text-right font-mono text-[11px] text-surface-500">{v > 0 ? fmt(v) : "—"}</td>
+                    <td key={i} className="px-3 py-2 text-right font-mono text-[11px] text-surface-800">{v > 0 ? fmt(v) : "—"}</td>
                   ))}
-                  <td className="px-3 py-2 text-right font-mono text-[11px] text-surface-700">{share.toFixed(1)}%</td>
+                  <td className="px-3 py-2 text-right font-mono text-[11px] font-semibold text-surface-900">{share.toFixed(1)}%</td>
                   <td className={`px-4 py-2 text-right font-semibold ${growth == null ? "text-surface-400" : growth < 0 ? "text-rose-700" : "text-emerald-700"}`}>
                     {fmtCagr(growth)}
+                    {entered != null && <span className="ml-1 font-normal text-surface-500">since {entered}</span>}
                   </td>
                 </tr>
               );
