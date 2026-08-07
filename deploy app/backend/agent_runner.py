@@ -439,34 +439,22 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
     partial_year = all_years[-1]
     metrics = {"value": "LC Value", "units": "Units"}
 
-    def stack(frame, group_col, suffix, top_n=4, rename=None):
-        """Top-N + Other series over full years, partial year separate."""
+    def stack(frame, group_col, suffix, rename=None):
+        """All series over full years, sorted by end-year value; partial year
+        separate. The frontend derives the chart's top-N + Other view and shows
+        the full list in the detail table."""
         cols = [f"{y} {suffix}" for y in years + [partial_year] if f"{y} {suffix}" in frame.columns]
         g = frame.groupby(group_col)[cols].sum() / num_molecules
         end_col = f"{years[-1]} {suffix}"
-        g = g.sort_values(end_col, ascending=False)
-        top = g.head(top_n)
-        series = []
-
-        def entry(name, row):
-            return {
+        g = g[g.sum(axis=1) > 0].sort_values(end_col, ascending=False)
+        return [
+            {
                 "name": rename(name) if rename else str(name).strip(),
                 "values": [round(float(row.get(f"{y} {suffix}", 0.0)), 0) for y in years],
                 "partial": round(float(row.get(f"{partial_year} {suffix}", 0.0)), 0),
             }
-
-        for name, row in top.iterrows():
-            series.append(entry(name, row))
-        rest = g.iloc[top_n:]
-        if len(rest) > 0:
-            summed = rest.sum()
-            if float(summed.sum()) > 0:
-                series.append({
-                    "name": "Other",
-                    "values": [round(float(summed.get(f"{y} {suffix}", 0.0)), 0) for y in years],
-                    "partial": round(float(summed.get(f"{partial_year} {suffix}", 0.0)), 0),
-                })
-        return series
+            for name, row in g.iterrows()
+        ]
 
     competitor = {}
     for market_key, market_df in [
@@ -484,7 +472,7 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
         lambda v: "Private" if "PRIVATE" in str(v) else "LPO / government"
     )
     dims = {"channel": {
-        metric: stack(df_channel, "_channel", suffix, top_n=2)
+        metric: stack(df_channel, "_channel", suffix)
         for metric, suffix in metrics.items()
     }}
     for dim, col, rename in [

@@ -93,11 +93,25 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
   const lens = byCompetitor ? `mfr:${market}` : `dim:${split}`;
   const keyOf = (name: string) => `${lens}:${name}`;
 
-  const series: SliceSeries[] = useMemo(() => {
+  // Backend sends every series in the lens; the chart shows top 4 + Other,
+  // the detail table below shows the full list.
+  const allSeries: SliceSeries[] = useMemo(() => {
     if (!slices) return [];
     if (byCompetitor) return slices.competitor[market]?.[metric] ?? [];
     return slices.dims[split]?.[metric] ?? [];
   }, [slices, byCompetitor, market, split, metric]);
+
+  const series: SliceSeries[] = useMemo(() => {
+    if (allSeries.length <= 5) return allSeries;
+    const top = allSeries.slice(0, 4);
+    const rest = allSeries.slice(4);
+    const other: SliceSeries = {
+      name: "Other",
+      values: top[0].values.map((_, i) => rest.reduce((sum, s) => sum + s.values[i], 0)),
+      partial: rest.reduce((sum, s) => sum + s.partial, 0),
+    };
+    return [...top, other];
+  }, [allSeries]);
 
   const availableSplits = useMemo(
     () => (slices ? (Object.keys(SPLIT_LABELS) as Split[]).filter((s) => slices.dims[s]) : []),
@@ -282,6 +296,42 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
             : "Pick a lens above — switch “By competitor” back on for market ownership"}
         </span>
         {hasPartial && <span>{partial_year} is year-to-date, not a full year</span>}
+      </div>
+
+      {/* Growth table: the full lens, including everything folded into "Other" */}
+      <div className="mt-5 overflow-x-auto rounded-xl border border-surface-200">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-surface-200 bg-surface-50">
+              <th className="px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">
+                {byCompetitor ? "Manufacturer" : SPLIT_LABELS[split]}
+              </th>
+              {years.map((y) => (
+                <th key={y} className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">{y}</th>
+              ))}
+              <th className="px-3 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">Share {endYear}</th>
+              <th className="px-4 py-2.5 text-right font-mono text-[9px] font-medium uppercase tracking-[.09em] text-surface-400">CAGR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allSeries.map((s) => {
+              const share = endTotalsAll > 0 ? (s.values[s.values.length - 1] / endTotalsAll) * 100 : 0;
+              const growth = cagr(s.values);
+              return (
+                <tr key={s.name} className="border-t border-surface-100 first:border-0 hover:bg-surface-50">
+                  <td className="max-w-[220px] truncate px-4 py-2 font-medium text-surface-800" title={s.name}>{s.name}</td>
+                  {s.values.map((v, i) => (
+                    <td key={i} className="px-3 py-2 text-right font-mono text-[11px] text-surface-500">{v > 0 ? fmt(v) : "—"}</td>
+                  ))}
+                  <td className="px-3 py-2 text-right font-mono text-[11px] text-surface-700">{share.toFixed(1)}%</td>
+                  <td className={`px-4 py-2 text-right font-semibold ${growth == null ? "text-surface-400" : growth < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                    {fmtCagr(growth)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
