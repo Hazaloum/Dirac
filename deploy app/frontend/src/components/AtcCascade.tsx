@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { api, type MoleculeLineage } from "@/lib/api";
 
-// Step fills deepen toward the molecule; the last step is the brand green.
-const FILLS = ["#E1F5EE", "#B9E9D6", "#8ADBBD", "#4CC29A", "#0F6E56"];
+// Class levels deepen through navy; the molecule step alone wears the brand
+// green, so the eye lands on it. Lightest stop must stay visible on the
+// sage-tinted paper (#f4f5f3) — nothing paler than #C7D3E6.
+const FILLS = ["#C7D3E6", "#9AB0D1", "#6C8CB8", "#3F669B", "#0c5c4c"];
 
 function fmtM(v: number) {
   if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
