@@ -225,6 +225,32 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
     });
   }, [props.molecules, sortDesc, sortKey]);
 
+  const scorecardGroups = useMemo(() => {
+    const groups = new Map<string, MoleculeCard[]>();
+    for (const molecule of props.molecules) {
+      const atc1 = molecule.atc1_class?.trim() || "Unclassified";
+      groups.set(atc1, [...(groups.get(atc1) ?? []), molecule]);
+    }
+
+    return Array.from(groups.entries())
+      .map(([atc1, groupMolecules]) => ({
+        atc1,
+        code: atc1 === "Unclassified" ? "—" : atc1.split(/\s+/)[0],
+        label: areaLabel(atc1),
+        molecules: groupMolecules.sort((a, b) =>
+          (b.ai_score ?? -1) - (a.ai_score ?? -1)
+          || (b.market_value_aed ?? 0) - (a.market_value_aed ?? 0)
+          || a.molecule.localeCompare(b.molecule)
+        ),
+        value: groupMolecules.reduce((sum, molecule) => sum + (molecule.market_value_aed ?? 0), 0),
+      }))
+      .sort((a, b) => {
+        if (a.atc1 === "Unclassified") return 1;
+        if (b.atc1 === "Unclassified") return -1;
+        return a.code.localeCompare(b.code);
+      });
+  }, [props.molecules]);
+
   const setSort = (key: SortKey) => {
     if (sortKey === key) setSortDesc((value) => !value);
     else {
@@ -456,32 +482,46 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
         <section className="portfolio-section">
           <div className="portfolio-section__heading">
             <div><p className="matthew-eyebrow">Molecule evaluation</p><h3>Commercial opportunity scorecards</h3></div>
-            <span>Click a card for full market evidence</span>
+            <span>{scorecardGroups.length} ATC1 areas · click a card for full market evidence</span>
           </div>
-          <div className="portfolio-scorecards">
-            {[...props.molecules].sort((a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1)).map((molecule) => {
-              const meta = scoreMeta(molecule.ai_score);
-              const decision = props.decisionFor(molecule.molecule);
-              return (
-                <article key={molecule.molecule} className={`portfolio-scorecard is-${meta.className}`}>
-                  <button type="button" className="portfolio-scorecard__body" onClick={() => props.onMoleculeOpen(molecule)}>
-                    <div className="portfolio-scorecard__top">
-                      <span className={`portfolio-tier is-${meta.className}`}>{meta.label}</span>
-                      <strong style={{ color: meta.color }}>{molecule.ai_score == null ? "—" : molecule.ai_score}<small>/10</small></strong>
-                    </div>
-                    <h4>{molecule.molecule}</h4>
-                    <p>{molecule.atc4_class || molecule.atc1_class || "No therapeutic class available"}</p>
-                    <dl>
-                      <div><dt>Market value</dt><dd>{fmtAed(molecule.market_value_aed)}</dd></div>
-                      <div><dt>Value CAGR</dt><dd className={(molecule.value_cagr_pct ?? 0) >= 0 ? "is-good" : "is-bad"}>{fmtPct(molecule.value_cagr_pct)}</dd></div>
-                      <div><dt>Competitors</dt><dd>{molecule.num_competitors ?? "—"}</dd></div>
-                      <div><dt>Private</dt><dd>{molecule.private_pct == null ? "—" : `${molecule.private_pct.toFixed(0)}%`}</dd></div>
-                    </dl>
-                  </button>
-                  <DecisionButtons molecule={molecule.molecule} value={decision} onChange={props.onDecision} />
-                </article>
-              );
-            })}
+          <div className="portfolio-scorecard-groups">
+            {scorecardGroups.map((group) => (
+              <section key={group.atc1} className="portfolio-scorecard-group">
+                <header className="portfolio-scorecard-group__header">
+                  <span className="portfolio-scorecard-group__code">{group.code}</span>
+                  <div>
+                    <h4>{group.label}</h4>
+                    <p>{group.molecules.length} molecule{group.molecules.length === 1 ? "" : "s"}</p>
+                  </div>
+                  <strong>{fmtAed(group.value)}</strong>
+                </header>
+                <div className="portfolio-scorecards">
+                  {group.molecules.map((molecule) => {
+                    const meta = scoreMeta(molecule.ai_score);
+                    const decision = props.decisionFor(molecule.molecule);
+                    return (
+                      <article key={molecule.molecule} className={`portfolio-scorecard is-${meta.className}`}>
+                        <button type="button" className="portfolio-scorecard__body" onClick={() => props.onMoleculeOpen(molecule)}>
+                          <div className="portfolio-scorecard__top">
+                            <span className={`portfolio-tier is-${meta.className}`}>{meta.label}</span>
+                            <strong style={{ color: meta.color }}>{molecule.ai_score == null ? "—" : molecule.ai_score}<small>/10</small></strong>
+                          </div>
+                          <h4>{molecule.molecule}</h4>
+                          <p>{molecule.atc4_class || "No chemical subgroup available"}</p>
+                          <dl>
+                            <div><dt>Market value</dt><dd>{fmtAed(molecule.market_value_aed)}</dd></div>
+                            <div><dt>Value CAGR</dt><dd className={(molecule.value_cagr_pct ?? 0) >= 0 ? "is-good" : "is-bad"}>{fmtPct(molecule.value_cagr_pct)}</dd></div>
+                            <div><dt>Competitors</dt><dd>{molecule.num_competitors ?? "—"}</dd></div>
+                            <div><dt>Private</dt><dd>{molecule.private_pct == null ? "—" : `${molecule.private_pct.toFixed(0)}%`}</dd></div>
+                          </dl>
+                        </button>
+                        <DecisionButtons molecule={molecule.molecule} value={decision} onChange={props.onDecision} />
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </section>
       )}
