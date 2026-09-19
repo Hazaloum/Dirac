@@ -500,7 +500,10 @@ export function PortfolioWorkspace(props: PortfolioWorkspaceProps) {
                     const meta = scoreMeta(molecule.ai_score);
                     const decision = props.decisionFor(molecule.molecule);
                     return (
-                      <article key={molecule.molecule} className={`portfolio-scorecard is-${meta.className}`}>
+                      <article
+                        key={molecule.molecule}
+                        className={`portfolio-scorecard is-${meta.className}${decision ? ` has-decision is-decision-${decision}` : ""}`}
+                      >
                         <button type="button" className="portfolio-scorecard__body" onClick={() => props.onMoleculeOpen(molecule)}>
                           <div className="portfolio-scorecard__top">
                             <span className={`portfolio-tier is-${meta.className}`}>{meta.label}</span>

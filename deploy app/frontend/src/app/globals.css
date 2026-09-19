@@ -187,12 +187,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .portfolio-tier.is-pending { color: #65706a; background: #ebeeea; }
 
 .portfolio-scorecard-groups { display: flex; flex-direction: column; gap: 24px; }
-.portfolio-scorecard-group { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #f7f8f5; }
-.portfolio-scorecard-group__header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: #f0f3ef; }
-.portfolio-scorecard-group__code { display: grid; place-items: center; min-width: 43px; height: 30px; padding: 0 8px; border-radius: 7px; color: #fff; background: var(--ink); font: 600 11px/1 var(--font-plex-mono), monospace; letter-spacing: .04em; }
-.portfolio-scorecard-group__header h4 { color: var(--ink); font: 500 19px/1.15 var(--font-newsreader), Georgia, serif; }
-.portfolio-scorecard-group__header p { margin-top: 3px; color: #7b8580; font-size: 10px; }
-.portfolio-scorecard-group__header > strong { color: var(--accent); font: 600 12px/1 var(--font-plex-mono), monospace; white-space: nowrap; }
+.portfolio-scorecard-group { overflow: hidden; border: 1px solid #253b33; border-radius: 12px; background: #f7f8f5; box-shadow: 0 8px 24px rgba(20,33,29,.08); }
+.portfolio-scorecard-group__header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 19px 20px; border-bottom: 1px solid #172a23; color: #fff; background: #20372f; }
+.portfolio-scorecard-group__code { display: grid; place-items: center; min-width: 52px; height: 38px; padding: 0 11px; border: 1px solid rgba(255,255,255,.28); border-radius: 8px; color: #fff; background: #0d5c4c; font: 700 13px/1 var(--font-plex-mono), monospace; letter-spacing: .06em; }
+.portfolio-scorecard-group__header h4 { color: #fff; font: 600 25px/1.1 var(--font-newsreader), Georgia, serif; letter-spacing: -.01em; }
+.portfolio-scorecard-group__header p { margin-top: 5px; color: rgba(255,255,255,.68); font-size: 11px; }
+.portfolio-scorecard-group__header > strong { color: #d7efe7; font: 600 13px/1 var(--font-plex-mono), monospace; white-space: nowrap; }
 .portfolio-scorecards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; padding: 14px; }
 .portfolio-scorecard { overflow: hidden; border: 1px solid var(--line); border-top-width: 3px; border-radius: 9px; background: #fff; transition: transform .16s, box-shadow .16s; }
 .portfolio-scorecard:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(20,33,29,.07); }
@@ -200,6 +200,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .portfolio-scorecard.is-investigate { border-top-color: var(--watch); }
 .portfolio-scorecard.is-pass { border-top-color: var(--bad); }
 .portfolio-scorecard.is-pending { border-top-color: #aab2ad; }
+.portfolio-scorecard.has-decision { border-width: 2px; border-top-width: 4px; }
+.portfolio-scorecard.is-decision-shortlisted { border-color: #278456; background: #dff1e6; box-shadow: 0 7px 20px rgba(31,122,77,.13); }
+.portfolio-scorecard.is-decision-maybe { border-color: #b17b16; background: #faedc9; box-shadow: 0 7px 20px rgba(138,100,20,.13); }
+.portfolio-scorecard.is-decision-disqualified { border-color: #b34b42; background: #f5dcda; box-shadow: 0 7px 20px rgba(154,58,49,.13); }
+.portfolio-scorecard.has-decision .portfolio-scorecard__body { background: transparent; }
+.portfolio-scorecard.is-decision-shortlisted .portfolio-decision { border-top-color: rgba(39,132,86,.35); }
+.portfolio-scorecard.is-decision-maybe .portfolio-decision { border-top-color: rgba(177,123,22,.35); }
+.portfolio-scorecard.is-decision-disqualified .portfolio-decision { border-top-color: rgba(179,75,66,.35); }
+.portfolio-scorecard.has-decision .portfolio-decision button { background: rgba(255,255,255,.44); }
 .portfolio-scorecard__body { display: block; width: 100%; padding: 17px 17px 14px; border: 0; background: transparent; text-align: left; }
 .portfolio-scorecard__top { display: flex; justify-content: space-between; align-items: center; }
 .portfolio-scorecard__top > strong { font-family: var(--font-newsreader), Georgia, serif; font-size: 29px; font-weight: 500; line-height: 1; }
