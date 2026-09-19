@@ -27,8 +27,7 @@ OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
 MODELS = {
     "haiku":       ("anthropic", "claude-haiku-4-5-20251001", 0.0008,  0.004),
     "sonnet":      ("anthropic", "claude-sonnet-4-6",         0.003,   0.015),
-    "gpt-4o-mini": ("openai",    "gpt-4o-mini",               0.00015, 0.0006),
-    "gpt-4o":      ("openai",    "gpt-4o",                    0.0025,  0.01),
+    "gpt-5.6-luna": ("openai",   "gpt-5.6-luna",              0.0002,  0.0012),
 }
 
 
@@ -368,7 +367,7 @@ def score_stream(
         .replace("{atc4_context}",      atc4_context)
     )
 
-    provider, model_id, _, _ = MODELS.get(model_name, MODELS["gpt-4o-mini"])
+    provider, model_id, _, _ = MODELS.get(model_name, MODELS["gpt-5.6-luna"])
 
     if provider == "anthropic":
         import anthropic
@@ -383,7 +382,7 @@ def score_stream(
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
         stream = client.chat.completions.create(
-            model=model_id, max_tokens=8096, stream=True,
+            model=model_id, max_completion_tokens=8096, stream=True,
             messages=[{"role": "user", "content": prompt}],
         )
         for chunk in stream:

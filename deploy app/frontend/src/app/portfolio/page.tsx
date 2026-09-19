@@ -20,8 +20,7 @@ type ViewMode  = "grid" | "treemap";
 type ReportTab = "report" | "charts";
 
 const MODELS = [
-  { id: "gpt-4o-mini", label: "GPT-4o Mini (fast, cheap)" },
-  { id: "gpt-4o",      label: "GPT-4o (best quality)" },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { id: "haiku",       label: "Claude Haiku (fast)" },
   { id: "sonnet",      label: "Claude Sonnet (best reasoning)" },
 ];
@@ -126,7 +125,7 @@ export default function MyPortfolioPage() {
   const [file,           setFile]           = useState<File | null>(null);
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
-  const [scoringModel,   setScoringModel]   = useState("gpt-4o-mini");
+  const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
   const [uploadName,     setUploadName]     = useState("");
   const [saving,         setSaving]         = useState(false);
   const [saveError,      setSaveError]      = useState("");

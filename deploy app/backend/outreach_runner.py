@@ -29,8 +29,7 @@ HUNTER_API_KEY    = os.getenv("HUNTER_API_KEY", "")
 MODELS = {
     "haiku":       ("anthropic", "claude-haiku-4-5-20251001"),
     "sonnet":      ("anthropic", "claude-sonnet-4-6"),
-    "gpt-4o-mini": ("openai",    "gpt-4o-mini"),
-    "gpt-4o":      ("openai",    "gpt-4o"),
+    "gpt-5.6-luna": ("openai",   "gpt-5.6-luna"),
 }
 
 # ── Prompt unchanged from outreach_agent.py ──────────────────────────────────
@@ -70,7 +69,7 @@ def _call_llm(prompt: str, model_name: str) -> str:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
         resp = client.chat.completions.create(
-            model=model_id, max_tokens=4096, stream=False,
+            model=model_id, max_completion_tokens=4096, stream=False,
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content

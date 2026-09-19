@@ -24,8 +24,7 @@ type ViewMode  = "grid" | "treemap";
 type ReportTab = "report" | "charts";
 
 const MODELS = [
-  { id: "gpt-4o-mini", label: "GPT-4o Mini (fast, cheap)" },
-  { id: "gpt-4o",      label: "GPT-4o (best quality)" },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { id: "haiku",       label: "Claude Haiku (fast)" },
   { id: "sonnet",      label: "Claude Sonnet (best reasoning)" },
 ];
@@ -145,7 +144,7 @@ export default function AnalysisPage() {
   const [companyName,    setCompanyName]     = useState("");
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
-  const [scoringModel,   setScoringModel]   = useState("gpt-4o-mini");
+  const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
 
   // Phase 1 results
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -365,7 +364,7 @@ export default function AnalysisPage() {
       setResult(entry.result);
       setCompanyName(entry.source_name);
       setMode(entry.source_type as Mode);
-      setScoringModel(entry.model || "gpt-4o-mini");
+      setScoringModel(entry.model || "gpt-5.6-luna");
       if (entry.report) {
         setReportText(entry.report);
         setReportDone(true);

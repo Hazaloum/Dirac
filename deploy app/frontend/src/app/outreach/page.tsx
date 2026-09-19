@@ -25,7 +25,7 @@ interface CompanyResult {
 
 const MODELS = [
   { id: "haiku",       label: "Haiku (fast, cheap)" },
-  { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { id: "sonnet",      label: "Claude Sonnet" },
 ];
 

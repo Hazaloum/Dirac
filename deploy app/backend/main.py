@@ -135,7 +135,7 @@ class ScoreRequest(BaseModel):
     companies:     list[dict]
     enriched_data: str
     source_name:   str
-    model:         str = "gpt-4o-mini"
+    model:         str = "gpt-5.6-luna"
     market_context:str = ""
     atc4_context:  str = ""
 
@@ -284,7 +284,7 @@ class DraftMessageRequest(BaseModel):
     contact_title:    str
     company_name:     str
     company_overview: str = ""
-    model:            str = "gpt-4o-mini"
+    model:            str = "gpt-5.6-luna"
 
 DRAFT_PROMPT = """You are drafting a LinkedIn connection request message on behalf of Yahya Khaled, Business Development at COMIX Pharmaceuticals — a Dubai-based company that in-licenses generic molecules from manufacturers globally and commercialises them in the UAE through local distributors. COMIX focuses on CNS and is expanding into cardiovascular, metabolic, and oncology.
 
@@ -306,7 +306,7 @@ Return only the message text. Nothing else."""
 def draft_message(body: DraftMessageRequest):
     from agent_runner import MODELS, ANTHROPIC_API_KEY, OPENAI_API_KEY
     try:
-        provider, model_id, _, _ = MODELS.get(body.model, MODELS["gpt-4o-mini"])
+        provider, model_id, _, _ = MODELS.get(body.model, MODELS["gpt-5.6-luna"])
         prompt = (DRAFT_PROMPT
             .replace("{contact_name}",     body.contact_name or "there")
             .replace("{contact_title}",    body.contact_title or "your role")
@@ -325,7 +325,7 @@ def draft_message(body: DraftMessageRequest):
             from openai import OpenAI
             client  = OpenAI(api_key=OPENAI_API_KEY)
             resp    = client.chat.completions.create(
-                model=model_id, max_tokens=200,
+                model=model_id, max_completion_tokens=200,
                 messages=[{"role": "user", "content": prompt}],
             )
             message = resp.choices[0].message.content.strip()
