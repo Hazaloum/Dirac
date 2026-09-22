@@ -39,6 +39,12 @@ export const api = {
     return req<MarketDiscoveryResponse>(`/api/market-discovery?${query.toString()}`);
   },
 
+  getMarketDiscoveryMolecules: (atc4: string) =>
+    req<MarketDiscoveryResponse>(`/api/market-discovery/molecules?atc4=${encodeURIComponent(atc4)}`),
+
+  getMarketDiscoveryCompetitors: (atc4: string, molecule: string) =>
+    req<MarketDiscoveryResponse>(`/api/market-discovery/competitors?atc4=${encodeURIComponent(atc4)}&molecule=${encodeURIComponent(molecule)}`),
+
   // Analysis
   uploadCatalogue: (file: File, company: string) => {
     const form = new FormData();

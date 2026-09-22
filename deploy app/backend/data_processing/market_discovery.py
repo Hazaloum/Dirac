@@ -127,8 +127,9 @@ def build_market_discovery(
             "cagr": round(cagr, 2) if cagr is not None else None,
             "top_company": top_company,
             "top_company_share": round(top_share, 2),
-            "child_count": int(class_df[children_level].nunique()) if children_level else 0,
-            "has_children": bool(children_level and class_df[children_level].nunique()),
+            "child_count": int(class_df[children_level].nunique()) if children_level else int(class_df["Molecule"].nunique()),
+            # ATC4 drills into individual molecules rather than another ATC level.
+            "has_children": bool(class_df[children_level].nunique()) if children_level else bool(class_df["Molecule"].nunique()),
             "molecule_count": int(class_df["Molecule"].nunique()) if "Molecule" in class_df.columns else 0,
         }
         if children_level:
@@ -159,6 +160,112 @@ def build_market_discovery(
         "cagr": round(total_cagr, 2) if total_cagr is not None else None,
         "nodes": nodes,
     }
+
+
+def _prepared_market_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, list[int], int, int]:
+    """Add allocated value/unit columns used by molecule and company views."""
+    work = df.copy()
+    value_years = _years(work, "LC Value")
+    unit_years = _years(work, "Units")
+    years = sorted(set(value_years).intersection(unit_years))
+    if not years:
+        raise ValueError("No yearly LC Value/Units columns found")
+    latest = years[-2] if len(years) >= 2 else years[-1]
+    complete_years = [year for year in years if year <= latest]
+    work["_factor"] = _allocate_factor(work)
+    work["_value_latest"] = pd.to_numeric(work[f"{latest} LC Value"], errors="coerce").fillna(0) * work["_factor"]
+    work["_units_latest"] = pd.to_numeric(work[f"{latest} Units"], errors="coerce").fillna(0) * work["_factor"]
+    for year in complete_years:
+        work[f"_value_{year}"] = pd.to_numeric(work[f"{year} LC Value"], errors="coerce").fillna(0) * work["_factor"]
+    return work, complete_years, latest, years[0]
+
+
+def _market_response(nodes: list[dict], level: str, parent: str, parent_name: str, work: pd.DataFrame,
+                     years: list[int], latest: int, first: int) -> dict:
+    nodes.sort(key=lambda item: item["value"], reverse=True)
+    total_value = float(work["_value_latest"].sum())
+    total_units = float(work["_units_latest"].sum())
+    total_cagr = _cagr_from_first_positive(work, years, latest)
+    return {
+        "level": level,
+        "parent": parent,
+        "parent_code": parent,
+        "parent_name": parent_name,
+        "latest_year": latest,
+        "analysis_year": latest,
+        "start_year": first,
+        "cagr_period": f"{first}-{latest}",
+        "currency": "AED",
+        "source_label": "IQVIA UAE market data",
+        "total_value": round(total_value, 2),
+        "total_units": round(total_units, 2),
+        "cagr": round(total_cagr, 2) if total_cagr is not None else None,
+        "nodes": nodes,
+    }
+
+
+def build_market_molecules(df: pd.DataFrame, atc4: str) -> dict:
+    """Return individual molecules within one IQVIA ATC4 class.
+
+    Combination products contribute an equal allocated share to each ingredient,
+    so a combination is not presented as an additional molecule and totals do
+    not double count the market.
+    """
+    if "Molecule" not in df.columns or "ATC4" not in df.columns:
+        raise ValueError("IQVIA data has no Molecule or ATC4 column")
+    selected = df[_same_class(df["ATC4"], atc4)].copy()
+    selected = selected[~selected["Molecule"].fillna("").astype(str).str.strip().str.upper().isin({"", "NAN", "NONE"})]
+    if selected.empty:
+        raise ValueError(f"No molecules found for ATC4 {atc4}")
+    work, years, latest, first = _prepared_market_frame(selected)
+    _, class_name = _code_name(work["ATC4"].iloc[0])
+    nodes = []
+    for molecule, molecule_df in work.groupby("Molecule", dropna=False):
+        name = " ".join(str(molecule).split()).upper()
+        value = float(molecule_df["_value_latest"].sum())
+        companies = molecule_df.groupby("Manufacturer")["_value_latest"].sum().sort_values(ascending=False)
+        top_company = str(companies.index[0]) if len(companies) else None
+        nodes.append({
+            "code": name,
+            "name": name,
+            "label": name,
+            "level": "MOLECULE",
+            "value": round(value, 2),
+            "units": round(float(molecule_df["_units_latest"].sum()), 2),
+            "cagr": (round(cagr, 2) if (cagr := _cagr_from_first_positive(molecule_df, years, latest)) is not None else None),
+            "top_company": top_company,
+            "top_company_share": round(float(companies.iloc[0] / value * 100), 2) if len(companies) and value else 0.0,
+            "child_count": int(molecule_df["Manufacturer"].nunique()),
+            "has_children": bool(molecule_df["Manufacturer"].nunique()),
+        })
+    return _market_response(nodes, "MOLECULE", atc4, class_name, work, years, latest, first)
+
+
+def build_market_competitors(df: pd.DataFrame, atc4: str, molecule: str) -> dict:
+    """Return manufacturer shares for an individual molecule within an ATC4."""
+    selected = df[_same_class(df["ATC4"], atc4)].copy()
+    normal_molecule = selected["Molecule"].fillna("").astype(str).str.replace(r"\s+", " ", regex=True).str.strip().str.upper()
+    selected = selected[normal_molecule == " ".join(molecule.split()).upper()]
+    if selected.empty:
+        raise ValueError(f"No market data found for {molecule} in {atc4}")
+    work, years, latest, first = _prepared_market_frame(selected)
+    nodes = []
+    for manufacturer, company_df in work.groupby("Manufacturer", dropna=False):
+        name = " ".join(str(manufacturer).split())
+        value = float(company_df["_value_latest"].sum())
+        nodes.append({
+            "code": name,
+            "name": name,
+            "label": name,
+            "level": "COMPANY",
+            "value": round(value, 2),
+            "units": round(float(company_df["_units_latest"].sum()), 2),
+            "cagr": (round(cagr, 2) if (cagr := _cagr_from_first_positive(company_df, years, latest)) is not None else None),
+            "top_company": name,
+            "top_company_share": round(value / float(work["_value_latest"].sum()) * 100, 2) if value else 0.0,
+            "has_children": False,
+        })
+    return _market_response(nodes, "COMPANY", molecule, molecule.upper(), work, years, latest, first)
 
 
 def _child_summaries(df: pd.DataFrame, level: str) -> list[dict]:

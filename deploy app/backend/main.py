@@ -121,6 +121,30 @@ def market_discovery(level: str = "ATC1", parent: Optional[str] = None):
         raise HTTPException(status_code=503, detail="Market data is not loaded") from exc
 
 
+@app.get("/api/market-discovery/molecules")
+def market_discovery_molecules(atc4: str):
+    """Return individual molecules within an IQVIA ATC4 class."""
+    from data_processing.market_discovery import build_market_molecules
+    try:
+        return build_market_molecules(_state["dfs"]["iqvia"], atc4)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=503, detail="Market data is not loaded") from exc
+
+
+@app.get("/api/market-discovery/competitors")
+def market_discovery_competitors(atc4: str, molecule: str):
+    """Return manufacturer shares for a molecule within its selected ATC4."""
+    from data_processing.market_discovery import build_market_competitors
+    try:
+        return build_market_competitors(_state["dfs"]["iqvia"], atc4, molecule)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=503, detail="Market data is not loaded") from exc
+
+
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
 @app.post("/api/analysis/upload")
 async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)):

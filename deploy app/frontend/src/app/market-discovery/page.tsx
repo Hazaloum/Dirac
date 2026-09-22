@@ -53,7 +53,7 @@ function Segment({ node, index, total, onClick }: { node: MarketDiscoveryNode; i
       aria-label={`Open ${node.code} ${node.name}`}
       disabled={!clickable}
     >
-      <span className="market-discovery-segment-code">{node.code}</span>
+      {node.code !== node.name && <span className="market-discovery-segment-code">{node.code}</span>}
       <strong>{node.name}</strong>
       <small>{formatValue(node.value)}</small>
     </button>
@@ -73,18 +73,27 @@ export default function MarketDiscoveryPage() {
     setError("");
     try {
       const selectedLevel = selection?.level ?? "";
-      const selectedIndex = LEVELS.indexOf(selectedLevel as (typeof LEVELS)[number]);
-      const requestedLevel = selection?.code && selectedIndex >= 0 && selectedIndex < LEVELS.length - 1
-        ? LEVELS[selectedIndex + 1]
-        : "ATC1";
-      const response = await api.getMarketDiscovery(requestedLevel, selection?.code || undefined);
+      let response: MarketDiscoveryResponse;
+      if (selectedLevel === "MOLECULE") {
+        const atc4 = trail.findLast((item) => item.level === "ATC4");
+        if (!atc4) throw new Error("The selected molecule has no ATC4 context");
+        response = await api.getMarketDiscoveryCompetitors(atc4.code, selection?.code || "");
+      } else if (selectedLevel === "ATC4" && selection?.code) {
+        response = await api.getMarketDiscoveryMolecules(selection.code);
+      } else {
+        const selectedIndex = LEVELS.indexOf(selectedLevel as (typeof LEVELS)[number]);
+        const requestedLevel = selection?.code && selectedIndex >= 0 && selectedIndex < LEVELS.length - 1
+          ? LEVELS[selectedIndex + 1]
+          : "ATC1";
+        response = await api.getMarketDiscovery(requestedLevel, selection?.code || undefined);
+      }
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load market discovery data");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [trail]);
 
   useEffect(() => {
     void load(current.code ? current : undefined);
@@ -107,6 +116,10 @@ export default function MarketDiscoveryPage() {
 
   const goTo = (index: number) => setTrail((previous) => previous.slice(0, index + 1));
 
+  const isMoleculeView = level === "MOLECULE";
+  const isCompanyView = level === "COMPANY";
+  const itemLabel = isCompanyView ? "Competitor" : isMoleculeView ? "Molecule" : "ATC class";
+
   return (
     <div className="market-discovery-page">
       <section className="market-discovery-hero">
@@ -123,7 +136,7 @@ export default function MarketDiscoveryPage() {
           <span key={`${item.code}-${index}`}>
             {index > 0 && <ChevronRight aria-hidden="true" />}
             <button type="button" className={index === trail.length - 1 ? "is-current" : ""} onClick={() => goTo(index)}>
-              {index === 0 ? "ATC1 · All markets" : `${item.code} · ${item.name}`}
+              {index === 0 ? "ATC1 · All markets" : item.code === item.name ? item.name : `${item.code} · ${item.name}`}
             </button>
           </span>
         ))}
@@ -158,15 +171,15 @@ export default function MarketDiscoveryPage() {
             <div className="market-discovery-bar" aria-label={`${level} segmented market bar`}>
               {nodes.map((node, index) => <Segment key={node.code} node={node} index={index} total={totalValue} onClick={() => openNode(node)} />)}
             </div>
-            <p className="market-discovery-bar-caption"><Layers3 aria-hidden="true" /> {level === "ATC4" ? "ATC4 is the final IQVIA class level." : "Click a segment to move one level deeper."} Width represents market value.</p>
+            <p className="market-discovery-bar-caption"><Layers3 aria-hidden="true" /> {isCompanyView ? "Competitor share within the selected molecule." : isMoleculeView ? "Click a molecule to reveal its competitor landscape." : level === "ATC4" ? "Click an ATC4 class to see its individual molecules." : "Click a segment to move one level deeper."} Width represents market value.</p>
 
             <div className="market-discovery-table-wrap">
-              <div className="market-discovery-table-heading"><span>Class detail</span><span>{nodes.length} segments</span></div>
+              <div className="market-discovery-table-heading"><span>{isCompanyView ? "Competitor landscape" : isMoleculeView ? "Molecule detail" : "Class detail"}</span><span>{nodes.length} {isCompanyView ? "competitors" : isMoleculeView ? "molecules" : "segments"}</span></div>
               <div className="market-discovery-table" role="table" aria-label="Market segment metrics">
-                <div className="market-discovery-row market-discovery-row--head" role="row"><span>ATC class</span><span>Value</span><span>Units</span><span>CAGR</span><span>Leading company</span><span>Share</span><span aria-hidden="true" /></div>
+                <div className="market-discovery-row market-discovery-row--head" role="row"><span>{itemLabel}</span><span>Value</span><span>Units</span><span>CAGR</span><span>{isCompanyView ? "Company" : "Leading company"}</span><span>Share</span><span aria-hidden="true" /></div>
                 {nodes.map((node, index) => (
                   <button type="button" className="market-discovery-row" key={node.code} onClick={() => openNode(node)} disabled={node.has_children === false}>
-                    <span className="market-discovery-class"><i style={{ background: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.code}</b><em>{node.name}</em></span>
+                    <span className="market-discovery-class"><i style={{ background: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.code}</b>{node.code !== node.name && <em>{node.name}</em>}</span>
                     <span>{formatValue(node.value)}</span>
                     <span>{formatUnits(node.units)}</span>
                     <span className={node.cagr != null && node.cagr >= 0 ? "is-positive" : "is-negative"}>{node.cagr == null ? "—" : `${node.cagr >= 0 ? "+" : ""}${node.cagr.toFixed(1)}%`}</span>
