@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   GitCompareArrows,
+  Layers3,
   Radar,
   Search,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const navigation = [
   { name: "Catalogues", href: "/analysis", icon: BookOpenText },
   { name: "Pipeline", href: "/pipeline", icon: GitCompareArrows },
   { name: "Forecast", href: "/forecast", icon: ChartNoAxesCombined },
+  { name: "Market Discovery", href: "/market-discovery", icon: Layers3 },
   { name: "My Portfolio", href: "/portfolio", icon: BriefcaseBusiness },
   { name: "Outreach", href: "/outreach", icon: Radar },
 ];

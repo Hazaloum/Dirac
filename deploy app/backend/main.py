@@ -104,6 +104,23 @@ def molecules():
     return {"molecules": _state.get("molecules", [])}
 
 
+# ─── Market Discovery — segmented IQVIA/EphMRA hierarchy ───────────────────
+@app.get("/api/market-discovery")
+def market_discovery(level: str = "ATC1", parent: Optional[str] = None):
+    """Return value/units/growth/company-share metrics for an ATC level.
+
+    ``parent`` accepts an ATC code (``N05A``) or the full IQVIA label.  Each
+    node includes child labels for the next drill level.
+    """
+    from data_processing.market_discovery import build_market_discovery
+    try:
+        return build_market_discovery(_state["dfs"]["iqvia"], level, parent)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=503, detail="Market data is not loaded") from exc
+
+
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
 @app.post("/api/analysis/upload")
 async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)):

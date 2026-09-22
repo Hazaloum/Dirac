@@ -32,6 +32,13 @@ export const api = {
   // Molecules
   getMolecules: () => req<{ molecules: string[] }>("/api/molecules"),
 
+  // Market discovery hierarchy. ATC1 has no parent; deeper levels do.
+  getMarketDiscovery: (level = "ATC1", parentCode?: string) => {
+    const query = new URLSearchParams({ level });
+    if (parentCode) query.set("parent", parentCode);
+    return req<MarketDiscoveryResponse>(`/api/market-discovery?${query.toString()}`);
+  },
+
   // Analysis
   uploadCatalogue: (file: File, company: string) => {
     const form = new FormData();
@@ -291,6 +298,33 @@ export interface MoleculeCard {
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
+}
+
+export interface MarketDiscoveryNode {
+  code: string;
+  name: string;
+  level: "ATC1" | "ATC2" | "ATC3" | "ATC4" | string;
+  value: number;
+  units: number;
+  cagr: number | null;
+  top_company: string | null;
+  top_company_share: number | null;
+  molecule_count?: number;
+  has_children?: boolean;
+}
+
+export interface MarketDiscoveryResponse {
+  level: string;
+  parent_code?: string | null;
+  parent_name?: string | null;
+  year?: number;
+  analysis_year?: number;
+  cagr_period?: string;
+  source_label?: string;
+  total_value?: number;
+  total_units?: number;
+  cagr?: number | null;
+  nodes: MarketDiscoveryNode[];
 }
 
 export type PipelineDecisionValue = "yes" | "maybe" | "no";
