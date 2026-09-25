@@ -112,7 +112,6 @@ export default function MarketDiscoveryPage() {
 
   const nodes = useMemo(() => data?.nodes ?? [], [data?.nodes]);
   const marketNodes = useMemo(() => nodes.filter((node) => node.market_data_available !== false), [nodes]);
-  const whoOnlyNodes = useMemo(() => nodes.filter((node) => node.market_data_available === false), [nodes]);
   const totalValue = data?.total_value ?? marketNodes.reduce((sum, node) => sum + (node.value || 0), 0);
   const totalUnits = data?.total_units ?? marketNodes.reduce((sum, node) => sum + (node.units || 0), 0);
   const cagr = data?.cagr ?? null;
@@ -188,39 +187,25 @@ export default function MarketDiscoveryPage() {
               <p className="market-discovery-bar-caption"><Layers3 aria-hidden="true" /> {isCompanyView ? "Competitor share within the selected molecule." : isMoleculeView ? "Click a molecule to reveal its competitor landscape." : level === "ATC4" ? "Click an ATC4 class to see its individual molecules." : "Click a segment to move one level deeper."} Width represents market value.</p>
             </>}
 
-            {marketNodes.length > 0 && <div className="market-discovery-table-wrap">
-              <div className="market-discovery-table-heading"><span>{isCompanyView ? "Competitor landscape" : isMoleculeView ? "Molecule detail" : "IQVIA market detail"}</span><span>{marketNodes.length} {isCompanyView ? "competitors" : isMoleculeView ? "molecules" : "segments"}</span></div>
+            {nodes.length > 0 && <div className="market-discovery-table-wrap">
+              <div className="market-discovery-table-heading"><span>{isCompanyView ? "Competitor landscape" : isMoleculeView ? "Molecule detail" : "Market detail"}</span><span>{nodes.length} {isCompanyView ? "competitors" : isMoleculeView ? "molecules" : "segments"}</span></div>
               <div className="market-discovery-table" role="table" aria-label="Market segment metrics">
                 <div className="market-discovery-row market-discovery-row--head" role="row"><span>{itemLabel}</span><span>Value</span><span>Units</span><span>CAGR</span><span>{isCompanyView ? "Company" : "Leading company"}</span><span>Share</span><span aria-hidden="true" /></div>
-                {marketNodes.map((node, index) => (
-                  <button type="button" className="market-discovery-row" key={`${node.source || "IQVIA"}-${node.code}`} onClick={() => openNode(node)} disabled={node.has_children === false}>
-                    <span className="market-discovery-class"><i style={{ background: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.atc5_code || node.code}</b>{node.code !== node.name && <em>{node.name}</em>}<SourceBadge node={node} /></span>
-                    <span>{formatValue(node.value)}</span>
-                    <span>{formatUnits(node.units)}</span>
-                    <span className={node.cagr != null && node.cagr >= 0 ? "is-positive" : "is-negative"}>{node.cagr == null ? "—" : `${node.cagr >= 0 ? "+" : ""}${node.cagr.toFixed(1)}%`}</span>
-                    <span className="market-discovery-company"><Building2 aria-hidden="true" /> {node.top_company || "—"}</span>
-                    <span>{node.top_company_share == null ? "—" : `${node.top_company_share.toFixed(1)}%`}</span>
+                {nodes.map((node, index) => {
+                  const isWhoOnly = node.market_data_available === false;
+                  return (
+                  <button type="button" className={`market-discovery-row${isWhoOnly ? " is-who-only" : ""}`} key={`${node.source || "IQVIA"}-${node.code}`} onClick={() => openNode(node)} disabled={node.has_children === false}>
+                    <span className="market-discovery-class"><i style={{ background: isWhoOnly ? "#d6a63d" : SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.atc5_code || node.code}</b>{node.code !== node.name && <em>{node.name}</em>}<SourceBadge node={node} /></span>
+                    <span>{isWhoOnly ? "—" : formatValue(node.value)}</span>
+                    <span>{isWhoOnly ? "—" : formatUnits(node.units)}</span>
+                    <span className={!isWhoOnly && node.cagr != null && node.cagr >= 0 ? "is-positive" : !isWhoOnly && node.cagr != null ? "is-negative" : ""}>{isWhoOnly || node.cagr == null ? "—" : `${node.cagr >= 0 ? "+" : ""}${node.cagr.toFixed(1)}%`}</span>
+                    <span className="market-discovery-company">{isWhoOnly ? "No IQVIA data" : <><Building2 aria-hidden="true" /> {node.top_company || "—"}</>}</span>
+                    <span>{isWhoOnly || node.top_company_share == null ? "—" : `${node.top_company_share.toFixed(1)}%`}</span>
                     <span className="market-discovery-open">{node.has_children === false ? "" : <ChevronRight aria-hidden="true" />}</span>
                   </button>
-                ))}
+                )})}
               </div>
             </div>}
-
-            {whoOnlyNodes.length > 0 && (
-              <div className="market-who-only">
-                <div className="market-discovery-table-heading"><span>WHO-only · not observed in IQVIA</span><span>{whoOnlyNodes.length} {isMoleculeView ? "molecules" : "classes"}</span></div>
-                <div className="market-who-only-list">
-                  {whoOnlyNodes.map((node) => (
-                    <button type="button" key={`WHO-${node.code}`} onClick={() => openNode(node)} disabled={node.has_children === false}>
-                      <span className="market-who-only-name"><b>{node.atc5_code || node.code}</b><em>{node.name}</em></span>
-                      <SourceBadge node={node} />
-                      <span className="market-who-only-note">No IQVIA market data</span>
-                      {node.has_children !== false && <ChevronRight aria-hidden="true" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
       </section>
