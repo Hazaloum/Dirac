@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { api, type MarketDiscoveryNode, type MarketDiscoveryResponse } from "@/lib/api";
 
-type Breadcrumb = { code: string; name: string; level: string };
+type Breadcrumb = { code: string; name: string; level: string; source?: "IQVIA" | "WHO" };
 const LEVELS = ["ATC1", "ATC2", "ATC3", "ATC4"] as const;
 
 const SEGMENT_COLORS = ["#0c5c4c", "#257a69", "#46927d", "#6aa894", "#8abca4", "#a7cdb6", "#c1daca", "#d6e6d9"];
@@ -41,6 +41,16 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SourceBadge({ node }: { node: MarketDiscoveryNode }) {
+  if (node.source_status === "who_only") return <span className="market-source-badge is-who-only">WHO only</span>;
+  if (node.who_classes?.length) {
+    const codes = node.who_classes.map((item) => item.code).join(", ");
+    return <span className="market-source-badge is-who-mapped" title={`WHO classes: ${codes}`}>WHO mapped</span>;
+  }
+  if (node.who_codes?.length) return <span className="market-source-badge is-who-mapped">WHO mapped</span>;
+  return null;
+}
+
 function Segment({ node, index, total, onClick }: { node: MarketDiscoveryNode; index: number; total: number; onClick: () => void }) {
   const width = total > 0 ? (node.value / total) * 100 : 100;
   const clickable = node.has_children !== false;
@@ -55,6 +65,7 @@ function Segment({ node, index, total, onClick }: { node: MarketDiscoveryNode; i
     >
       {node.code !== node.name && <span className="market-discovery-segment-code">{node.code}</span>}
       <strong>{node.name}</strong>
+      <SourceBadge node={node} />
       <small>{formatValue(node.value)}</small>
     </button>
   );
@@ -79,13 +90,13 @@ export default function MarketDiscoveryPage() {
         if (!atc4) throw new Error("The selected molecule has no ATC4 context");
         response = await api.getMarketDiscoveryCompetitors(atc4.code, selection?.code || "");
       } else if (selectedLevel === "ATC4" && selection?.code) {
-        response = await api.getMarketDiscoveryMolecules(selection.code);
+        response = await api.getMarketDiscoveryMolecules(selection.code, selection.source);
       } else {
         const selectedIndex = LEVELS.indexOf(selectedLevel as (typeof LEVELS)[number]);
         const requestedLevel = selection?.code && selectedIndex >= 0 && selectedIndex < LEVELS.length - 1
           ? LEVELS[selectedIndex + 1]
           : "ATC1";
-        response = await api.getMarketDiscovery(requestedLevel, selection?.code || undefined);
+        response = await api.getMarketDiscovery(requestedLevel, selection?.code || undefined, selection?.source);
       }
       setData(response);
     } catch (err) {
@@ -100,18 +111,20 @@ export default function MarketDiscoveryPage() {
   }, [current, load]);
 
   const nodes = useMemo(() => data?.nodes ?? [], [data?.nodes]);
-  const totalValue = data?.total_value ?? nodes.reduce((sum, node) => sum + (node.value || 0), 0);
-  const totalUnits = data?.total_units ?? nodes.reduce((sum, node) => sum + (node.units || 0), 0);
+  const marketNodes = useMemo(() => nodes.filter((node) => node.market_data_available !== false), [nodes]);
+  const whoOnlyNodes = useMemo(() => nodes.filter((node) => node.market_data_available === false), [nodes]);
+  const totalValue = data?.total_value ?? marketNodes.reduce((sum, node) => sum + (node.value || 0), 0);
+  const totalUnits = data?.total_units ?? marketNodes.reduce((sum, node) => sum + (node.units || 0), 0);
   const cagr = data?.cagr ?? null;
   const level = data?.level || current.level;
 
   const summary = useMemo(() => ({
-    top: [...nodes].sort((a, b) => b.value - a.value)[0],
-  }), [nodes]);
+    top: [...marketNodes].sort((a, b) => b.value - a.value)[0],
+  }), [marketNodes]);
 
   const openNode = (node: MarketDiscoveryNode) => {
     if (node.has_children === false) return;
-    setTrail((previous) => [...previous, { code: node.code, name: node.name, level: node.level }]);
+    setTrail((previous) => [...previous, { code: node.code, name: node.name, level: node.level, source: node.source }]);
   };
 
   const goTo = (index: number) => setTrail((previous) => previous.slice(0, index + 1));
@@ -161,25 +174,27 @@ export default function MarketDiscoveryPage() {
           <div className="market-discovery-state"><PackageOpen /><strong>No market classes found</strong><p>This level has no reported segments yet.</p></div>
         ) : (
           <>
-            <div className="market-discovery-summary">
-              <Metric label="Market value" value={formatValue(totalValue)} />
-              <Metric label="Units" value={formatUnits(totalUnits)} />
-              <Metric label="Market CAGR" value={cagr == null ? "—" : `${cagr >= 0 ? "+" : ""}${cagr.toFixed(1)}%`} />
-              <Metric label="Largest segment" value={summary.top?.code || "—"} />
-            </div>
+            {marketNodes.length > 0 && <>
+              <div className="market-discovery-summary">
+                <Metric label="Market value" value={formatValue(totalValue)} />
+                <Metric label="Units" value={formatUnits(totalUnits)} />
+                <Metric label="Market CAGR" value={cagr == null ? "—" : `${cagr >= 0 ? "+" : ""}${cagr.toFixed(1)}%`} />
+                <Metric label="Largest segment" value={summary.top?.code || "—"} />
+              </div>
 
-            <div className="market-discovery-bar" aria-label={`${level} segmented market bar`}>
-              {nodes.map((node, index) => <Segment key={node.code} node={node} index={index} total={totalValue} onClick={() => openNode(node)} />)}
-            </div>
-            <p className="market-discovery-bar-caption"><Layers3 aria-hidden="true" /> {isCompanyView ? "Competitor share within the selected molecule." : isMoleculeView ? "Click a molecule to reveal its competitor landscape." : level === "ATC4" ? "Click an ATC4 class to see its individual molecules." : "Click a segment to move one level deeper."} Width represents market value.</p>
+              <div className="market-discovery-bar" aria-label={`${level} segmented market bar`}>
+                {marketNodes.map((node, index) => <Segment key={`${node.source || "IQVIA"}-${node.code}`} node={node} index={index} total={totalValue} onClick={() => openNode(node)} />)}
+              </div>
+              <p className="market-discovery-bar-caption"><Layers3 aria-hidden="true" /> {isCompanyView ? "Competitor share within the selected molecule." : isMoleculeView ? "Click a molecule to reveal its competitor landscape." : level === "ATC4" ? "Click an ATC4 class to see its individual molecules." : "Click a segment to move one level deeper."} Width represents market value.</p>
+            </>}
 
-            <div className="market-discovery-table-wrap">
-              <div className="market-discovery-table-heading"><span>{isCompanyView ? "Competitor landscape" : isMoleculeView ? "Molecule detail" : "Class detail"}</span><span>{nodes.length} {isCompanyView ? "competitors" : isMoleculeView ? "molecules" : "segments"}</span></div>
+            {marketNodes.length > 0 && <div className="market-discovery-table-wrap">
+              <div className="market-discovery-table-heading"><span>{isCompanyView ? "Competitor landscape" : isMoleculeView ? "Molecule detail" : "IQVIA market detail"}</span><span>{marketNodes.length} {isCompanyView ? "competitors" : isMoleculeView ? "molecules" : "segments"}</span></div>
               <div className="market-discovery-table" role="table" aria-label="Market segment metrics">
                 <div className="market-discovery-row market-discovery-row--head" role="row"><span>{itemLabel}</span><span>Value</span><span>Units</span><span>CAGR</span><span>{isCompanyView ? "Company" : "Leading company"}</span><span>Share</span><span aria-hidden="true" /></div>
-                {nodes.map((node, index) => (
-                  <button type="button" className="market-discovery-row" key={node.code} onClick={() => openNode(node)} disabled={node.has_children === false}>
-                    <span className="market-discovery-class"><i style={{ background: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.code}</b>{node.code !== node.name && <em>{node.name}</em>}</span>
+                {marketNodes.map((node, index) => (
+                  <button type="button" className="market-discovery-row" key={`${node.source || "IQVIA"}-${node.code}`} onClick={() => openNode(node)} disabled={node.has_children === false}>
+                    <span className="market-discovery-class"><i style={{ background: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }} /><b>{node.atc5_code || node.code}</b>{node.code !== node.name && <em>{node.name}</em>}<SourceBadge node={node} /></span>
                     <span>{formatValue(node.value)}</span>
                     <span>{formatUnits(node.units)}</span>
                     <span className={node.cagr != null && node.cagr >= 0 ? "is-positive" : "is-negative"}>{node.cagr == null ? "—" : `${node.cagr >= 0 ? "+" : ""}${node.cagr.toFixed(1)}%`}</span>
@@ -189,7 +204,23 @@ export default function MarketDiscoveryPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
+
+            {whoOnlyNodes.length > 0 && (
+              <div className="market-who-only">
+                <div className="market-discovery-table-heading"><span>WHO-only · not observed in IQVIA</span><span>{whoOnlyNodes.length} {isMoleculeView ? "molecules" : "classes"}</span></div>
+                <div className="market-who-only-list">
+                  {whoOnlyNodes.map((node) => (
+                    <button type="button" key={`WHO-${node.code}`} onClick={() => openNode(node)} disabled={node.has_children === false}>
+                      <span className="market-who-only-name"><b>{node.atc5_code || node.code}</b><em>{node.name}</em></span>
+                      <SourceBadge node={node} />
+                      <span className="market-who-only-note">No IQVIA market data</span>
+                      {node.has_children !== false && <ChevronRight aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>

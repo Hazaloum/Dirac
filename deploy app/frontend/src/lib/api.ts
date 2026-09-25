@@ -33,14 +33,15 @@ export const api = {
   getMolecules: () => req<{ molecules: string[] }>("/api/molecules"),
 
   // Market discovery hierarchy. ATC1 has no parent; deeper levels do.
-  getMarketDiscovery: (level = "ATC1", parentCode?: string) => {
+  getMarketDiscovery: (level = "ATC1", parentCode?: string, source = "IQVIA") => {
     const query = new URLSearchParams({ level });
     if (parentCode) query.set("parent", parentCode);
+    query.set("source", source);
     return req<MarketDiscoveryResponse>(`/api/market-discovery?${query.toString()}`);
   },
 
-  getMarketDiscoveryMolecules: (atc4: string) =>
-    req<MarketDiscoveryResponse>(`/api/market-discovery/molecules?atc4=${encodeURIComponent(atc4)}`),
+  getMarketDiscoveryMolecules: (atc4: string, source = "IQVIA") =>
+    req<MarketDiscoveryResponse>(`/api/market-discovery/molecules?atc4=${encodeURIComponent(atc4)}&source=${encodeURIComponent(source)}`),
 
   getMarketDiscoveryCompetitors: (atc4: string, molecule: string) =>
     req<MarketDiscoveryResponse>(`/api/market-discovery/competitors?atc4=${encodeURIComponent(atc4)}&molecule=${encodeURIComponent(molecule)}`),
@@ -317,6 +318,12 @@ export interface MarketDiscoveryNode {
   top_company_share: number | null;
   molecule_count?: number;
   has_children?: boolean;
+  source?: "IQVIA" | "WHO";
+  source_status?: "iqvia_with_who" | "iqvia_only" | "who_only";
+  market_data_available?: boolean;
+  atc5_code?: string;
+  who_codes?: string[];
+  who_classes?: Array<{ code: string; name: string; status: string; confidence?: string | null }>;
 }
 
 export interface MarketDiscoveryResponse {
@@ -330,6 +337,8 @@ export interface MarketDiscoveryResponse {
   total_value?: number;
   total_units?: number;
   cagr?: number | null;
+  who_only_count?: number;
+  who_classes?: Array<{ code: string; name: string; status: string; confidence?: string | null }>;
   nodes: MarketDiscoveryNode[];
 }
 

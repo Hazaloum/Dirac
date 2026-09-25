@@ -106,15 +106,20 @@ def molecules():
 
 # ─── Market Discovery — segmented IQVIA/EphMRA hierarchy ───────────────────
 @app.get("/api/market-discovery")
-def market_discovery(level: str = "ATC1", parent: Optional[str] = None):
+def market_discovery(level: str = "ATC1", parent: Optional[str] = None, source: str = "IQVIA"):
     """Return value/units/growth/company-share metrics for an ATC level.
 
     ``parent`` accepts an ATC code (``N05A``) or the full IQVIA label.  Each
     node includes child labels for the next drill level.
     """
     from data_processing.market_discovery import build_market_discovery
+    from data_processing.who_crosswalk import build_who_response, enrich_iqvia_response
     try:
-        return build_market_discovery(_state["dfs"]["iqvia"], level, parent)
+        df_iqvia = _state["dfs"]["iqvia"]
+        if source.upper() == "WHO" and parent:
+            return build_who_response(df_iqvia, level.upper(), parent)
+        response = build_market_discovery(df_iqvia, level, parent)
+        return enrich_iqvia_response(response, level.upper(), parent)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except KeyError as exc:
@@ -122,11 +127,15 @@ def market_discovery(level: str = "ATC1", parent: Optional[str] = None):
 
 
 @app.get("/api/market-discovery/molecules")
-def market_discovery_molecules(atc4: str):
+def market_discovery_molecules(atc4: str, source: str = "IQVIA"):
     """Return individual molecules within an IQVIA ATC4 class."""
     from data_processing.market_discovery import build_market_molecules
+    from data_processing.who_crosswalk import build_who_molecules_response, enrich_molecule_response
     try:
-        return build_market_molecules(_state["dfs"]["iqvia"], atc4)
+        df_iqvia = _state["dfs"]["iqvia"]
+        if source.upper() == "WHO":
+            return build_who_molecules_response(df_iqvia, atc4)
+        return enrich_molecule_response(build_market_molecules(df_iqvia, atc4), atc4)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except KeyError as exc:
