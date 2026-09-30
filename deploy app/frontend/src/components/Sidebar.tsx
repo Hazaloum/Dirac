@@ -9,6 +9,7 @@ import {
   GitCompareArrows,
   Layers3,
   Radar,
+  Boxes,
   Search,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: "Forecast", href: "/forecast", icon: ChartNoAxesCombined },
   { name: "Market Discovery", href: "/market-discovery", icon: Layers3 },
   { name: "My Portfolio", href: "/portfolio", icon: BriefcaseBusiness },
+  { name: "Inventory", href: "/inventory", icon: Boxes },
   { name: "Outreach", href: "/outreach", icon: Radar },
 ];
 

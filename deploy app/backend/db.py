@@ -1,6 +1,6 @@
 """
-db.py — SQLite persistence for outreach runs.
-Database: backend/data/contacts.db
+db.py — PostgreSQL persistence for outreach runs.
+Connection: DATABASE_URL
 Tables:
   outreach_runs      — one row per country run
   outreach_companies — one row per company (full card data stored as JSON)
@@ -8,80 +8,11 @@ Tables:
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
-from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data" / "contacts.db"
-
-
-@contextmanager
-def _conn():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    try:
-        yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def init_db() -> None:
-    """Create tables if they don't exist. Called once at startup."""
-    with _conn() as con:
-        con.executescript("""
-            CREATE TABLE IF NOT EXISTS outreach_runs (
-                run_id          TEXT PRIMARY KEY,
-                country         TEXT NOT NULL,
-                model           TEXT,
-                run_date        TEXT NOT NULL,
-                companies_found INTEGER DEFAULT 0,
-                contacts_found  INTEGER DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS outreach_companies (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                run_id          TEXT NOT NULL REFERENCES outreach_runs(run_id),
-                company         TEXT NOT NULL,
-                website         TEXT,
-                overview        TEXT,
-                uae_mohap       TEXT,
-                uae_upp         TEXT,
-                mohap_agents    TEXT,
-                upp_agents      TEXT,
-                contacts        TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS analysis_runs (
-                run_id      TEXT PRIMARY KEY,
-                source_name TEXT NOT NULL,
-                source_type TEXT DEFAULT 'upload',
-                model       TEXT DEFAULT '',
-                saved_at    TEXT NOT NULL,
-                stats       TEXT DEFAULT '{}',
-                result      TEXT DEFAULT '{}',
-                report      TEXT DEFAULT '',
-                has_report  INTEGER DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS my_portfolio (
-                id           INTEGER PRIMARY KEY CHECK (id = 1),
-                company_name TEXT NOT NULL,
-                result       TEXT DEFAULT '{}',
-                report       TEXT DEFAULT '',
-                saved_at     TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS pipeline_decisions (
-                molecule    TEXT PRIMARY KEY,
-                decision    TEXT NOT NULL CHECK (decision IN ('yes', 'maybe', 'no')),
-                source_name TEXT DEFAULT '',
-                snapshot    TEXT DEFAULT '{}',
-                updated_at  TEXT NOT NULL
-            );
-        """)
+from database import connection as _conn
+from database import init_db
 
 
 # ─── Write ────────────────────────────────────────────────────────────────────
@@ -98,7 +29,7 @@ def save_outreach_run(country: str, model: str, companies: list[dict]) -> str:
 
     with _conn() as con:
         con.execute(
-            "INSERT INTO outreach_runs VALUES (?,?,?,?,?,?)",
+            "INSERT INTO outreach_runs VALUES (%s,%s,%s,%s,%s,%s)",
             (run_id, country, model, run_date, len(companies), contacts_found),
         )
         for c in companies:
@@ -106,7 +37,7 @@ def save_outreach_run(country: str, model: str, companies: list[dict]) -> str:
                 """INSERT INTO outreach_companies
                    (run_id, company, website, overview,
                     uae_mohap, uae_upp, mohap_agents, upp_agents, contacts)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (
                     run_id,
                     c.get("company", ""),
@@ -137,13 +68,13 @@ def get_outreach_run(run_id: str) -> dict | None:
     """Return full run with all company cards."""
     with _conn() as con:
         run = con.execute(
-            "SELECT * FROM outreach_runs WHERE run_id=?", (run_id,)
+            "SELECT * FROM outreach_runs WHERE run_id=%s", (run_id,)
         ).fetchone()
         if not run:
             return None
 
         companies = con.execute(
-            "SELECT * FROM outreach_companies WHERE run_id=? ORDER BY id",
+            "SELECT * FROM outreach_companies WHERE run_id=%s ORDER BY id",
             (run_id,),
         ).fetchall()
 
@@ -170,9 +101,6 @@ def get_outreach_run(run_id: str) -> dict | None:
 def delete_outreach_run(run_id: str) -> bool:
     with _conn() as con:
         cur = con.execute(
-            "DELETE FROM outreach_runs WHERE run_id=?", (run_id,)
-        )
-        con.execute(
-            "DELETE FROM outreach_companies WHERE run_id=?", (run_id,)
+            "DELETE FROM outreach_runs WHERE run_id=%s", (run_id,)
         )
     return cur.rowcount > 0

@@ -152,6 +152,13 @@ export const api = {
 
   clearMyPortfolio: () => req("/api/portfolio", { method: "DELETE" }),
 
+  // All IQVIA product packs for current My Portfolio molecules
+  getInventory: () => req<InventoryResponse>("/api/inventory"),
+  setInventoryStock: (packKey: string, stockQuantity: number) => req<InventoryItem>(`/api/inventory/${packKey}`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stock_quantity: stockQuantity }),
+  }),
+
   // Cross-catalogue evaluation pipeline
   getPipeline: () => req<{ decisions: PipelineDecision[] }>("/api/pipeline"),
 
@@ -528,4 +535,20 @@ export interface OutreachEvent {
   run_id?: string;
   country?: string;
   companies_found?: number;
+}
+
+export interface InventoryItem {
+  pack_key: string;
+  molecule: string;
+  manufacturer: string;
+  product_name: string;
+  strength: string;
+  pack_size: string;
+  classification: string;
+  stock_quantity: number;
+}
+
+export interface InventoryResponse {
+  items: InventoryItem[];
+  unmatched_molecules: string[];
 }

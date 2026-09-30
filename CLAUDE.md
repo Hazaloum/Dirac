@@ -14,7 +14,7 @@ This repo is the **web application** that powers COMIX's BD intelligence workflo
 |-------|-----------|
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, Plotly |
 | Backend | FastAPI (Python), uvicorn |
-| Database | SQLite (`data/contacts.db`) — survives Railway restarts via persistent volume |
+| Database | PostgreSQL (`DATABASE_URL`); setup and import in `deploy app/backend/POSTGRES.md` |
 | Deployment | Frontend → Vercel, Backend → Railway |
 | AI | Anthropic Claude (haiku/sonnet) + OpenAI (gpt-4o-mini/gpt-4o) |
 | Data | IQVIA, MOHAP, UPP CSVs — loaded once at startup into DataFrames |
@@ -32,8 +32,8 @@ Claude_App/
     │   ├── agent_runner.py            # BD analysis logic (extract, enrich, score)
     │   ├── outreach_runner.py         # Outreach logic (company search, contacts)
     │   ├── DetailedForecast.py        # Y1–Y3 revenue forecasting
-    │   ├── store.py                   # SQLite: analysis runs + My Portfolio
-    │   ├── db.py                      # SQLite: outreach runs + companies
+    │   ├── store.py                   # PostgreSQL: analysis runs + My Portfolio
+    │   ├── db.py                      # PostgreSQL: outreach runs + companies
     │   ├── sheets.py                  # Google Sheets export (optional, no-ops if unconfigured)
     │   ├── data_processing/
     │   │   ├── loader.py              # Load + clean IQVIA/UPP/MOHAP CSVs once
@@ -46,7 +46,7 @@ Claude_App/
     │   │   ├── prompt_scoring.txt     # Pass 2 scoring prompt (uses .replace(), NOT .format())
     │   │   └── prompt_discovery.txt   # Pass 1 country discovery prompt
     │   └── data/
-    │       └── contacts.db            # SQLite database (persisted on Railway volume)
+    │       └── contacts.db            # Legacy SQLite backup, if present
     └── frontend/
         ├── src/
         │   ├── app/
@@ -76,7 +76,7 @@ Claude_App/
 
 ### Startup (`lifespan` in main.py)
 On server start, before accepting requests:
-1. `init_db()` — creates SQLite tables if not present
+1. `init_db()` — applies PostgreSQL migrations if not present
 2. `load_data(DATA_DIR)` — reads IQVIA, UPP, MOHAP CSVs into DataFrames stored in `_state["dfs"]`
 3. Pre-computes `market_context` string (market-wide benchmarks for scoring prompt)
 4. Builds full molecule list from IQVIA for the craft/single-molecule autocomplete
@@ -100,7 +100,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read CSV
 | POST | `/api/analysis/upload` | Upload catalogue (PDF/CSV/Excel) → extract + enrich |
 | POST | `/api/analysis/enrich` | Enrich a typed molecule list (craft/single mode) |
 | POST | `/api/analysis/score` | **SSE stream** — Pass 2 AI scoring |
-| POST | `/api/analysis/history` | Save an analysis run to SQLite |
+| POST | `/api/analysis/history` | Save an analysis run to PostgreSQL |
 | GET | `/api/analysis/history` | List saved analysis runs |
 | GET | `/api/analysis/history/{run_id}` | Get full run (result + report) |
 | DELETE | `/api/analysis/history/{run_id}` | Delete run |
@@ -145,7 +145,7 @@ score_stream()
     → injects {market_context}, {atc4_context}, {enriched_data} via .replace()
     → streams LLM output token-by-token
     → frontend accumulates into reportText
-    → auto-saves to SQLite when stream ends
+    → auto-saves to PostgreSQL when stream ends
 ```
 
 **Model routing** — `MODELS` dict in `agent_runner.py` maps model names (`haiku`, `sonnet`, `gpt-4o-mini`, `gpt-4o`) to `(provider, model_id, input_cost, output_cost)`.
@@ -189,7 +189,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Three input modes: `upload` (catalogue file), `craft` (type molecules), `molecule` (single lookup)
 - Phase `input` → Phase `portfolio` (after Phase 1) → Phase `report` (after Phase 2)
 - Portfolio phase: grid or treemap view, shortlist/disqualify per molecule (CheckCircle2 / XCircle), MOHAP + UPP counts shown on card
-- Stats bar buttons: **Save Portfolio** (manual SQLite save), view toggle, Generate AI Report / View Report
+- Stats bar buttons: **Save Portfolio** (manual PostgreSQL save), view toggle, Generate AI Report / View Report
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
 - History sidebar: lists saved runs, click to reload
 
@@ -207,9 +207,12 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - LinkedIn message drafting per contact
 
 **Portfolio (`/portfolio`)**
-- Singleton: one saved portfolio at a time (id=1 in SQLite)
+- Singleton: one saved portfolio at a time (id=1 in PostgreSQL)
 - Same upload/craft input modes as Analysis
-- Persists across Railway restarts (SQLite)
+- Persists across Railway restarts (PostgreSQL)
+
+### Inventory
+The `/inventory` page shows distinct IQVIA product/strength/pack rows for every molecule in My Portfolio. Stock quantities (packs) are mutable PostgreSQL records in `dirac.inventory_stock`, keyed by a stable digest of the IQVIA pack identity. See `deploy app/backend/POSTGRES.md`.
 
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
@@ -219,9 +222,9 @@ Single `api` object with typed methods. All calls go to `NEXT_PUBLIC_API_URL` (s
 
 ---
 
-## Persistence (SQLite)
+## Persistence (PostgreSQL)
 
-Database: `backend/data/contacts.db` — mounted as a persistent volume on Railway.
+Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for setup and SQLite import.
 
 | Table | Contents |
 |-------|----------|
@@ -243,6 +246,7 @@ Database: `backend/data/contacts.db` — mounted as a persistent volume on Railw
 | `OPENAI_API_KEY` | Railway | OpenAI API key |
 | `TAVILY_API_KEY` | Railway | Web search for outreach agent |
 | `NEXT_PUBLIC_API_URL` | Vercel | Backend Railway URL (e.g. `https://xxx.railway.app`) |
+| `DATABASE_URL` | Backend | PostgreSQL connection string for saved records |
 
 ---
 
@@ -260,7 +264,7 @@ Database: `backend/data/contacts.db` — mounted as a persistent volume on Railw
 
 6. **No named exports from Next.js page files** — only `export default function PageName()` is allowed. Constants and interfaces shared across pages must live in `src/lib/`.
 
-7. **SQLite over JSON files** — Railway containers wipe the filesystem on restart. The `data/` directory is a persistent volume. Do not write ephemeral state to JSON files.
+7. **PostgreSQL for saved records** — Railway containers wipe local files on restart. Keep saved records in PostgreSQL; the CSVs are reference assets.
 
 8. **Forecast formula** — `Y2 = Y1 × (1 + growth_rate)`, `Y3 = Y2 × (1 + growth_rate)`. Growth rate is user-chosen (default 15%). No hidden ramp multipliers.
 
@@ -268,7 +272,7 @@ Database: `backend/data/contacts.db` — mounted as a persistent volume on Railw
 
 ## Updating the IQVIA dataset
 
-IQVIA is **never uploaded through the app** and never enters SQLite — it is a flat CSV read once at startup. To refresh it:
+IQVIA is **never uploaded through the app** and never enters PostgreSQL — it is a flat CSV read once at startup. To refresh it:
 
 ```bash
 python scripts/convert_iqvia_export.py "~/Downloads/UAE_LPO_COM_MOL_<date>.xlsx"

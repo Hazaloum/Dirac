@@ -392,7 +392,7 @@ class OutreachRequest(BaseModel):
 
 @app.post("/api/outreach/run")
 def outreach_run(body: OutreachRequest):
-    """Stream outreach run progress + results via SSE, then save to contacts.db."""
+    """Stream outreach run progress + results via SSE, then save to PostgreSQL."""
     from outreach_runner import run_outreach_stream
     from db import save_outreach_run
 
@@ -490,6 +490,28 @@ def clear_portfolio():
     from store import delete_my_portfolio
     delete_my_portfolio()
     return {"ok": True}
+
+
+
+# ─── Inventory ──────────────────────────────────────────────────────────────
+
+class StockUpdateRequest(BaseModel):
+    stock_quantity: int = Field(ge=0, le=2147483647)
+
+
+@app.get("/api/inventory")
+def get_inventory():
+    from inventory import list_inventory
+    return list_inventory(_state["dfs"]["iqvia"])
+
+
+@app.put("/api/inventory/{pack_key}")
+def update_inventory_stock(pack_key: str, body: StockUpdateRequest):
+    from inventory import set_stock
+    item = set_stock(_state["dfs"]["iqvia"], pack_key, body.stock_quantity)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Pack is not in the current portfolio and IQVIA data")
+    return item
 
 
 # ─── Evaluation pipeline ────────────────────────────────────────────────────

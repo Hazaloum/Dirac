@@ -1,31 +1,14 @@
 """
-store.py — SQLite persistence for analysis runs + My Portfolio.
-Migrated from JSON files to SQLite (same contacts.db) so data survives
-Railway container restarts without needing separate persistent volumes.
+store.py — PostgreSQL persistence for analysis runs + My Portfolio.
+Saved records are stored in PostgreSQL.
 """
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
-from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data" / "contacts.db"
-
-
-@contextmanager
-def _conn():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    try:
-        yield con
-        con.commit()
-    finally:
-        con.close()
-
-
+from database import connection as _conn
 # ─── Analysis runs ────────────────────────────────────────────────────────────
 
 def save_analysis(
@@ -41,7 +24,7 @@ def save_analysis(
         con.execute(
             """INSERT INTO analysis_runs
                (run_id, source_name, source_type, model, saved_at, stats, result, report, has_report)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (
                 run_id, source_name, source_type, model,
                 datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
@@ -85,7 +68,7 @@ def get_analysis(run_id: str) -> dict | None:
     """Return full entry including result + report."""
     with _conn() as con:
         row = con.execute(
-            "SELECT * FROM analysis_runs WHERE run_id=?", (run_id,)
+            "SELECT * FROM analysis_runs WHERE run_id=%s", (run_id,)
         ).fetchone()
     if not row:
         return None
@@ -104,7 +87,7 @@ def get_analysis(run_id: str) -> dict | None:
 
 def delete_analysis(run_id: str) -> bool:
     with _conn() as con:
-        cur = con.execute("DELETE FROM analysis_runs WHERE run_id=?", (run_id,))
+        cur = con.execute("DELETE FROM analysis_runs WHERE run_id=%s", (run_id,))
     return cur.rowcount > 0
 
 
@@ -127,7 +110,7 @@ def save_my_portfolio(company_name: str, result: dict) -> None:
     with _conn() as con:
         con.execute(
             """INSERT INTO my_portfolio (id, company_name, result, report, saved_at)
-               VALUES (1, ?, ?, '', ?)
+               VALUES (1, %s, %s, '', %s)
                ON CONFLICT(id) DO UPDATE SET
                    company_name = excluded.company_name,
                    result       = excluded.result,
@@ -140,7 +123,7 @@ def save_my_portfolio(company_name: str, result: dict) -> None:
 def save_my_portfolio_report(report: str) -> bool:
     with _conn() as con:
         cur = con.execute(
-            "UPDATE my_portfolio SET report=? WHERE id=1", (report,)
+            "UPDATE my_portfolio SET report=%s WHERE id=1", (report,)
         )
     return cur.rowcount > 0
 
@@ -183,7 +166,7 @@ def save_pipeline_decision(
         con.execute(
             """INSERT INTO pipeline_decisions
                (molecule, decision, source_name, snapshot, updated_at)
-               VALUES (?, ?, ?, ?, ?)
+               VALUES (%s, %s, %s, %s, %s)
                ON CONFLICT(molecule) DO UPDATE SET
                    decision    = excluded.decision,
                    source_name = excluded.source_name,
@@ -203,6 +186,6 @@ def save_pipeline_decision(
 def delete_pipeline_decision(molecule: str) -> bool:
     with _conn() as con:
         cur = con.execute(
-            "DELETE FROM pipeline_decisions WHERE molecule=?", (molecule.upper(),)
+            "DELETE FROM pipeline_decisions WHERE molecule=%s", (molecule.upper(),)
         )
     return cur.rowcount > 0
