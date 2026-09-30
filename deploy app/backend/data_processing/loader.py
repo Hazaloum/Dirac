@@ -1,30 +1,28 @@
 """
 Data Loader
 ===========
-Loads and cleans all three raw data files once at pipeline startup.
-Returns analysis-ready DataFrames to be passed into iqvia.py, upp.py, mohap.py.
+Loads the IQVIA, UPP and MOHAP reference tables from Supabase once at startup
+and cleans them. Returns analysis-ready DataFrames to be passed into iqvia.py,
+upp.py, mohap.py.
 
-Never re-reads files per molecule — load once, query many times.
+Never re-reads per request — load once, query many times.
 """
 
 import logging
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+import reference_data
 
-# Default paths — overridden by config.py when used in pipeline
-DEFAULT_IQVIA_PATH = "data/read/iqvia.csv"
-DEFAULT_UPP_PATH   = "data/read/upp.csv"
-DEFAULT_MOHAP_PATH = "data/read/mohap.csv"
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
 # IQVIA
 # ─────────────────────────────────────────────────────────────
 
-def load_iqvia(path: str = DEFAULT_IQVIA_PATH) -> pd.DataFrame:
+def load_iqvia() -> pd.DataFrame:
     """
-    Load and clean the IQVIA master data CSV.
+    Load and clean the IQVIA master data (Supabase `iqvia_sales`).
 
     Cleaning steps:
       1. Strip newlines and extra spaces from column names
@@ -38,8 +36,8 @@ def load_iqvia(path: str = DEFAULT_IQVIA_PATH) -> pd.DataFrame:
     Returns:
         Cleaned DataFrame with a 'Molecule Combination' column added.
     """
-    logger.info(f"Loading IQVIA from {path}")
-    df = pd.read_csv(path, low_memory=False)
+    logger.info("Loading IQVIA from Supabase")
+    df = reference_data.fetch_iqvia()
 
     # 1. Clean column names
     df.columns = (
@@ -89,17 +87,17 @@ def load_iqvia(path: str = DEFAULT_IQVIA_PATH) -> pd.DataFrame:
 # UPP
 # ─────────────────────────────────────────────────────────────
 
-def load_upp(path: str = DEFAULT_UPP_PATH) -> pd.DataFrame:
+def load_upp() -> pd.DataFrame:
     """
-    Load and clean the UPP drug registry CSV.
+    Load and clean the UPP drug registry (Supabase `upp_drugs`).
 
     Cleaning steps:
       1. Strip column name whitespace
       2. Uppercase and strip key text fields:
          Package Name, Generic Name, Manufacturer Name, Agent Name, Status
     """
-    logger.info(f"Loading UPP from {path}")
-    df = pd.read_csv(path, low_memory=False)
+    logger.info("Loading UPP from Supabase")
+    df = reference_data.fetch_upp()
 
     df.columns = df.columns.str.strip()
 
@@ -115,17 +113,17 @@ def load_upp(path: str = DEFAULT_UPP_PATH) -> pd.DataFrame:
 # MOHAP
 # ─────────────────────────────────────────────────────────────
 
-def load_mohap(path: str = DEFAULT_MOHAP_PATH) -> pd.DataFrame:
+def load_mohap() -> pd.DataFrame:
     """
-    Load and clean the MOHAP price list CSV.
+    Load and clean the MOHAP price list (Supabase `mohap_prices`).
 
     Cleaning steps:
-      1. Strip BOM character and column name whitespace
+      1. Strip column name whitespace
       2. Normalise column names (strip embedded newlines)
       3. Uppercase and strip: Ingredient, Company, Trade Name
     """
-    logger.info(f"Loading MOHAP from {path}")
-    df = pd.read_csv(path, encoding="utf-8-sig", low_memory=False)
+    logger.info("Loading MOHAP from Supabase")
+    df = reference_data.fetch_mohap()
 
     df.columns = (
         df.columns
@@ -151,35 +149,22 @@ def load_mohap(path: str = DEFAULT_MOHAP_PATH) -> pd.DataFrame:
 # Master loader
 # ─────────────────────────────────────────────────────────────
 
-def load_all(
-    iqvia_path: str = DEFAULT_IQVIA_PATH,
-    upp_path: str   = DEFAULT_UPP_PATH,
-    mohap_path: str = DEFAULT_MOHAP_PATH,
-) -> dict:
+def load_all() -> dict:
     """
-    Load all three data sources and return a dict of DataFrames.
+    Load all three reference datasets from Supabase and return a dict of DataFrames.
 
     Usage:
         data = load_all()
         df_iqvia = data["iqvia"]
         df_upp   = data["upp"]
         df_mohap = data["mohap"]
-
-    Raises FileNotFoundError with a clear message if any file is missing.
     """
-    results = {}
+    from concurrent.futures import ThreadPoolExecutor
 
-    for name, path, loader in [
-        ("iqvia", iqvia_path, load_iqvia),
-        ("upp",   upp_path,   load_upp),
-        ("mohap", mohap_path, load_mohap),
-    ]:
-        try:
-            results[name] = loader(path)
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                f"Required data file not found: {path}\n"
-                f"Place the {name.upper()} CSV in data/read/ before running."
-            )
-
-    return results
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {
+            "iqvia": pool.submit(load_iqvia),
+            "upp":   pool.submit(load_upp),
+            "mohap": pool.submit(load_mohap),
+        }
+        return {name: future.result() for name, future in futures.items()}

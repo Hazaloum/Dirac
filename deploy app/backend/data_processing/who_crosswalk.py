@@ -1,17 +1,16 @@
 """Merge the reviewed WHO hierarchy into IQVIA Market Discovery responses."""
 from __future__ import annotations
 
-import json
 import re
 import unicodedata
 from functools import lru_cache
-from pathlib import Path
 
 import pandas as pd
 
+import reference_data
+
 
 LEVELS = ("ATC1", "ATC2", "ATC3", "ATC4")
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 
 def _normalise(value: object) -> str:
@@ -21,9 +20,8 @@ def _normalise(value: object) -> str:
 
 @lru_cache(maxsize=1)
 def _assets() -> tuple[dict, dict]:
-    hierarchy = json.loads((DATA_DIR / "who_atc_hierarchy.json").read_text(encoding="utf-8"))
-    crosswalk = json.loads((DATA_DIR / "who_iqvia_crosswalk.json").read_text(encoding="utf-8"))
-    return hierarchy, crosswalk
+    """WHO hierarchy + crosswalk from Supabase, fetched once per process."""
+    return reference_data.fetch_who()
 
 
 def _latest_year(df: pd.DataFrame) -> tuple[int | None, int | None]:

@@ -1,17 +1,19 @@
-"""Inventory view from IQVIA pack rows, with PostgreSQL stock quantities."""
+"""Inventory view from IQVIA pack rows, with stock quantities stored in Supabase."""
 from __future__ import annotations
 
 import hashlib
 import json
 import math
+from datetime import datetime, timezone
 
-from database import connection
+from supabase_client import get_client
 
 
-def _portfolio_molecules(con) -> set[str]:
-    row = con.execute("SELECT result FROM my_portfolio WHERE id=1").fetchone()
-    if not row:
+def _portfolio_molecules() -> set[str]:
+    rows = get_client().table("my_portfolio").select("result").eq("id", 1).execute().data
+    if not rows:
         return set()
+    row = rows[0]
     return {str(card.get("molecule", "")).strip().upper()
             for card in json.loads(row["result"] or "{}").get("molecules", []) if card.get("molecule")}
 
@@ -39,21 +41,22 @@ def _pack_rows(df, molecules: set[str]) -> list[dict]:
 
 
 def list_inventory(df) -> dict:
-    with connection() as con:
-        molecules = _portfolio_molecules(con)
-        items = _pack_rows(df, molecules)
-        quantities = {row["pack_key"]: row["stock_quantity"] for row in con.execute("SELECT pack_key, stock_quantity FROM inventory_stock").fetchall()}
+    molecules = _portfolio_molecules()
+    items = _pack_rows(df, molecules)
+    stock = get_client().table("inventory_stock").select("pack_key, stock_quantity").execute().data
+    quantities = {row["pack_key"]: row["stock_quantity"] for row in stock}
     for item in items:
         item["stock_quantity"] = quantities.get(item["pack_key"], 0)
     return {"items": items, "unmatched_molecules": sorted(molecules - {item["molecule"] for item in items})}
 
 
 def set_stock(df, pack_key: str, quantity: int) -> dict | None:
-    with connection() as con:
-        items = _pack_rows(df, _portfolio_molecules(con))
-        item = next((row for row in items if row["pack_key"] == pack_key), None)
-        if item is None:
-            return None
-        con.execute("""INSERT INTO inventory_stock (pack_key, stock_quantity) VALUES (%s,%s)
-            ON CONFLICT (pack_key) DO UPDATE SET stock_quantity=excluded.stock_quantity, updated_at=now()""", (pack_key, quantity))
-        return {**item, "stock_quantity": quantity}
+    items = _pack_rows(df, _portfolio_molecules())
+    item = next((row for row in items if row["pack_key"] == pack_key), None)
+    if item is None:
+        return None
+    get_client().table("inventory_stock").upsert(
+        {"pack_key": pack_key, "stock_quantity": quantity, "updated_at": datetime.now(timezone.utc).isoformat()},
+        on_conflict="pack_key",
+    ).execute()
+    return {**item, "stock_quantity": quantity}

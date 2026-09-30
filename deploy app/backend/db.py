@@ -1,6 +1,6 @@
 """
-db.py — PostgreSQL persistence for outreach runs.
-Connection: DATABASE_URL
+db.py — Supabase persistence for outreach runs.
+Database: Supabase project (public schema).
 Tables:
   outreach_runs      — one row per country run
   outreach_companies — one row per company (full card data stored as JSON)
@@ -11,8 +11,7 @@ import json
 import uuid
 from datetime import datetime
 
-from database import connection as _conn
-from database import init_db
+from supabase_client import get_client
 
 
 # ─── Write ────────────────────────────────────────────────────────────────────
@@ -27,29 +26,33 @@ def save_outreach_run(country: str, model: str, companies: list[dict]) -> str:
     run_date       = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     contacts_found = sum(len(c.get("contacts", [])) for c in companies)
 
-    with _conn() as con:
-        con.execute(
-            "INSERT INTO outreach_runs VALUES (%s,%s,%s,%s,%s,%s)",
-            (run_id, country, model, run_date, len(companies), contacts_found),
-        )
-        for c in companies:
-            con.execute(
-                """INSERT INTO outreach_companies
-                   (run_id, company, website, overview,
-                    uae_mohap, uae_upp, mohap_agents, upp_agents, contacts)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (
-                    run_id,
-                    c.get("company", ""),
-                    c.get("website", ""),
-                    c.get("overview", ""),
-                    c.get("uae_presence", {}).get("mohap") or "",
-                    c.get("uae_presence", {}).get("upp") or "",
-                    json.dumps(c.get("uae_presence", {}).get("mohap_agents", [])),
-                    json.dumps(c.get("uae_presence", {}).get("upp_agents", [])),
-                    json.dumps(c.get("contacts", [])),
-                ),
-            )
+    client = get_client()
+    client.table("outreach_runs").insert({
+        "run_id": run_id,
+        "country": country,
+        "model": model,
+        "run_date": run_date,
+        "companies_found": len(companies),
+        "contacts_found": contacts_found,
+    }).execute()
+
+    if companies:
+        rows = [
+            {
+                "run_id": run_id,
+                "company": c.get("company", ""),
+                "website": c.get("website", ""),
+                "overview": c.get("overview", ""),
+                "uae_mohap": c.get("uae_presence", {}).get("mohap") or "",
+                "uae_upp": c.get("uae_presence", {}).get("upp") or "",
+                "mohap_agents": json.dumps(c.get("uae_presence", {}).get("mohap_agents", [])),
+                "upp_agents": json.dumps(c.get("uae_presence", {}).get("upp_agents", [])),
+                "contacts": json.dumps(c.get("contacts", [])),
+            }
+            for c in companies
+        ]
+        client.table("outreach_companies").insert(rows).execute()
+
     return run_id
 
 
@@ -57,26 +60,26 @@ def save_outreach_run(country: str, model: str, companies: list[dict]) -> str:
 
 def list_outreach_runs() -> list[dict]:
     """Return all runs newest-first (summary only)."""
-    with _conn() as con:
-        rows = con.execute(
-            "SELECT * FROM outreach_runs ORDER BY run_date DESC"
-        ).fetchall()
-    return [dict(r) for r in rows]
+    client = get_client()
+    rows = (
+        client.table("outreach_runs").select("*")
+        .order("run_date", desc=True).execute().data
+    )
+    return list(rows)
 
 
 def get_outreach_run(run_id: str) -> dict | None:
     """Return full run with all company cards."""
-    with _conn() as con:
-        run = con.execute(
-            "SELECT * FROM outreach_runs WHERE run_id=%s", (run_id,)
-        ).fetchone()
-        if not run:
-            return None
+    client = get_client()
+    runs = client.table("outreach_runs").select("*").eq("run_id", run_id).execute().data
+    if not runs:
+        return None
+    run = runs[0]
 
-        companies = con.execute(
-            "SELECT * FROM outreach_companies WHERE run_id=%s ORDER BY id",
-            (run_id,),
-        ).fetchall()
+    companies = (
+        client.table("outreach_companies").select("*")
+        .eq("run_id", run_id).order("id").execute().data
+    )
 
     def _row_to_company(r) -> dict:
         return {
@@ -93,14 +96,15 @@ def get_outreach_run(run_id: str) -> dict | None:
         }
 
     return {
-        **dict(run),
+        **run,
         "companies": [_row_to_company(r) for r in companies],
     }
 
 
 def delete_outreach_run(run_id: str) -> bool:
-    with _conn() as con:
-        cur = con.execute(
-            "DELETE FROM outreach_runs WHERE run_id=%s", (run_id,)
-        )
-    return cur.rowcount > 0
+    client = get_client()
+    # outreach_companies has an FK to outreach_runs with ON DELETE CASCADE, but
+    # delete explicitly first to mirror the previous behaviour exactly.
+    client.table("outreach_companies").delete().eq("run_id", run_id).execute()
+    res = client.table("outreach_runs").delete().eq("run_id", run_id).execute()
+    return len(res.data) > 0

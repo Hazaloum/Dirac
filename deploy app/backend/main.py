@@ -22,7 +22,6 @@ load_dotenv(override=True)
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 BACKEND_DIR  = Path(__file__).parent
-DATA_DIR     = BACKEND_DIR / "data"
 PROMPTS_DIR  = BACKEND_DIR / "prompts"
 sys.path.insert(0, str(BACKEND_DIR))
 
@@ -37,10 +36,10 @@ _state: dict = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from agent_runner import load_data
-    from db import init_db
-    init_db()
-    print("Loading UAE market data (IQVIA / UPP / MOHAP)...")
-    _state["dfs"], _state["market_context"] = load_data(DATA_DIR)
+    from data_processing.who_crosswalk import _assets as load_who_assets
+    print("Loading UAE market data from Supabase (IQVIA / UPP / MOHAP / WHO ATC)...")
+    _state["dfs"], _state["market_context"] = load_data()
+    load_who_assets()
     _state["molecules"] = sorted(
         _state["dfs"]["iqvia"]["Molecule Combination"].dropna().unique().tolist()
     )
@@ -399,7 +398,7 @@ def outreach_run(body: OutreachRequest):
     def generate():
         companies = []
         try:
-            for event in run_outreach_stream(body.country, body.model):
+            for event in run_outreach_stream(body.country, body.model, _state["dfs"]):
                 if event["type"] == "company":
                     companies.append(event["data"])
                 yield f"data: {json.dumps(event)}\n\n"

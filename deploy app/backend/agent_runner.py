@@ -33,16 +33,12 @@ MODELS = {
 
 # ─── Data loading ─────────────────────────────────────────────────────────────
 
-def load_data(data_dir: Path) -> tuple[dict, str]:
-    """Load IQVIA/UPP/MOHAP once at startup. Returns (dfs, market_context)."""
+def load_data() -> tuple[dict, str]:
+    """Load IQVIA/UPP/MOHAP from Supabase once at startup. Returns (dfs, market_context)."""
     from data_processing.loader     import load_all
     from data_processing.benchmarks import compute_market_benchmarks, format_market_context
 
-    dfs = load_all(
-        iqvia_path=str(data_dir / "iqvia.csv"),
-        upp_path=str(data_dir / "upp.csv"),
-        mohap_path=str(data_dir / "mohap.csv"),
-    )
+    dfs = load_all()
     market_context = format_market_context(compute_market_benchmarks(dfs["iqvia"]))
     return dfs, market_context
 

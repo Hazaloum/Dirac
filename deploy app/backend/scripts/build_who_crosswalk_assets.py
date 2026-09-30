@@ -1,4 +1,5 @@
-"""Build compact runtime WHO hierarchy and WHO→IQVIA mapping assets.
+"""Build the WHO hierarchy and WHO→IQVIA mapping and upload them to Supabase
+(`who_atc_classes`, `who_atc_molecules`, `who_iqvia_crosswalk`).
 
 Usage:
     python scripts/build_who_crosswalk_assets.py \
@@ -14,7 +15,12 @@ import re
 import unicodedata
 from pathlib import Path
 
+import sys
+
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import reference_data  # noqa: E402
 
 
 LEVELS = ("ATC1", "ATC2", "ATC3", "ATC4")
@@ -38,7 +44,6 @@ def main() -> None:
     parser.add_argument("--who", required=True, type=Path)
     parser.add_argument("--crosswalk", required=True, type=Path)
     parser.add_argument("--reviews", nargs="*", default=[], type=Path)
-    parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "data")
     args = parser.parse_args()
 
     who = pd.read_excel(args.who)
@@ -108,18 +113,13 @@ def main() -> None:
         for who_code, targets in mappings[level].items():
             mappings[level][who_code] = sorted(set(targets))
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    (args.output_dir / "who_atc_hierarchy.json").write_text(json.dumps({
-        "levels": hierarchy,
-        "molecules_by_atc4": molecules_by_atc4,
-    }, separators=(",", ":")), encoding="utf-8")
-    (args.output_dir / "who_iqvia_crosswalk.json").write_text(json.dumps({
-        "mappings": mappings,
-        "meta": mapping_meta,
-    }, separators=(",", ":")), encoding="utf-8")
+    uploaded = reference_data.upload_who(
+        {"levels": hierarchy, "molecules_by_atc4": molecules_by_atc4},
+        {"mappings": mappings, "meta": mapping_meta},
+    )
 
     mapped = {level: sum(bool(targets) for targets in mappings[level].values()) for level in LEVELS}
-    print(json.dumps({"mapped_who_classes": mapped, "reviewed_decisions": len(reviewed)}, indent=2))
+    print(json.dumps({"mapped_who_classes": mapped, "reviewed_decisions": len(reviewed), "uploaded": uploaded}, indent=2))
 
 
 if __name__ == "__main__":

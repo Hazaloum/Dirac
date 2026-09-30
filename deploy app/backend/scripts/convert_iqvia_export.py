@@ -1,8 +1,9 @@
 """
-IQVIA quarterly export → annual iqvia.csv
-=========================================
+IQVIA quarterly export → Supabase `iqvia_sales`
+===============================================
 Converts a raw IQVIA "UAE LPO Combined Molecule Quarterly" .xlsx export into the
-annual CSV shape that data_processing/loader.py expects.
+annual shape that data_processing/loader.py expects, then replaces the
+Supabase `iqvia_sales` table with it. Restart the backend afterwards.
 
 Three transformations, in order:
 
@@ -23,7 +24,7 @@ Three transformations, in order:
 3. Emit loader-compatible headers ('Molecule', '2025 LC Value', ...).
 
 Usage:
-    python scripts/convert_iqvia_export.py <export.xlsx> [-o data/iqvia.csv]
+    python scripts/convert_iqvia_export.py <export.xlsx> [--csv copy.csv] [--dry-run]
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 QUARTER_RE = re.compile(r"^Q([1-4])\s+(\d{4})\s+(LC Value|Units)$")
 MEASURES = ("LC Value", "Units")
@@ -61,7 +64,7 @@ def _split_columns(df: pd.DataFrame) -> tuple[list[str], dict[tuple[int, str], l
     return dims, quarters
 
 
-def convert(src: Path, dest: Path) -> None:
+def convert(src: Path) -> pd.DataFrame:
     print(f"Reading {src}")
     df = _normalise_columns(pd.read_excel(src))
     print(f"  {len(df):,} raw rows, {len(df.columns)} columns")
@@ -129,22 +132,25 @@ def convert(src: Path, dest: Path) -> None:
         print(f"  Dropped incomplete years: {dropped}")
     print(f"  end_year the app will use: {keep[-2] if len(keep) >= 2 else keep[-1]}")
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(dest, index=False)
-    print(f"Wrote {dest} — {len(out):,} rows, {len(out.columns)} columns")
+    return out
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="Raw IQVIA quarterly .xlsx export")
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=Path(__file__).resolve().parents[1] / "data" / "iqvia.csv",
-    )
+    parser.add_argument("--csv", type=Path, help="Also save a local CSV copy for inspection")
+    parser.add_argument("--dry-run", action="store_true", help="Convert only; do not upload")
     args = parser.parse_args()
-    convert(args.source, args.output)
+    out = convert(args.source)
+    if args.csv:
+        out.to_csv(args.csv, index=False)
+        print(f"Wrote {args.csv}")
+    if args.dry_run:
+        print(f"Dry run — {len(out):,} rows converted, nothing uploaded")
+        return
+
+    import reference_data
+    print(f"Uploaded {reference_data.upload_iqvia(out):,} rows to Supabase iqvia_sales")
 
 
 if __name__ == "__main__":

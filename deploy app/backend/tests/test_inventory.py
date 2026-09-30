@@ -1,26 +1,9 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
 import inventory
-
-
-class FakeConnection:
-    def execute(self, sql, params=None):
-        class Result:
-            def fetchone(self):
-                return {"result": '{"molecules": [{"molecule": "METFORMIN"}]}'}
-            def fetchall(self):
-                return [{"pack_key": "unknown", "stock_quantity": 7}]
-        return Result()
-
-
-class ConnectionContext:
-    def __enter__(self):
-        return FakeConnection()
-    def __exit__(self, *args):
-        pass
 
 
 class InventoryTest(unittest.TestCase):
@@ -39,7 +22,12 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(len({r["pack_key"] for r in rows}), 2)
 
     def test_unsaved_stock_defaults_to_zero(self):
-        with patch.object(inventory, "connection", lambda: ConnectionContext()):
+        client = MagicMock()
+        client.table.return_value.select.return_value.execute.return_value.data = [
+            {"pack_key": "unknown", "stock_quantity": 7}
+        ]
+        with patch.object(inventory, "_portfolio_molecules", lambda: {"METFORMIN"}), \
+             patch.object(inventory, "get_client", lambda: client):
             result = inventory.list_inventory(self.frame)
         self.assertEqual(len(result["items"]), 2)
         self.assertTrue(all(item["stock_quantity"] == 0 for item in result["items"]))

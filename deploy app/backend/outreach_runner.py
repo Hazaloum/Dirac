@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 BACKEND_DIR = Path(__file__).parent
-DATA_DIR    = BACKEND_DIR / "data"
 sys.path.insert(0, str(BACKEND_DIR))
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -229,8 +228,11 @@ Rules:
 
 # ─── Main streaming generator ────────────────────────────────────────────────
 
-def run_outreach_stream(country: str, model_name: str = "haiku") -> Generator[dict, None, None]:
-    """Yields SSE event dicts. Types: status | company | result_row | complete."""
+def run_outreach_stream(country: str, model_name: str, dfs: dict) -> Generator[dict, None, None]:
+    """Yields SSE event dicts. Types: status | company | result_row | complete.
+
+    ``dfs`` is the startup-loaded reference data (main.py ``_state["dfs"]``).
+    """
 
     yield {"type": "status", "message": f"Searching for manufacturers in {country}..."}
     search_results = _run_searches(country)
@@ -239,14 +241,7 @@ def run_outreach_stream(country: str, model_name: str = "haiku") -> Generator[di
     prompt = PROMPT.replace("{country}", country).replace("{search_results}", search_results or "(none)")
     output = _call_llm(prompt, model_name)
 
-    yield {"type": "status", "message": "Loading UAE market data for presence check..."}
     try:
-        from data_processing.loader import load_all
-        dfs = load_all(
-            iqvia_path=str(DATA_DIR / "iqvia.csv"),
-            upp_path=str(DATA_DIR / "upp.csv"),
-            mohap_path=str(DATA_DIR / "mohap.csv"),
-        )
         df_mohap    = dfs["mohap"]
         df_upp      = dfs["upp"]
         mohap_names = set(df_mohap["Company"].dropna().str.upper().unique())

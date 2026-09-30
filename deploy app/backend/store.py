@@ -1,6 +1,7 @@
 """
-store.py — PostgreSQL persistence for analysis runs + My Portfolio.
-Saved records are stored in PostgreSQL.
+store.py — Supabase persistence for analysis runs + My Portfolio.
+Migrated from SQLite (contacts.db) to Supabase so data survives
+Railway container restarts without needing separate persistent volumes.
 """
 from __future__ import annotations
 
@@ -8,7 +9,9 @@ import json
 import uuid
 from datetime import datetime
 
-from database import connection as _conn
+from supabase_client import get_client
+
+
 # ─── Analysis runs ────────────────────────────────────────────────────────────
 
 def save_analysis(
@@ -20,36 +23,39 @@ def save_analysis(
 ) -> str:
     """Persist an analysis run. Returns the new run_id."""
     run_id = str(uuid.uuid4())[:8]
-    with _conn() as con:
-        con.execute(
-            """INSERT INTO analysis_runs
-               (run_id, source_name, source_type, model, saved_at, stats, result, report, has_report)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (
-                run_id, source_name, source_type, model,
-                datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
-                json.dumps(result.get("stats", {})),
-                json.dumps(result),
-                report,
-                int(bool(report)),
-            ),
-        )
-        # Keep at most 100 runs — prune oldest beyond the limit
-        con.execute("""
-            DELETE FROM analysis_runs WHERE run_id NOT IN (
-                SELECT run_id FROM analysis_runs ORDER BY saved_at DESC LIMIT 100
-            )
-        """)
+    client = get_client()
+    client.table("analysis_runs").insert({
+        "run_id": run_id,
+        "source_name": source_name,
+        "source_type": source_type,
+        "model": model,
+        "saved_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        "stats": json.dumps(result.get("stats", {})),
+        "result": json.dumps(result),
+        "report": report,
+        "has_report": int(bool(report)),
+    }).execute()
+
+    # Keep at most 100 runs — prune oldest beyond the limit
+    rows = (
+        client.table("analysis_runs").select("run_id")
+        .order("saved_at", desc=True).execute().data
+    )
+    stale_ids = [r["run_id"] for r in rows[100:]]
+    if stale_ids:
+        client.table("analysis_runs").delete().in_("run_id", stale_ids).execute()
+
     return run_id
 
 
 def list_analyses() -> list[dict]:
     """Return summary rows (no heavy result/report payload)."""
-    with _conn() as con:
-        rows = con.execute(
-            """SELECT run_id, source_name, source_type, model, saved_at, stats, has_report
-               FROM analysis_runs ORDER BY saved_at DESC"""
-        ).fetchall()
+    client = get_client()
+    rows = (
+        client.table("analysis_runs")
+        .select("run_id,source_name,source_type,model,saved_at,stats,has_report")
+        .order("saved_at", desc=True).execute().data
+    )
     return [
         {
             "run_id":      r["run_id"],
@@ -66,12 +72,13 @@ def list_analyses() -> list[dict]:
 
 def get_analysis(run_id: str) -> dict | None:
     """Return full entry including result + report."""
-    with _conn() as con:
-        row = con.execute(
-            "SELECT * FROM analysis_runs WHERE run_id=%s", (run_id,)
-        ).fetchone()
-    if not row:
+    client = get_client()
+    rows = (
+        client.table("analysis_runs").select("*").eq("run_id", run_id).execute().data
+    )
+    if not rows:
         return None
+    row = rows[0]
     return {
         "run_id":      row["run_id"],
         "source_name": row["source_name"],
@@ -86,18 +93,19 @@ def get_analysis(run_id: str) -> dict | None:
 
 
 def delete_analysis(run_id: str) -> bool:
-    with _conn() as con:
-        cur = con.execute("DELETE FROM analysis_runs WHERE run_id=%s", (run_id,))
-    return cur.rowcount > 0
+    client = get_client()
+    res = client.table("analysis_runs").delete().eq("run_id", run_id).execute()
+    return len(res.data) > 0
 
 
 # ─── My Portfolio ─────────────────────────────────────────────────────────────
 
 def get_my_portfolio() -> dict | None:
-    with _conn() as con:
-        row = con.execute("SELECT * FROM my_portfolio WHERE id=1").fetchone()
-    if not row:
+    client = get_client()
+    rows = client.table("my_portfolio").select("*").eq("id", 1).execute().data
+    if not rows:
         return None
+    row = rows[0]
     return {
         "company_name": row["company_name"],
         "result":       json.loads(row["result"] or "{}"),
@@ -107,41 +115,40 @@ def get_my_portfolio() -> dict | None:
 
 
 def save_my_portfolio(company_name: str, result: dict) -> None:
-    with _conn() as con:
-        con.execute(
-            """INSERT INTO my_portfolio (id, company_name, result, report, saved_at)
-               VALUES (1, %s, %s, '', %s)
-               ON CONFLICT(id) DO UPDATE SET
-                   company_name = excluded.company_name,
-                   result       = excluded.result,
-                   report       = '',
-                   saved_at     = excluded.saved_at""",
-            (company_name, json.dumps(result), datetime.utcnow().strftime("%Y-%m-%d %H:%M")),
-        )
+    client = get_client()
+    client.table("my_portfolio").upsert(
+        {
+            "id": 1,
+            "company_name": company_name,
+            "result": json.dumps(result),
+            "report": "",
+            "saved_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        },
+        on_conflict="id",
+    ).execute()
 
 
 def save_my_portfolio_report(report: str) -> bool:
-    with _conn() as con:
-        cur = con.execute(
-            "UPDATE my_portfolio SET report=%s WHERE id=1", (report,)
-        )
-    return cur.rowcount > 0
+    client = get_client()
+    res = client.table("my_portfolio").update({"report": report}).eq("id", 1).execute()
+    return len(res.data) > 0
 
 
 def delete_my_portfolio() -> bool:
-    with _conn() as con:
-        cur = con.execute("DELETE FROM my_portfolio WHERE id=1")
-    return cur.rowcount > 0
+    client = get_client()
+    res = client.table("my_portfolio").delete().eq("id", 1).execute()
+    return len(res.data) > 0
 
 
 # ─── Evaluation pipeline ─────────────────────────────────────────────────────
 
 def list_pipeline_decisions() -> list[dict]:
     """Return all cross-catalogue molecule decisions, most recently updated first."""
-    with _conn() as con:
-        rows = con.execute(
-            "SELECT * FROM pipeline_decisions ORDER BY updated_at DESC, molecule"
-        ).fetchall()
+    client = get_client()
+    rows = (
+        client.table("pipeline_decisions").select("*")
+        .order("updated_at", desc=True).order("molecule").execute().data
+    )
     return [
         {
             "molecule": r["molecule"],
@@ -162,20 +169,20 @@ def save_pipeline_decision(
 ) -> dict:
     """Upsert a molecule's Yes/Maybe/No evaluation decision."""
     updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-    with _conn() as con:
-        con.execute(
-            """INSERT INTO pipeline_decisions
-               (molecule, decision, source_name, snapshot, updated_at)
-               VALUES (%s, %s, %s, %s, %s)
-               ON CONFLICT(molecule) DO UPDATE SET
-                   decision    = excluded.decision,
-                   source_name = excluded.source_name,
-                   snapshot    = excluded.snapshot,
-                   updated_at  = excluded.updated_at""",
-            (molecule.upper(), decision, source_name, json.dumps(snapshot), updated_at),
-        )
+    molecule_upper = molecule.upper()
+    client = get_client()
+    client.table("pipeline_decisions").upsert(
+        {
+            "molecule": molecule_upper,
+            "decision": decision,
+            "source_name": source_name,
+            "snapshot": json.dumps(snapshot),
+            "updated_at": updated_at,
+        },
+        on_conflict="molecule",
+    ).execute()
     return {
-        "molecule": molecule.upper(),
+        "molecule": molecule_upper,
         "decision": decision,
         "source_name": source_name,
         "snapshot": snapshot,
@@ -184,8 +191,9 @@ def save_pipeline_decision(
 
 
 def delete_pipeline_decision(molecule: str) -> bool:
-    with _conn() as con:
-        cur = con.execute(
-            "DELETE FROM pipeline_decisions WHERE molecule=%s", (molecule.upper(),)
-        )
-    return cur.rowcount > 0
+    client = get_client()
+    res = (
+        client.table("pipeline_decisions").delete()
+        .eq("molecule", molecule.upper()).execute()
+    )
+    return len(res.data) > 0

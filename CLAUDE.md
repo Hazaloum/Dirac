@@ -14,10 +14,10 @@ This repo is the **web application** that powers COMIX's BD intelligence workflo
 |-------|-----------|
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, Plotly |
 | Backend | FastAPI (Python), uvicorn |
-| Database | PostgreSQL (`DATABASE_URL`); setup and import in `deploy app/backend/POSTGRES.md` |
+| Database | Supabase project **COMIX OS** (`xgaomspclfexhkdfgwgv`), accessed with `supabase-py` + the anon key (`SUPABASE_URL` / `SUPABASE_KEY`) |
 | Deployment | Frontend → Vercel, Backend → Railway |
 | AI | Anthropic Claude (haiku/sonnet) + OpenAI (gpt-4o-mini/gpt-4o) |
-| Data | IQVIA, MOHAP, UPP CSVs — loaded once at startup into DataFrames |
+| Data | IQVIA, MOHAP, UPP, WHO ATC — Supabase tables, loaded once at startup into DataFrames. No local data files. |
 
 ---
 
@@ -32,21 +32,25 @@ Claude_App/
     │   ├── agent_runner.py            # BD analysis logic (extract, enrich, score)
     │   ├── outreach_runner.py         # Outreach logic (company search, contacts)
     │   ├── DetailedForecast.py        # Y1–Y3 revenue forecasting
-    │   ├── store.py                   # PostgreSQL: analysis runs + My Portfolio
-    │   ├── db.py                      # PostgreSQL: outreach runs + companies
+    │   ├── store.py                   # Supabase: analysis runs, My Portfolio, pipeline
+    │   ├── db.py                      # Supabase: outreach runs + companies
+    │   ├── inventory.py               # Inventory view + stock quantities (Supabase)
+    │   ├── supabase_client.py         # Shared Supabase client + paging fetch_all()
+    │   ├── reference_data.py          # Read/write IQVIA, UPP, MOHAP, WHO tables in Supabase
     │   ├── sheets.py                  # Google Sheets export (optional, no-ops if unconfigured)
     │   ├── data_processing/
-    │   │   ├── loader.py              # Load + clean IQVIA/UPP/MOHAP CSVs once
+    │   │   ├── loader.py              # Load + clean IQVIA/UPP/MOHAP from Supabase once
     │   │   ├── iqvia.py               # Per-molecule IQVIA data extraction
     │   │   ├── mohap.py               # MOHAP manufacturer count per molecule
     │   │   ├── upp.py                 # UPP active manufacturer count per molecule
     │   │   ├── benchmarks.py          # Market-level + ATC4 benchmark computation
+    │   │   ├── market_discovery.py    # ATC1→ATC4→molecule→company drilldown
+    │   │   ├── who_crosswalk.py       # Merge WHO ATC classes into Market Discovery
     │   │   └── molecule_normalizer.py # Strip salt forms, handle combinations
     │   ├── prompts/
     │   │   ├── prompt_scoring.txt     # Pass 2 scoring prompt (uses .replace(), NOT .format())
     │   │   └── prompt_discovery.txt   # Pass 1 country discovery prompt
-    │   └── data/
-    │       └── contacts.db            # Legacy SQLite backup, if present
+    │   └── scripts/                   # Data refresh: IQVIA converter, UPP/MOHAP upload, WHO crosswalk
     └── frontend/
         ├── src/
         │   ├── app/
@@ -76,12 +80,12 @@ Claude_App/
 
 ### Startup (`lifespan` in main.py)
 On server start, before accepting requests:
-1. `init_db()` — applies PostgreSQL migrations if not present
-2. `load_data(DATA_DIR)` — reads IQVIA, UPP, MOHAP CSVs into DataFrames stored in `_state["dfs"]`
+1. `load_data()` — reads IQVIA, UPP, MOHAP from Supabase (`reference_data.py`) into DataFrames stored in `_state["dfs"]` (~20 s)
+2. Loads the WHO hierarchy + crosswalk from Supabase (cached in `who_crosswalk._assets`)
 3. Pre-computes `market_context` string (market-wide benchmarks for scoring prompt)
 4. Builds full molecule list from IQVIA for the craft/single-molecule autocomplete
 
-DataFrames live in `_state` for the lifetime of the process. **Never re-read CSVs per request.**
+DataFrames live in `_state` for the lifetime of the process. **Never re-read reference data per request.**
 
 ### Auth
 - Single shared password (`APP_PASSWORD` env var, default `comix2024`)
@@ -100,7 +104,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read CSV
 | POST | `/api/analysis/upload` | Upload catalogue (PDF/CSV/Excel) → extract + enrich |
 | POST | `/api/analysis/enrich` | Enrich a typed molecule list (craft/single mode) |
 | POST | `/api/analysis/score` | **SSE stream** — Pass 2 AI scoring |
-| POST | `/api/analysis/history` | Save an analysis run to PostgreSQL |
+| POST | `/api/analysis/history` | Save an analysis run to Supabase |
 | GET | `/api/analysis/history` | List saved analysis runs |
 | GET | `/api/analysis/history/{run_id}` | Get full run (result + report) |
 | DELETE | `/api/analysis/history/{run_id}` | Delete run |
@@ -145,7 +149,7 @@ score_stream()
     → injects {market_context}, {atc4_context}, {enriched_data} via .replace()
     → streams LLM output token-by-token
     → frontend accumulates into reportText
-    → auto-saves to PostgreSQL when stream ends
+    → auto-saves to Supabase when stream ends
 ```
 
 **Model routing** — `MODELS` dict in `agent_runner.py` maps model names (`haiku`, `sonnet`, `gpt-4o-mini`, `gpt-4o`) to `(provider, model_id, input_cost, output_cost)`.
@@ -189,7 +193,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Three input modes: `upload` (catalogue file), `craft` (type molecules), `molecule` (single lookup)
 - Phase `input` → Phase `portfolio` (after Phase 1) → Phase `report` (after Phase 2)
 - Portfolio phase: grid or treemap view, shortlist/disqualify per molecule (CheckCircle2 / XCircle), MOHAP + UPP counts shown on card
-- Stats bar buttons: **Save Portfolio** (manual PostgreSQL save), view toggle, Generate AI Report / View Report
+- Stats bar buttons: **Save Portfolio** (manual Supabase save), view toggle, Generate AI Report / View Report
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
 - History sidebar: lists saved runs, click to reload
 
@@ -207,12 +211,12 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - LinkedIn message drafting per contact
 
 **Portfolio (`/portfolio`)**
-- Singleton: one saved portfolio at a time (id=1 in PostgreSQL)
+- Singleton: one saved portfolio at a time (id=1 in Supabase)
 - Same upload/craft input modes as Analysis
-- Persists across Railway restarts (PostgreSQL)
+- Persists across Railway restarts (Supabase)
 
 ### Inventory
-The `/inventory` page shows distinct IQVIA product/strength/pack rows for every molecule in My Portfolio. Stock quantities (packs) are mutable PostgreSQL records in `dirac.inventory_stock`, keyed by a stable digest of the IQVIA pack identity. See `deploy app/backend/POSTGRES.md`.
+The `/inventory` page shows distinct IQVIA product/strength/pack rows for every molecule in My Portfolio. Stock quantities (packs) are stored in the Supabase `inventory_stock` table, keyed by a stable digest of the IQVIA pack identity (so an IQVIA refresh that changes pack fields orphans old stock rows).
 
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
@@ -222,9 +226,11 @@ Single `api` object with typed methods. All calls go to `NEXT_PUBLIC_API_URL` (s
 
 ---
 
-## Persistence (PostgreSQL)
+## Persistence (Supabase)
 
-Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for setup and SQLite import.
+Everything lives in the Supabase project **COMIX OS**, `public` schema. All tables have RLS on with an open `anon`/`authenticated` policy — deliberate: the anon key has full read/write. `supabase_client.py` holds the shared client and a paging `fetch_all()` (PostgREST caps responses at 1000 rows).
+
+**Saved records** (`store.py`, `db.py`, `inventory.py`):
 
 | Table | Contents |
 |-------|----------|
@@ -232,6 +238,21 @@ Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for
 | `my_portfolio` | Single row (id=1) — company name, result JSON, report text. Upserted on save. |
 | `outreach_runs` | One row per outreach run — country, model, date, company/contact counts. |
 | `outreach_companies` | One row per company per run — overview, UAE MOHAP/UPP status, agents, contacts JSON. |
+| `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
+| `inventory_stock` | Stock quantity per IQVIA pack key. |
+
+JSON payloads are stored as JSON strings in `text` columns.
+
+**Reference data** (`reference_data.py`, read once at startup, written only by the refresh scripts):
+
+| Table | Contents |
+|-------|----------|
+| `iqvia_sales` | One row per product/pack/market. Yearly `"YYYY LC Value"` / `"YYYY Units"` live in the `sales` jsonb column so a new year needs no schema change. |
+| `upp_drugs` | UPP registry, original column names. |
+| `mohap_prices` | MOHAP price list, original column names. |
+| `who_atc_classes` / `who_atc_molecules` / `who_iqvia_crosswalk` | WHO ATC 2026 hierarchy, ATC5 molecules, reviewed WHO→IQVIA mapping. |
+
+Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_reference_data.py upp|mohap <csv>`, `scripts/build_who_crosswalk_assets.py` (WHO). Each replaces the whole table (not atomic — re-run on failure), then restart the backend.
 
 ---
 
@@ -246,7 +267,8 @@ Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for
 | `OPENAI_API_KEY` | Railway | OpenAI API key |
 | `TAVILY_API_KEY` | Railway | Web search for outreach agent |
 | `NEXT_PUBLIC_API_URL` | Vercel | Backend Railway URL (e.g. `https://xxx.railway.app`) |
-| `DATABASE_URL` | Backend | PostgreSQL connection string for saved records |
+| `SUPABASE_URL` | Railway | `https://xgaomspclfexhkdfgwgv.supabase.co` |
+| `SUPABASE_KEY` | Railway | COMIX OS anon key (Supabase → Project Settings → API) |
 
 ---
 
@@ -254,7 +276,7 @@ Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for
 
 1. **Prompt injection uses `.replace()` not `.format()`** — `prompt_scoring.txt` and `prompt_discovery.txt` contain JSON braces `{}` that break `.format()`. Never switch.
 
-2. **`load_all()` called once at startup** — DataFrames live in `_state`. Never re-read CSVs per request.
+2. **`load_all()` called once at startup** — DataFrames live in `_state`. Never re-read reference data per request.
 
 3. **IQVIA end_year = `years[-2]`** — most recent year is partial data. Do not change to `years[-1]`. The converter deliberately keeps one trailing partial year so this convention holds.
 
@@ -264,7 +286,7 @@ Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for
 
 6. **No named exports from Next.js page files** — only `export default function PageName()` is allowed. Constants and interfaces shared across pages must live in `src/lib/`.
 
-7. **PostgreSQL for saved records** — Railway containers wipe local files on restart. Keep saved records in PostgreSQL; the CSVs are reference assets.
+7. **Supabase for all data** — Railway containers wipe local files on restart, and reference data must not ship as files. Saved records and reference datasets both live in Supabase.
 
 8. **Forecast formula** — `Y2 = Y1 × (1 + growth_rate)`, `Y3 = Y2 × (1 + growth_rate)`. Growth rate is user-chosen (default 15%). No hidden ramp multipliers.
 
@@ -272,13 +294,13 @@ Database: configured by `DATABASE_URL`. See `deploy app/backend/POSTGRES.md` for
 
 ## Updating the IQVIA dataset
 
-IQVIA is **never uploaded through the app** and never enters PostgreSQL — it is a flat CSV read once at startup. To refresh it:
+IQVIA is **never uploaded through the app**. It lives in the Supabase `iqvia_sales` table and is read once at startup. To refresh it (from `deploy app/backend/`, with `.env` holding the Supabase vars):
 
 ```bash
 python scripts/convert_iqvia_export.py "~/Downloads/UAE_LPO_COM_MOL_<date>.xlsx"
 ```
 
-Then restart the backend. `Molecule Combination` and the `num_molecules` divisor rebuild from scratch on every boot.
+The converter uploads straight to Supabase (`--dry-run` to only convert, `--csv out.csv` to keep a copy). Then restart the backend. `Molecule Combination` and the `num_molecules` divisor rebuild from scratch on every boot.
 
 The raw IQVIA export is **quarterly** and needs three transformations, all handled by the converter:
 
