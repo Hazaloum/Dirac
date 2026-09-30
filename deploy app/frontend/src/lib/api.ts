@@ -156,7 +156,7 @@ export const api = {
 
   // All IQVIA product packs for current My Portfolio molecules
   getInventory: () => req<InventoryResponse>("/api/inventory"),
-  setInventoryStock: (packKey: string, stockQuantity: number) => req<InventoryItem>(`/api/inventory/${packKey}`, {
+  setInventoryStock: (packKey: string, stockQuantity: number) => req<InventoryPack & { molecule: string }>(`/api/inventory/${packKey}`, {
     method: "PUT", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
@@ -557,18 +557,21 @@ export interface OutreachEvent {
   companies_found?: number;
 }
 
-export interface InventoryItem {
+export interface InventoryPack {
   pack_key: string;
-  molecule: string;
-  manufacturer: string;
-  product_name: string;
   strength: string;
+  form: string;
   pack_size: string;
-  classification: string;
   stock_quantity: number;
 }
 
+export interface InventoryMolecule {
+  molecule: string;
+  classification: string;
+  packs: InventoryPack[];
+}
+
 export interface InventoryResponse {
-  items: InventoryItem[];
+  molecules: InventoryMolecule[];
   unmatched_molecules: string[];
 }

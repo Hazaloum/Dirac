@@ -216,7 +216,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Persists across Railway restarts (Supabase)
 
 ### Inventory
-The `/inventory` page shows distinct IQVIA product/strength/pack rows for every molecule in My Portfolio. Stock quantities (packs) are stored in the Supabase `inventory_stock` table, keyed by a stable digest of the IQVIA pack identity (so an IQVIA refresh that changes pack fields orphans old stock rows).
+The `/inventory` page groups My Portfolio molecules and lists each molecule's unique packs — strength + dosage form (from NFC3) + pack size, normalised so the same pack from several manufacturers shows once. Stock quantities (packs) live in the Supabase `inventory_stock` table keyed by a digest of that pack identity, so an IQVIA refresh that changes those fields orphans old stock rows.
 
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
