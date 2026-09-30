@@ -513,12 +513,34 @@ def get_inventory():
     return list_inventory(_state["dfs"]["iqvia"])
 
 
+@app.get("/api/inventory/options/{molecule}")
+def get_inventory_options(molecule: str):
+    from inventory import sku_options
+    options = sku_options(_state["dfs"]["iqvia"], molecule)
+    if options is None:
+        raise HTTPException(status_code=404, detail="No IQVIA packs for this molecule")
+    return options
+
+
+class SkuSelectionRequest(BaseModel):
+    pack_keys: list[str]
+
+
+@app.put("/api/inventory/skus/{molecule}")
+def set_inventory_skus(molecule: str, body: SkuSelectionRequest):
+    from inventory import set_skus
+    options = set_skus(_state["dfs"]["iqvia"], molecule, body.pack_keys)
+    if options is None:
+        raise HTTPException(status_code=404, detail="No IQVIA packs for this molecule")
+    return options
+
+
 @app.put("/api/inventory/{pack_key}")
 def update_inventory_stock(pack_key: str, body: StockUpdateRequest):
     from inventory import set_stock
-    item = set_stock(_state["dfs"]["iqvia"], pack_key, body.stock_quantity)
+    item = set_stock(pack_key, body.stock_quantity)
     if item is None:
-        raise HTTPException(status_code=404, detail="Pack is not in the current portfolio and IQVIA data")
+        raise HTTPException(status_code=404, detail="This SKU is not in inventory")
     return item
 
 

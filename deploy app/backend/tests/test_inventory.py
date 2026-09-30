@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -25,17 +25,28 @@ class InventoryTest(unittest.TestCase):
             {("500 MG", "FILM-COATED TABLETS", "30"), ("1000 MG", "FILM-COATED TABLETS", "30"), ("500 MG", "TABLETS (MR)", "30")},
         )
 
-    def test_unsaved_stock_defaults_to_zero(self):
-        client = MagicMock()
-        client.table.return_value.select.return_value.execute.return_value.data = [
-            {"pack_key": "unknown", "stock_quantity": 7}
-        ]
-        with patch.object(inventory, "_portfolio_molecules", lambda: {"METFORMIN"}), \
-             patch.object(inventory, "get_client", lambda: client):
+    def test_molecules_listed_with_only_carried_skus(self):
+        carried = [{"pack_key": "k1", "molecule": "METFORMIN", "strength": "500 MG",
+                    "form": "FILM-COATED TABLETS", "pack_size": "30", "stock_quantity": 7}]
+        with patch.object(inventory, "_portfolio_molecules", lambda: {"METFORMIN", "UNKNOWN"}), \
+             patch.object(inventory, "_carried", lambda molecules=None: carried):
             result = inventory.list_inventory(self.frame)
-        self.assertEqual([m["molecule"] for m in result["molecules"]], ["METFORMIN"])
-        self.assertTrue(all(p["stock_quantity"] == 0 for p in result["molecules"][0]["packs"]))
-        self.assertEqual(result["unmatched_molecules"], [])
+        metformin = next(m for m in result["molecules"] if m["molecule"] == "METFORMIN")
+        self.assertEqual(metformin["option_count"], 3)
+        self.assertEqual(metformin["skus"], carried)
+        self.assertEqual(result["unmatched_molecules"], ["UNKNOWN"])
+
+    def test_options_grouped_by_form(self):
+        with patch.object(inventory, "_carried", lambda molecules=None: []):
+            options = inventory.sku_options(self.frame, "metformin")
+        self.assertEqual({f["form"]: len(f["packs"]) for f in options["forms"]},
+                         {"FILM-COATED TABLETS": 2, "TABLETS (MR)": 1})
+        self.assertIsNone(inventory.sku_options(self.frame, "NOT A MOLECULE"))
+
+    def test_pack_size_parsing(self):
+        self.assertEqual(inventory._pack_size("FILM C.TABS 500 MG 20"), "20")
+        self.assertEqual(inventory._pack_size("SPRAY 1 60 ML"), "60 ML")
+        self.assertEqual(inventory._pack_size("SOL.APPLE 4 237 ML"), "4 × 237 ML")
 
 
 if __name__ == "__main__":

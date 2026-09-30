@@ -216,7 +216,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Persists across Railway restarts (Supabase)
 
 ### Inventory
-The `/inventory` page groups My Portfolio molecules and lists each molecule's unique packs — strength + dosage form (from NFC3) + pack size, normalised so the same pack from several manufacturers shows once. Stock quantities (packs) live in the Supabase `inventory_stock` table keyed by a digest of that pack identity, so an IQVIA refresh that changes those fields orphans old stock rows.
+The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carries. Clicking a molecule opens a picker: dosage forms as boxes → strength / pack-size options → select. Options come from IQVIA, normalised to molecule + strength + form (NFC3) + pack size so the same pack from several manufacturers shows once. A row in Supabase `inventory_stock` = a carried SKU (with its description and stock in packs); `PUT /api/inventory/skus/{molecule}` sets the selection, `PUT /api/inventory/{pack_key}` sets stock.
 
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
@@ -239,7 +239,7 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `outreach_runs` | One row per outreach run — country, model, date, company/contact counts. |
 | `outreach_companies` | One row per company per run — overview, UAE MOHAP/UPP status, agents, contacts JSON. |
 | `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
-| `inventory_stock` | Stock quantity per IQVIA pack key. |
+| `inventory_stock` | One row per carried SKU — pack key, molecule, strength, form, pack size, stock quantity. |
 
 JSON payloads are stored as JSON strings in `text` columns.
 

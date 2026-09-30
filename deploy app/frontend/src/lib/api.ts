@@ -154,9 +154,16 @@ export const api = {
 
   clearMyPortfolio: () => req("/api/portfolio", { method: "DELETE" }),
 
-  // All IQVIA product packs for current My Portfolio molecules
+  // Inventory — carried SKUs per My Portfolio molecule
   getInventory: () => req<InventoryResponse>("/api/inventory"),
-  setInventoryStock: (packKey: string, stockQuantity: number) => req<InventoryPack & { molecule: string }>(`/api/inventory/${packKey}`, {
+  getInventoryOptions: (molecule: string) =>
+    req<SkuOptions>(`/api/inventory/options/${encodeURIComponent(molecule)}`),
+  setInventorySkus: (molecule: string, packKeys: string[]) =>
+    req<SkuOptions>(`/api/inventory/skus/${encodeURIComponent(molecule)}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack_keys: packKeys }),
+    }),
+  setInventoryStock: (packKey: string, stockQuantity: number) => req<InventorySku>(`/api/inventory/${packKey}`, {
     method: "PUT", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
@@ -557,8 +564,9 @@ export interface OutreachEvent {
   companies_found?: number;
 }
 
-export interface InventoryPack {
+export interface InventorySku {
   pack_key: string;
+  molecule: string;
   strength: string;
   form: string;
   pack_size: string;
@@ -567,11 +575,24 @@ export interface InventoryPack {
 
 export interface InventoryMolecule {
   molecule: string;
-  classification: string;
-  packs: InventoryPack[];
+  option_count: number;
+  skus: InventorySku[];
 }
 
 export interface InventoryResponse {
   molecules: InventoryMolecule[];
   unmatched_molecules: string[];
+}
+
+export interface SkuOption {
+  pack_key: string;
+  strength: string;
+  form: string;
+  pack_size: string;
+  carried: boolean;
+}
+
+export interface SkuOptions {
+  molecule: string;
+  forms: { form: string; packs: SkuOption[] }[];
 }
