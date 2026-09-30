@@ -3,25 +3,17 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Upload, Search, FlaskConical, LayoutGrid, Map,
-  FileText, Play, Loader2, X, Plus, ChevronDown,
-  History, Trash2, ChevronRight, CheckCircle2, MinusCircle, XCircle, Star,
-  TrendingUp,
+  Upload, Search, FlaskConical, FileText, Loader2, X, Plus, ChevronDown,
+  History, Trash2, ChevronRight, TrendingUp, Check, Save,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
-import { PortfolioTreemap } from "@/components/PortfolioTreemap";
-import { ManufacturerPieChart } from "@/components/IQVIACharts";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { PortfolioWorkspace } from "@/components/PortfolioWorkspace";
+import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Mode      = "upload" | "craft" | "molecule";
 type Phase     = "input" | "portfolio" | "report";
-type ViewMode  = "grid" | "treemap";
-type ReportTab = "report" | "charts";
 
 const MODELS = [
   { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
@@ -136,8 +128,6 @@ export default function AnalysisPage() {
   // Mode / phase
   const [mode,      setMode]      = useState<Mode>("upload");
   const [phase,     setPhase]     = useState<Phase>("input");
-  const [viewMode,  setViewMode]  = useState<ViewMode>("grid");
-  const [reportTab, setReportTab] = useState<ReportTab>("report");
 
   // Input state
   const [file,           setFile]           = useState<File | null>(null);
@@ -166,17 +156,12 @@ export default function AnalysisPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedOk,  setSavedOk]  = useState(false);
 
-  // Selected molecule for pie chart (report phase charts tab)
-  const [chartMolecule, setChartMolecule] = useState<string | null>(null);
-
   // Drawer — open with full MoleculeCard object
   const [drawerMolecule, setDrawerMolecule] = useState<MolCardType | null>(null);
 
   // Shortlist / disqualify state
   const [shortlistStatus, setShortlistStatusMap] = useState<Record<string, "shortlisted" | "maybe" | "disqualified" | null>>({});
   const isShortlisted  = (mol: string) => shortlistStatus[mol.toUpperCase()] === "shortlisted";
-  const isMaybe        = (mol: string) => shortlistStatus[mol.toUpperCase()] === "maybe";
-  const isDisqualified = (mol: string) => shortlistStatus[mol.toUpperCase()] === "disqualified";
   const toggleShortlist = (mol: string, status: "shortlisted" | "maybe" | "disqualified") => {
     const key = mol.toUpperCase();
     const next = shortlistStatus[key] === status ? null : status;
@@ -201,9 +186,6 @@ export default function AnalysisPage() {
       },
     }).catch(() => {});
   };
-
-  // Forecast
-  const [growthRate, setGrowthRate] = useState(0.10);
 
   const abortRef        = useRef<AbortController | null>(null);
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
@@ -264,11 +246,8 @@ export default function AnalysisPage() {
 
       setResult(res);
       setPhase("portfolio");
-
-      // Default chart molecule to first IQVIA-matched one
-      const first = res.molecules.find((m) => m.in_iqvia);
-      if (first) setChartMolecule(first.molecule);
-      runPhase2(res);
+      // Score in the background; cards pick up scores when the report lands.
+      runPhase2(res, false);
     } catch (e: unknown) {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -277,13 +256,12 @@ export default function AnalysisPage() {
   };
 
   // ── Phase 2: stream report ──
-  const runPhase2 = (analysisResult: AnalysisResult | null = result) => {
+  const runPhase2 = (analysisResult: AnalysisResult | null = result, showReport = true) => {
     if (!analysisResult) return;
     setReportStreaming(true);
     setReportDone(false);
     setReportText("");
-    setPhase("portfolio");
-    setReportTab("report");
+    if (showReport) setPhase("report");
 
     abortRef.current = streamScore(
       {
@@ -370,7 +348,6 @@ export default function AnalysisPage() {
         setReportDone(true);
         setScoredMolecules(parseScores(entry.report));
         setPhase("report");
-        setReportTab("report");
       } else {
         setPhase("portfolio");
       }
@@ -390,24 +367,7 @@ export default function AnalysisPage() {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  // Top 5 molecules by AI score — only populated after report completes
-  const top5Molecules = new Set(
-    reportDone
-      ? [...scoredCards]
-          .filter(m => m.ai_score != null)
-          .sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0))
-          .slice(0, 5)
-          .map(m => m.molecule.toUpperCase())
-      : []
-  );
-
-  const fmtAed = (v?: number | null) => {
-    if (v == null) return "0";
-    if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-    if (v >= 1_000_000)     return `${(v / 1_000_000).toFixed(1)}M`;
-    if (v >= 1_000)         return `${(v / 1_000).toFixed(0)}K`;
-    return v.toFixed(0);
-  };
+  const top5Molecules = topFiveMolecules(scoredCards, reportDone);
 
   const shortlistedIqviaMols = result
     ? scoredCards.filter(m => isShortlisted(m.molecule) && m.in_iqvia)
@@ -712,637 +672,52 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* ── MERIDIEN PORTFOLIO WORKSPACE ── */}
+      {/* ── PORTFOLIO + REPORT VIEW (shared with My Portfolio) ── */}
       {(phase === "portfolio" || phase === "report") && result && (
-        <PortfolioWorkspace
-          portfolioName={companyName || result.companies[0]?.name || "Portfolio"}
+        <PortfolioView
           result={result}
-          molecules={scoredCards}
+          cards={scoredCards}
+          phase={phase}
+          onPhaseChange={setPhase}
           reportText={reportText}
           reportStreaming={reportStreaming}
           reportDone={reportDone}
-          scoringModelLabel={MODELS.find((model) => model.id === scoringModel)?.label || scoringModel}
-          isSaving={isSaving}
-          savedOk={savedOk}
-          growthRate={growthRate}
+          models={MODELS}
+          scoringModel={scoringModel}
+          onScoringModelChange={setScoringModel}
+          onGenerateReport={() => runPhase2()}
           decisionFor={(molecule) => shortlistStatus[molecule.toUpperCase()] ?? null}
           onDecision={toggleShortlist}
+          allowMaybe
           onMoleculeOpen={setDrawerMolecule}
-          onGenerateScores={() => runPhase2()}
-          onSave={savePortfolioNow}
-          onForecast={goToForecast}
-          onGrowthRateChange={setGrowthRate}
-        />
-      )}
-
-      {/* Legacy catalogue result view can be re-enabled during the migration if needed. */}
-      {result && process.env.NEXT_PUBLIC_ENABLE_LEGACY_CATALOGUE === "true" && (phase === "portfolio" || phase === "report") && (
-        <div className="space-y-6">
-          {/* Stats bar */}
-          <div className="flex items-center gap-6 p-4 bg-white shadow-sm border-surface-200 rounded-xl border border-surface-200">
-            <div>
-              <p className="text-xs text-surface-500">Molecules Found</p>
-              <p className="text-xl font-bold text-surface-900">{result.stats.total}</p>
-            </div>
-            <div className="w-px h-8 bg-surface-100" />
-            <div>
-              <p className="text-xs text-surface-500">Matched IQVIA</p>
-              <p className="text-xl font-bold text-pharma-900">{result.stats.matched_iqvia}</p>
-            </div>
-            <div className="w-px h-8 bg-surface-100" />
-            <div>
-              <p className="text-xs text-surface-500">Portfolio</p>
-              <p className="text-xl font-bold text-surface-900">{companyName || "Portfolio"}</p>
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Save portfolio button */}
-            {phase === "portfolio" && (
+          actions={
+            <button
+              onClick={savePortfolioNow}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 disabled:opacity-60 transition-colors"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedOk ? <Check className="w-4 h-4 text-emerald-700" /> : <Save className="w-4 h-4" />}
+              {savedOk ? "Saved" : "Save"}
+            </button>
+          }
+          footer={shortlistedIqviaMols.length > 0 && (
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-pharma-50 border border-pharma-200">
+              <TrendingUp className="w-5 h-5 text-pharma-900 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-pharma-900">
+                  {shortlistedIqviaMols.length} molecule{shortlistedIqviaMols.length !== 1 ? "s" : ""} shortlisted
+                </p>
+                <p className="text-xs text-pharma-700/70">Generate a Y1–Y3 revenue forecast for your selection</p>
+              </div>
               <button
-                onClick={savePortfolioNow}
-                disabled={isSaving || savedOk}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  savedOk
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-white border border-surface-300 text-surface-600 hover:text-surface-900 hover:bg-surface-100"
-                }`}
+                onClick={goToForecast}
+                className="flex items-center gap-2 bg-pharma-900 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-pharma-800 transition-colors shrink-0"
               >
-                {isSaving
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                  : savedOk
-                  ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
-                  : "Save Portfolio"
-                }
+                <TrendingUp className="w-4 h-4" /> Generate Forecasts
               </button>
-            )}
-
-            {/* View toggle (only in portfolio phase) */}
-            {phase === "portfolio" && (
-              <div className="flex items-center gap-1 bg-white rounded-xl p-1">
-                <button onClick={() => setViewMode("grid")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    viewMode === "grid" ? "bg-pharma-100 text-pharma-900" : "text-surface-500 hover:text-surface-800"
-                  }`}>
-                  <LayoutGrid className="w-3.5 h-3.5" /> Grid
-                </button>
-                <button onClick={() => setViewMode("treemap")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    viewMode === "treemap" ? "bg-pharma-100 text-pharma-900" : "text-surface-500 hover:text-surface-800"
-                  }`}>
-                  <Map className="w-3.5 h-3.5" /> Treemap
-                </button>
-              </div>
-            )}
-
-            {/* Generate / View report button */}
-            {phase === "portfolio" && (
-              reportDone ? (
-                <button onClick={() => { setPhase("report"); setReportTab("report"); }}
-                  className="flex items-center gap-2 bg-pharma-100 hover:bg-pharma-200 border border-pharma-300 text-pharma-900 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-                  <FileText className="w-4 h-4" /> View Report
-                </button>
-              ) : (
-                <button onClick={() => runPhase2()} disabled={reportStreaming}
-                  className="flex items-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-pharma-900 text-white font-medium/60 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-                  {reportStreaming
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                    : <><Play className="w-4 h-4" /> Generate AI Report</>
-                  }
-                </button>
-              )
-            )}
-
-            {/* Back to portfolio (from report) */}
-            {phase === "report" && (
-              <button onClick={() => setPhase("portfolio")}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors">
-                ← Back to Portfolio
-              </button>
-            )}
-          </div>
-
-          {/* Portfolio view */}
-          {phase === "portfolio" && (
-            <>
-              {viewMode === "grid" ? (
-                <div className="space-y-4">
-                  {Object.entries(result.molecules_by_atc1).map(([atc1, moleculeNames], groupIndex) => {
-                    const cards = scoredCards.filter(m =>
-                      moleculeNames.some(n => n.toUpperCase() === m.molecule.toUpperCase())
-                    );
-                    const groupValue = cards.reduce((sum, m) => sum + (m.market_value_aed ?? 0), 0);
-                    const atcCode = atc1.split(' ')[0];
-                    const atcName = atc1.split(' ').slice(1).join(' ') || atc1;
-                    return (
-                      <div key={atc1} className="p-5 rounded-xl bg-surface-50 border-surface-200 border border-surface-200">
-                        {/* ATC1 group header */}
-                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-surface-200">
-                          <div className="px-3 py-1 rounded-xl bg-pharma-50 border border-pharma-200">
-                            <span className="text-sm font-semibold text-pharma-900">{atcCode}</span>
-                          </div>
-                          <div className="flex-1 min-w-[200px]">
-                            <span className="text-sm font-medium text-surface-800">{atcName}</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {groupValue > 0 && (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pharma-50 border border-pharma-200">
-                                <span className="text-xs text-pharma-800/70">Portfolio:</span>
-                                <span className="text-sm font-semibold text-pharma-900">AED {fmtAed(groupValue)}</span>
-                              </div>
-                            )}
-                            <span className="text-xs text-surface-500 px-2">
-                              {cards.length} molecule{cards.length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        </div>
-                        {/* Molecule cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {cards.map((mol, idx) => {
-                            const shortlisted = isShortlisted(mol.molecule);
-                            const maybe = isMaybe(mol.molecule);
-                            const disqualified = isDisqualified(mol.molecule);
-                            const cardBorder = shortlisted
-                              ? "border-emerald-800 bg-emerald-50"
-                              : maybe
-                              ? "border-amber-300 bg-amber-50"
-                              : disqualified
-                              ? "border-surface-300 bg-surface-50 opacity-60"
-                              : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
-                            return (
-                              <div
-                                key={mol.molecule}
-                                className="flex items-stretch gap-2 opacity-0 animate-slide-up"
-                                style={{ animationDelay: `${(groupIndex * 5 + idx) * 0.02}s` }}
-                              >
-                                {/* Shortlist / disqualify buttons */}
-                                <div className="flex flex-col gap-1 justify-center">
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      shortlisted
-                                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                                        : 'text-surface-500 hover:text-emerald-700 hover:bg-emerald-50'
-                                    }`}
-                                    title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
-                                  >
-                                    <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-700/10' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "maybe")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      maybe
-                                        ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
-                                        : 'text-surface-500 hover:text-amber-700 hover:bg-amber-50'
-                                    }`}
-                                    title={maybe ? "Remove from watchlist" : "Mark as maybe"}
-                                  >
-                                    <MinusCircle className={`w-5 h-5 ${maybe ? 'fill-amber-700/10' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "disqualified")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      disqualified
-                                        ? 'text-rose-700 bg-rose-50 hover:bg-rose-100'
-                                        : 'text-surface-500 hover:text-rose-700 hover:bg-rose-50'
-                                    }`}
-                                    title={disqualified ? "Remove disqualification" : "Disqualify"}
-                                  >
-                                    <XCircle className={`w-5 h-5 ${disqualified ? 'fill-rose-700/10' : ''}`} />
-                                  </button>
-                                </div>
-                                {/* Molecule card */}
-                                <button
-                                  onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
-                                  className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
-                                >
-                                  {/* Top-5 star badge */}
-                                  {top5Molecules.has(mol.molecule.toUpperCase()) && (
-                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-surface-50">
-                                      <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2 mb-1 pr-2">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${
-                                      shortlisted ? "bg-emerald-50 text-emerald-700" :
-                                      disqualified ? "bg-zinc-700/30 text-surface-500" :
-                                      "bg-pharma-50 text-pharma-900 group-hover:bg-pharma-100"
-                                    }`}>
-                                      <FlaskConical className="w-4 h-4" />
-                                    </div>
-                                    <span className={`text-sm font-medium transition-colors flex-1 truncate ${
-                                      disqualified ? "text-surface-500 line-through" :
-                                      shortlisted  ? "text-emerald-800" :
-                                      "text-surface-800 group-hover:text-pharma-800"
-                                    }`}>
-                                      {mol.molecule}
-                                    </span>
-                                    {mol.ai_score != null && (
-                                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
-                                        mol.ai_score >= 8 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                        mol.ai_score >= 6 ? "bg-pharma-100 text-pharma-900 font-semibold border-pharma-200" :
-                                        mol.ai_score >= 4 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                                            "bg-rose-50 text-rose-700 border-rose-200"
-                                      }`}>
-                                        {mol.ai_score}<span className="text-[10px] opacity-70">/10</span>
-                                      </div>
-                                    )}
-                                    {!mol.in_iqvia && (
-                                      <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">
-                                        Not in IQVIA
-                                      </span>
-                                    )}
-                                  </div>
-                                  {mol.atc4_class && (
-                                    <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
-                                  )}
-                                  {mol.in_iqvia && (
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-surface-200/30">
-                                      {mol.market_value_aed != null && mol.market_value_aed > 0 && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Value:</span>
-                                          <span className="text-emerald-700 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
-                                        </div>
-                                      )}
-                                      {mol.value_cagr_pct != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">CAGR:</span>
-                                          <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                            {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.num_competitors != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Competitors:</span>
-                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-900' : 'text-surface-700'}`}>
-                                            {mol.num_competitors}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.private_pct != null && mol.lpo_pct != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Private/LPO:</span>
-                                          <span className="text-blue-400 font-semibold">
-                                            {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.cagr_delta != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">δCAGR:</span>
-                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-900' : 'text-surface-600'}`}>
-                                            {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {(mol.mohap_manufacturers != null || mol.upp_manufacturers != null) && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">MOHAP:</span>
-                                          <span className="font-semibold text-surface-700">{mol.mohap_manufacturers ?? 0}</span>
-                                          <span className="text-surface-400 mx-0.5">·</span>
-                                          <span className="text-surface-500">UPP:</span>
-                                          <span className="font-semibold text-surface-700">{mol.upp_manufacturers ?? 0}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Ungrouped molecules (no ATC1 match) */}
-                  {(() => {
-                    const groupedSet = new Set(
-                      Object.values(result.molecules_by_atc1).flat().map(n => n.toUpperCase())
-                    );
-                    const ungrouped = scoredCards.filter(m => !groupedSet.has(m.molecule.toUpperCase()));
-                    if (ungrouped.length === 0) return null;
-                    const groupOffset = Object.keys(result.molecules_by_atc1).length;
-                    return (
-                      <div className="p-5 rounded-xl bg-surface-50 border-surface-200 border border-surface-200">
-                        <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-surface-200">
-                          <div className="px-3 py-1 rounded-xl bg-zinc-500/10 border border-zinc-500/20">
-                            <span className="text-sm font-semibold text-surface-600">?</span>
-                          </div>
-                          <div className="flex-1 min-w-[200px]">
-                            <span className="text-sm font-medium text-surface-600">No ATC1 classification</span>
-                          </div>
-                          <span className="text-xs text-surface-500 px-2">
-                            {ungrouped.length} molecule{ungrouped.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {ungrouped.map((mol, idx) => {
-                            const shortlisted = isShortlisted(mol.molecule);
-                            const maybe = isMaybe(mol.molecule);
-                            const disqualified = isDisqualified(mol.molecule);
-                            const cardBorder = shortlisted
-                              ? "border-emerald-800 bg-emerald-50"
-                              : maybe
-                              ? "border-amber-300 bg-amber-50"
-                              : disqualified
-                              ? "border-surface-300 bg-surface-50 opacity-60"
-                              : "border-surface-200 bg-white shadow-sm border-surface-200 hover:bg-white hover:border-pharma-200";
-                            return (
-                              <div
-                                key={mol.molecule}
-                                className="flex items-stretch gap-2 opacity-0 animate-slide-up"
-                                style={{ animationDelay: `${(groupOffset * 5 + idx) * 0.02}s` }}
-                              >
-                                <div className="flex flex-col gap-1 justify-center">
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "shortlisted")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      shortlisted
-                                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                                        : 'text-surface-500 hover:text-emerald-700 hover:bg-emerald-50'
-                                    }`}
-                                    title={shortlisted ? "Remove from shortlist" : "Add to shortlist"}
-                                  >
-                                    <CheckCircle2 className={`w-5 h-5 ${shortlisted ? 'fill-emerald-700/10' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "maybe")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      maybe
-                                        ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
-                                        : 'text-surface-500 hover:text-amber-700 hover:bg-amber-50'
-                                    }`}
-                                    title={maybe ? "Remove from watchlist" : "Mark as maybe"}
-                                  >
-                                    <MinusCircle className={`w-5 h-5 ${maybe ? 'fill-amber-700/10' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={() => toggleShortlist(mol.molecule, "disqualified")}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      disqualified
-                                        ? 'text-rose-700 bg-rose-50 hover:bg-rose-100'
-                                        : 'text-surface-500 hover:text-rose-700 hover:bg-rose-50'
-                                    }`}
-                                    title={disqualified ? "Remove disqualification" : "Disqualify"}
-                                  >
-                                    <XCircle className={`w-5 h-5 ${disqualified ? 'fill-rose-700/10' : ''}`} />
-                                  </button>
-                                </div>
-                                <button
-                                  onClick={() => setDrawerMolecule(scoredCards.find(s => s.molecule === mol.molecule) ?? mol)}
-                                  className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
-                                >
-                                  {/* Top-5 star badge */}
-                                  {top5Molecules.has(mol.molecule.toUpperCase()) && (
-                                    <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-md z-10 ring-2 ring-surface-50">
-                                      <Star className="w-3.5 h-3.5 text-amber-950 fill-amber-950" />
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2 mb-1 pr-2">
-                                    <div className={`p-1.5 rounded-lg transition-colors ${
-                                      shortlisted ? "bg-emerald-50 text-emerald-700" :
-                                      disqualified ? "bg-zinc-700/30 text-surface-500" :
-                                      "bg-pharma-50 text-pharma-900 group-hover:bg-pharma-100"
-                                    }`}>
-                                      <FlaskConical className="w-4 h-4" />
-                                    </div>
-                                    <span className={`text-sm font-medium transition-colors flex-1 truncate ${
-                                      disqualified ? "text-surface-500 line-through" :
-                                      shortlisted  ? "text-emerald-800" :
-                                      "text-surface-800 group-hover:text-pharma-800"
-                                    }`}>
-                                      {mol.molecule}
-                                    </span>
-                                    {mol.ai_score != null && (
-                                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold shrink-0 ${
-                                        mol.ai_score >= 8 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                        mol.ai_score >= 6 ? "bg-pharma-100 text-pharma-900 font-semibold border-pharma-200" :
-                                        mol.ai_score >= 4 ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                                            "bg-rose-50 text-rose-700 border-rose-200"
-                                      }`}>
-                                        {mol.ai_score}<span className="text-[10px] opacity-70">/10</span>
-                                      </div>
-                                    )}
-                                    {!mol.in_iqvia && (
-                                      <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">
-                                        Not in IQVIA
-                                      </span>
-                                    )}
-                                  </div>
-                                  {mol.atc4_class && (
-                                    <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
-                                  )}
-                                  {mol.in_iqvia && (
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-surface-200/30">
-                                      {mol.market_value_aed != null && mol.market_value_aed > 0 && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Value:</span>
-                                          <span className="text-emerald-700 font-semibold">AED {fmtAed(mol.market_value_aed)}</span>
-                                        </div>
-                                      )}
-                                      {mol.value_cagr_pct != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">CAGR:</span>
-                                          <span className={`font-semibold ${mol.value_cagr_pct >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                            {mol.value_cagr_pct >= 0 ? '+' : ''}{mol.value_cagr_pct.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.num_competitors != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Competitors:</span>
-                                          <span className={`font-semibold ${mol.num_competitors <= 4 ? 'text-pharma-900' : 'text-surface-700'}`}>
-                                            {mol.num_competitors}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.private_pct != null && mol.lpo_pct != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">Private/LPO:</span>
-                                          <span className="text-blue-400 font-semibold">
-                                            {mol.private_pct.toFixed(0)}%/{mol.lpo_pct.toFixed(0)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {mol.cagr_delta != null && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">δCAGR:</span>
-                                          <span className={`font-semibold ${mol.cagr_delta > 0 ? 'text-pharma-900' : 'text-surface-600'}`}>
-                                            {mol.cagr_delta > 0 ? '+' : ''}{mol.cagr_delta.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                      )}
-                                      {(mol.mohap_manufacturers != null || mol.upp_manufacturers != null) && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-surface-500">MOHAP:</span>
-                                          <span className="font-semibold text-surface-700">{mol.mohap_manufacturers ?? 0}</span>
-                                          <span className="text-surface-400 mx-0.5">·</span>
-                                          <span className="text-surface-500">UPP:</span>
-                                          <span className="font-semibold text-surface-700">{mol.upp_manufacturers ?? 0}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <PortfolioTreemap
-                  moleculesByAtc1={result.molecules_by_atc1}
-                  moleculeMetrics={result.molecule_metrics}
-                  onMoleculeClick={(mol) => setChartMolecule(mol)}
-                />
-              )}
-
-              {/* ── Forecast action bar ── */}
-              {shortlistedIqviaMols.length > 0 && (
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-pharma-50 border border-pharma-200">
-                  <TrendingUp className="w-5 h-5 text-pharma-900 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-pharma-900">
-                      {shortlistedIqviaMols.length} molecule{shortlistedIqviaMols.length !== 1 ? "s" : ""} shortlisted
-                    </p>
-                    <p className="text-xs text-pharma-700/70">Generate a Y1–Y3 revenue forecast for your selection</p>
-                  </div>
-
-                  {/* Growth rate slider */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-pharma-700 whitespace-nowrap">Growth rate</span>
-                    <input
-                      type="range" min={5} max={30} step={5}
-                      value={Math.round(growthRate * 100)}
-                      onChange={e => setGrowthRate(Number(e.target.value) / 100)}
-                      className="w-24 accent-pharma-900"
-                    />
-                    <span className="text-xs font-semibold text-pharma-900 w-8">
-                      {Math.round(growthRate * 100)}%
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={goToForecast}
-                    className="flex items-center gap-2 bg-pharma-900 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-pharma-800 transition-colors shrink-0"
-                  >
-                    <TrendingUp className="w-4 h-4" /> Generate Forecasts
-                  </button>
-                </div>
-              )}
-
-              {/* Click any card to open the detail drawer */}
-            </>
-          )}
-
-          {/* Report view */}
-          {phase === "report" && (
-            <div className="space-y-6">
-
-              {/* Top 5 banner — appears once report is done and scores parsed */}
-              {reportDone && top5Molecules.size > 0 && (
-                <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-500/20">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-6 h-6 bg-amber-700 rounded-full flex items-center justify-center shadow-sm">
-                      <Star className="w-3.5 h-3.5 text-amber-900 fill-amber-900" />
-                    </div>
-                    <span className="text-sm font-semibold text-amber-800">Top 5 Molecules</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {[...scoredCards]
-                      .filter(m => top5Molecules.has(m.molecule.toUpperCase()))
-                      .sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0))
-                      .map(m => (
-                        <div key={m.molecule} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-200">
-                          <span className="text-xs font-medium text-amber-200">{m.molecule}</span>
-                          {m.ai_score != null && (
-                            <span className="text-xs font-bold text-amber-700">{m.ai_score}/10</span>
-                          )}
-                        </div>
-                      ))
-                    }
-                  </div>
-                  <button
-                    onClick={() => setPhase("portfolio")}
-                    className="ml-auto text-xs text-amber-700 hover:text-amber-800 underline underline-offset-2 shrink-0"
-                  >
-                    View on cards →
-                  </button>
-                </div>
-              )}
-
-              {/* Report sub-tabs */}
-              <div className="flex items-center gap-1 bg-surface-50 border-surface-200 rounded-xl p-1 w-fit">
-                {(["report", "charts"] as ReportTab[]).map((tab) => (
-                  <button key={tab} onClick={() => setReportTab(tab)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-                      reportTab === tab
-                        ? "bg-pharma-100 text-pharma-900"
-                        : "text-surface-500 hover:text-surface-800"
-                    }`}>
-                    {tab === "report" ? "AI Report" : "Charts"}
-                  </button>
-                ))}
-              </div>
-
-              {reportTab === "report" && (
-                <div className="bg-white shadow-sm border-surface-200 border border-surface-200 rounded-xl p-8">
-                  {enrichError && (
-                    <div className="flex items-center gap-3 text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-4">
-                      <X className="w-4 h-4 shrink-0" />
-                      <span className="text-sm">{enrichError}</span>
-                    </div>
-                  )}
-                  {reportStreaming && !reportText && (
-                    <div className="flex items-center gap-3 text-surface-600">
-                      <Loader2 className="w-5 h-5 animate-spin text-pharma-900" />
-                      <span className="text-sm">Analysing portfolio with {MODELS.find(m => m.id === scoringModel)?.label}...</span>
-                    </div>
-                  )}
-                  {reportText && (
-                    <div className="report-content">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {reportText}
-                      </ReactMarkdown>
-                      {reportStreaming && (
-                        <span className="inline-block w-2 h-4 bg-pharma-400 animate-pulse ml-0.5 rounded-sm" />
-                      )}
-                    </div>
-                  )}
-                  {reportDone && (
-                    <div className="mt-6 pt-4 border-t border-surface-200 flex items-center justify-between">
-                      <p className="text-xs text-surface-400">Report complete · {scoredCards.filter(m => m.ai_score != null).length} molecules scored</p>
-                      <button onClick={() => setPhase("portfolio")}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-surface-300 text-xs text-surface-600 hover:text-pharma-900 hover:border-pharma-200 transition-colors">
-                        <LayoutGrid className="w-3.5 h-3.5" /> View scored cards
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {reportTab === "charts" && (
-                <div className="space-y-6">
-                  {result.molecules.filter((m) => m.in_iqvia).length === 0 ? (
-                    <p className="text-surface-500 text-sm">No IQVIA-matched molecules to chart.</p>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {result.molecules.filter((m) => m.in_iqvia).map((m) => (
-                        <ManufacturerPieChart key={m.molecule} molecule={m.molecule} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
-        </div>
+        />
       )}
 
       {/* ── Molecule detail drawer ── */}
