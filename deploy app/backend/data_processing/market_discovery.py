@@ -276,3 +276,41 @@ def _child_summaries(df: pd.DataFrame, level: str) -> list[dict]:
         code, name = _code_name(raw)
         result.append({"code": code, "name": name, "label": " ".join(str(raw).split()), "level": level})
     return sorted(result, key=lambda item: item["code"])
+
+
+def build_portfolio_hierarchy(df: pd.DataFrame) -> dict:
+    """ATC1→ATC4 tree of IQVIA molecule combinations for the portfolio builder.
+
+    Molecules are keyed by ``Molecule Combination`` (the portfolio/lookup key),
+    so a combination product appears once under each ATC4 it is sold in.
+    Values are latest-complete-year LC Value with combination rows allocated
+    across constituents, matching Market Discovery.
+    """
+    work, _, latest, _ = _prepared_market_frame(df)
+    for level in LEVELS:
+        work = work[~work[level].fillna("").astype(str).str.strip().str.upper().isin({"", "NAN", "NONE"})]
+    work = work[work["Molecule Combination"].notna()]
+
+    by_molecule = (
+        work.groupby(list(LEVELS) + ["Molecule Combination"], sort=False)["_value_latest"]
+        .sum().reset_index()
+    )
+
+    def branch(frame: pd.DataFrame, depth: int) -> list[dict]:
+        level = LEVELS[depth]
+        nodes = []
+        for raw, group in frame.groupby(level, sort=False):
+            code, name = _code_name(raw)
+            node = {"code": code, "name": name, "value": round(float(group["_value_latest"].sum()), 0)}
+            if depth + 1 < len(LEVELS):
+                node["children"] = branch(group, depth + 1)
+            else:
+                node["molecules"] = sorted(
+                    ({"name": str(mol), "value": round(float(value), 0)}
+                     for mol, value in group.groupby("Molecule Combination")["_value_latest"].sum().items()),
+                    key=lambda item: -item["value"],
+                )
+            nodes.append(node)
+        return sorted(nodes, key=lambda item: -item["value"])
+
+    return {"year": latest, "classes": branch(by_molecule, 0)}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  Briefcase, Upload, Plus, Search, FlaskConical, LayoutGrid, Map,
+  Briefcase, Plus, FlaskConical, LayoutGrid, Map,
   FileText, Play, Loader2, X, ChevronDown, Star,
-  CheckCircle2, XCircle, Trash2, RefreshCw,
+  CheckCircle2, XCircle, Trash2, Pencil,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -12,12 +12,15 @@ import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
+import { PortfolioBuilder } from "@/components/PortfolioBuilder";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type InputMode = "upload" | "craft";
-type Phase     = "loading" | "empty" | "upload" | "portfolio" | "report";
+type Phase     = "loading" | "empty" | "setup" | "portfolio" | "report";
 type ViewMode  = "grid" | "treemap";
 type ReportTab = "report" | "charts";
+
+// COMIX's own portfolio — a single record, so no name is asked for.
+const PORTFOLIO_NAME = "My Portfolio";
 
 const MODELS = [
   { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
@@ -44,89 +47,17 @@ function parseScores(report: string): Record<string, { score: number; reasoning:
   return result;
 }
 
-// ─── Molecule search dropdown (identical to analysis page) ───────────────────
-function MoleculeSearchInput({
-  allMolecules, selected, onAdd,
-}: {
-  allMolecules: string[];
-  selected: string[];
-  onAdd: (mol: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [open,  setOpen]  = useState(false);
-  const ref               = useRef<HTMLDivElement>(null);
-
-  const filtered = query.length >= 2
-    ? allMolecules.filter(
-        (m) => m.toLowerCase().includes(query.toLowerCase()) && !selected.includes(m)
-      ).slice(0, 50)
-    : [];
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="flex items-center gap-2 bg-white border border-surface-300 rounded-xl px-3 py-2 focus-within:border-pharma-300">
-        <Search className="w-4 h-4 text-surface-500 shrink-0" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder="Search molecules (e.g. METFORMIN)..."
-          className="flex-1 bg-transparent text-sm text-surface-900 placeholder-zinc-600 focus:outline-none"
-        />
-        {query && (
-          <button onClick={() => { setQuery(""); setOpen(false); }}>
-            <X className="w-4 h-4 text-surface-500 hover:text-surface-800" />
-          </button>
-        )}
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-surface-300 rounded-xl shadow-xl">
-          {filtered.map((mol) => (
-            <button
-              key={mol}
-              onMouseDown={(e) => { e.preventDefault(); onAdd(mol); setQuery(""); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-sm text-surface-700 hover:bg-pharma-50 hover:text-pharma-900 transition-colors"
-            >
-              {mol}
-            </button>
-          ))}
-        </div>
-      )}
-      {open && query.length >= 2 && filtered.length === 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-white border border-surface-300 rounded-xl shadow-xl p-3">
-          <p className="text-sm text-surface-500">No molecules found matching &quot;{query}&quot;</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MyPortfolioPage() {
   const [phase,      setPhase]      = useState<Phase>("loading");
-  const [inputMode,  setInputMode]  = useState<InputMode>("upload");
   const [viewMode,   setViewMode]   = useState<ViewMode>("grid");
   const [reportTab,  setReportTab]  = useState<ReportTab>("report");
 
   // Saved portfolio metadata
   const [savedAt,      setSavedAt]      = useState("");
-  const [companyName,  setCompanyName]  = useState("My Portfolio");
 
-  // Upload / craft input state
-  const [file,           setFile]           = useState<File | null>(null);
-  const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
-  const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
+  // Setup state
   const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
-  const [uploadName,     setUploadName]     = useState("");
   const [saving,         setSaving]         = useState(false);
   const [saveError,      setSaveError]      = useState("");
 
@@ -138,7 +69,6 @@ export default function MyPortfolioPage() {
   const [scoredMolecules, setScoredMolecules] = useState<Record<string, { score: number; reasoning: string }>>({});
   const [drawerMolecule,  setDrawerMolecule]  = useState<MolCardType | null>(null);
   const [shortlistStatus, setShortlistStatus] = useState<Record<string, "shortlisted" | "disqualified" | null>>({});
-  const [dragging,        setDragging]        = useState(false);
 
   const abortRef         = useRef<AbortController | null>(null);
   const reportSavedRef   = useRef(false);
@@ -152,7 +82,6 @@ export default function MyPortfolioPage() {
 
   // ── Load molecule list and saved portfolio on mount ──
   useEffect(() => {
-    api.getMolecules().then((d) => setAllMolecules(d.molecules)).catch(() => {});
     api.getMyPortfolio().then(({ portfolio }) => {
       if (portfolio) {
         _loadPortfolio(portfolio);
@@ -164,7 +93,6 @@ export default function MyPortfolioPage() {
 
   function _loadPortfolio(portfolio: MyPortfolio) {
     setResult(portfolio.result);
-    setCompanyName(portfolio.company_name);
     setSavedAt(portfolio.saved_at);
     if (portfolio.report) {
       setReportText(portfolio.report);
@@ -178,29 +106,12 @@ export default function MyPortfolioPage() {
     reportSavedRef.current = true;
   }
 
-  // ── Drag & drop ──
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) setFile(f);
-  }, []);
-
   // ── Save portfolio ──
-  const savePortfolio = async () => {
+  const savePortfolio = async (molecules: string[]) => {
     setSaveError("");
     setSaving(true);
     try {
-      let res: AnalysisResult;
-      if (inputMode === "upload") {
-        if (!file) throw new Error("Please select a file");
-        res = await api.savePortfolioUpload(file, uploadName || file.name.replace(/\.[^.]+$/, ""));
-        setCompanyName(uploadName || file.name.replace(/\.[^.]+$/, ""));
-      } else {
-        if (!craftMolecules.length) throw new Error("Add at least one molecule");
-        res = await api.savePortfolioEnrich(craftMolecules, uploadName || "My Portfolio");
-        setCompanyName(uploadName || "My Portfolio");
-      }
+      const res = await api.savePortfolioEnrich(molecules, PORTFOLIO_NAME);
       setResult(res);
       setReportText("");
       setReportDone(false);
@@ -230,7 +141,7 @@ export default function MyPortfolioPage() {
       {
         companies:     result.companies,
         enriched_data: result.enriched_data,
-        source_name:   companyName,
+        source_name:   PORTFOLIO_NAME,
         model:         scoringModel,
         atc4_context:  result.atc4_context,
       },
@@ -257,9 +168,6 @@ export default function MyPortfolioPage() {
     setReportDone(false);
     setScoredMolecules({});
     setShortlistStatus({});
-    setFile(null);
-    setCraftMolecules([]);
-    setUploadName("");
     setSaveError("");
     setPhase("empty");
     reportSavedRef.current = false;
@@ -314,9 +222,9 @@ export default function MyPortfolioPage() {
             My Portfolio
           </h1>
           <p className="text-sm text-surface-500 mt-1">
-            {phase === "empty" || phase === "upload"
+            {phase === "empty" || phase === "setup"
               ? "The molecules COMIX currently in-licenses and commercialises in the UAE."
-              : `${companyName} · saved ${savedAt}`
+              : `Saved ${savedAt}`
             }
           </p>
         </div>
@@ -324,12 +232,12 @@ export default function MyPortfolioPage() {
         <div className="flex items-center gap-2">
           {(phase === "portfolio" || phase === "report") && (
             <>
-              {/* Replace portfolio */}
+              {/* Edit portfolio */}
               <button
-                onClick={() => { abortRef.current?.abort(); setPhase("upload"); }}
+                onClick={() => { abortRef.current?.abort(); setSaveError(""); setPhase("setup"); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors"
               >
-                <RefreshCw className="w-4 h-4" /> Replace Portfolio
+                <Pencil className="w-4 h-4" /> Edit Portfolio
               </button>
               {/* Delete */}
               <button
@@ -340,181 +248,37 @@ export default function MyPortfolioPage() {
               </button>
             </>
           )}
-          {phase === "upload" && (
-            <button
-              onClick={() => setPhase(result ? "portfolio" : "empty")}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-surface-300 text-sm text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors"
-            >
-              <X className="w-4 h-4" /> Cancel
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ── UPLOAD FORM (empty state or replace) ── */}
-      {(phase === "empty" || phase === "upload") && (
-        <div className="max-w-2xl mx-auto space-y-6">
-
-          {/* Empty state prompt */}
-          {phase === "empty" && (
-            <div className="text-center py-12 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-pharma-50 border border-pharma-200 flex items-center justify-center mx-auto">
-                <Briefcase className="w-8 h-8 text-pharma-900" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-surface-800">No portfolio saved yet</h2>
-                <p className="text-sm text-surface-500 mt-1">Upload a catalogue or build your portfolio from molecules</p>
-              </div>
-              <button
-                onClick={() => setPhase("upload")}
-                className="inline-flex items-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 py-2.5 px-6 rounded-xl transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" /> Set Up My Portfolio
-              </button>
-            </div>
-          )}
-
-          {/* Upload form */}
-          {phase === "upload" && (
-            <>
-              {/* Mode toggle */}
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  { id: "upload" as InputMode, label: "Upload Portfolio", icon: Upload, desc: "PDF, CSV, or Excel" },
-                  { id: "craft"  as InputMode, label: "Craft Portfolio",  icon: Plus,   desc: "Search & select molecules" },
-                ] as const).map(({ id, label, icon: Icon, desc }) => (
-                  <button key={id} onClick={() => { setInputMode(id); setCraftMolecules([]); }}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      inputMode === id
-                        ? "border-pharma-300 bg-pharma-50 text-pharma-900"
-                        : "border-surface-200 bg-surface-50 text-surface-600 hover:border-surface-300"
-                    }`}>
-                    <Icon className={`w-5 h-5 mb-2 ${inputMode === id ? "text-pharma-900" : "text-surface-500"}`} />
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs opacity-60 mt-0.5">{desc}</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* Form card */}
-              <div className="bg-white shadow-sm border border-surface-200 rounded-xl p-6 space-y-4">
-                {/* Portfolio name */}
-                <div>
-                  <label className="block text-xs font-medium text-surface-600 mb-1.5">Portfolio / Company Name</label>
-                  <input
-                    type="text"
-                    value={uploadName}
-                    onChange={(e) => setUploadName(e.target.value)}
-                    placeholder={inputMode === "upload" ? "e.g. Adalvo" : "e.g. CNS Portfolio"}
-                    className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
-                  />
-                </div>
-
-                {/* Upload mode */}
-                {inputMode === "upload" && (
-                  <div>
-                    <label className="block text-xs font-medium text-surface-600 mb-1.5">Catalogue File</label>
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                      onDragLeave={() => setDragging(false)}
-                      onDrop={onDrop}
-                      onClick={() => document.getElementById("portfolio-file-input")?.click()}
-                      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                        dragging
-                          ? "border-pharma-500/70 bg-pharma-900/5"
-                          : file
-                            ? "border-pharma-300 bg-pharma-50"
-                            : "border-surface-300 hover:border-zinc-600"
-                      }`}>
-                      <input
-                        id="portfolio-file-input"
-                        type="file"
-                        accept=".pdf,.csv,.xlsx,.xls"
-                        className="hidden"
-                        onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-                      />
-                      {file ? (
-                        <div className="flex items-center justify-center gap-3">
-                          <FileText className="w-8 h-8 text-pharma-900" />
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-surface-800">{file.name}</p>
-                            <p className="text-xs text-surface-500">{(file.size / 1024).toFixed(0)} KB</p>
-                          </div>
-                          <button onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                            className="ml-2 text-surface-500 hover:text-rose-700 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload className="w-8 h-8 text-surface-400 mx-auto mb-3" />
-                          <p className="text-sm text-surface-600">Drop file here or click to browse</p>
-                          <p className="text-xs text-surface-400 mt-1">PDF, CSV, XLSX supported</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Craft mode */}
-                {inputMode === "craft" && (
-                  <div className="space-y-3">
-                    <label className="block text-xs font-medium text-surface-600">Add Molecules</label>
-                    <MoleculeSearchInput
-                      allMolecules={allMolecules}
-                      selected={craftMolecules}
-                      onAdd={(mol) => setCraftMolecules((prev) => [...prev, mol])}
-                    />
-                    {craftMolecules.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {craftMolecules.map((mol) => (
-                          <span key={mol}
-                            className="flex items-center gap-1.5 bg-pharma-50 border border-pharma-200 text-pharma-900 text-xs px-3 py-1 rounded-full">
-                            {mol}
-                            <button onClick={() => setCraftMolecules((prev) => prev.filter((m) => m !== mol))}>
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {craftMolecules.length === 0 && (
-                      <p className="text-xs text-surface-400">Type at least 2 characters to search</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Scoring model */}
-                <div>
-                  <label className="block text-xs font-medium text-surface-600 mb-1.5">Scoring Model (for AI Report)</label>
-                  <div className="relative">
-                    <select
-                      value={scoringModel}
-                      onChange={(e) => setScoringModel(e.target.value)}
-                      className="w-full appearance-none bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 focus:outline-none focus:border-pharma-300 transition-colors">
-                      {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500 pointer-events-none" />
-                  </div>
-                </div>
-
-                {saveError && (
-                  <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-                    {saveError}
-                  </p>
-                )}
-
-                <button
-                  onClick={savePortfolio}
-                  disabled={saving || (inputMode === "upload" && !file) || (inputMode === "craft" && craftMolecules.length === 0)}
-                  className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 disabled:bg-zinc-700 disabled:text-surface-500 py-2.5 px-4 rounded-xl transition-colors text-sm">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Briefcase className="w-4 h-4" />}
-                  {saving ? "Saving portfolio..." : "Save as My Portfolio"}
-                </button>
-              </div>
-            </>
-          )}
+      {/* ── EMPTY STATE ── */}
+      {phase === "empty" && (
+        <div className="max-w-2xl mx-auto text-center py-12 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-pharma-50 border border-pharma-200 flex items-center justify-center mx-auto">
+            <Briefcase className="w-8 h-8 text-pharma-900" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-surface-800">No portfolio saved yet</h2>
+            <p className="text-sm text-surface-500 mt-1">Pick your molecules from the IQVIA classes, or import them from a file</p>
+          </div>
+          <button
+            onClick={() => { setSaveError(""); setPhase("setup"); }}
+            className="inline-flex items-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 py-2.5 px-6 rounded-xl transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" /> Set Up My Portfolio
+          </button>
         </div>
+      )}
+
+      {/* ── SETUP / EDIT ── */}
+      {phase === "setup" && (
+        <PortfolioBuilder
+          initialMolecules={result?.molecules.map((m) => m.molecule) ?? []}
+          saving={saving}
+          error={saveError}
+          onSave={savePortfolio}
+          onCancel={() => setPhase(result ? (reportDone ? "report" : "portfolio") : "empty")}
+        />
       )}
 
       {/* ── PORTFOLIO + REPORT VIEW ── */}
@@ -533,8 +297,8 @@ export default function MyPortfolioPage() {
             </div>
             <div className="w-px h-8 bg-surface-100" />
             <div>
-              <p className="text-xs text-surface-500">Portfolio</p>
-              <p className="text-xl font-bold text-surface-900">{companyName}</p>
+              <p className="text-xs text-surface-500">Therapy Areas</p>
+              <p className="text-xl font-bold text-surface-900">{Object.keys(result.molecules_by_atc1).length}</p>
             </div>
             <div className="flex-1" />
 

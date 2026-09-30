@@ -129,6 +129,8 @@ export const api = {
   // My Portfolio
   getMyPortfolio: () => req<{ portfolio: MyPortfolio | null }>("/api/portfolio"),
 
+  getPortfolioHierarchy: () => req<PortfolioHierarchy>("/api/portfolio/hierarchy"),
+
   savePortfolioUpload: (file: File, company: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -367,6 +369,24 @@ export interface MoleculeMetrics {
   mohap_manufacturers?: number;
   private_pct?: number;
   lpo_pct?: number;
+}
+
+export interface HierarchyMolecule {
+  name: string;
+  value: number;
+}
+
+export interface HierarchyClass {
+  code: string;
+  name: string;
+  value: number;
+  children?: HierarchyClass[];
+  molecules?: HierarchyMolecule[];
+}
+
+export interface PortfolioHierarchy {
+  year: number;
+  classes: HierarchyClass[];
 }
 
 export interface AnalysisResult {

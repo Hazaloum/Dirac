@@ -445,6 +445,15 @@ def get_portfolio():
     return {"portfolio": get_my_portfolio()}
 
 
+@app.get("/api/portfolio/hierarchy")
+def portfolio_hierarchy():
+    """IQVIA ATC1→ATC4→molecule tree for the portfolio builder (built once, cached)."""
+    if "portfolio_hierarchy" not in _state:
+        from data_processing.market_discovery import build_portfolio_hierarchy
+        _state["portfolio_hierarchy"] = build_portfolio_hierarchy(_state["dfs"]["iqvia"])
+    return _state["portfolio_hierarchy"]
+
+
 @app.post("/api/portfolio/upload")
 async def save_portfolio_upload(file: UploadFile = File(...), company: str = Form(...)):
     from agent_runner import extract_and_enrich
