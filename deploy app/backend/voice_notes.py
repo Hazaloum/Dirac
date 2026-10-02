@@ -2,7 +2,7 @@
 voice_notes.py — turn a rep's spoken visit summary into the visit form's fields.
 
 The rep app records audio and posts it here with the rep's Supabase session.
-We transcribe it (OpenAI), then ask Claude to fill only the structured fields
+We transcribe it, then ask an OpenAI model to fill only the structured fields
 (outcome, molecules discussed, doctor stance + reason, samples, shelf check,
 order, next visit). Every value is checked against the allowed options and
 COMIX's carried SKUs, so nothing invented reaches the form. The rep reviews
@@ -10,13 +10,14 @@ the pre-filled form and saves it; the transcript is stored with the visit.
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 
 from supabase_client import fetch_all, get_service_client
 
 TRANSCRIBE_MODEL = "gpt-4o-transcribe"
-EXTRACT_MODEL = "claude-sonnet-5-5"
+EXTRACT_MODEL = "gpt-5.6-luna"
 
 OUTCOMES = {
     "clinic": ["met", "not_available", "cancelled"],
@@ -75,13 +76,14 @@ def transcribe(audio: bytes, filename: str, content_type: str, molecules: list[s
     return result.text.strip()
 
 
-def _tool(kind: str) -> dict:
+def _schema(kind: str) -> dict:
+    """Strict JSON schema for the visit form (OpenAI structured outputs)."""
     line = lambda extra: {"type": "object", "properties": {"pack_key": {"type": "string"}, **extra},
-                          "required": ["pack_key", *extra.keys()]}
+                          "required": ["pack_key", *extra.keys()], "additionalProperties": False}
     return {
         "name": "fill_visit",
-        "description": "Fill the visit form with what the rep said. Leave out anything they didn't say.",
-        "input_schema": {
+        "strict": True,
+        "schema": {
             "type": "object",
             "properties": {
                 "outcome": {"type": ["string", "null"], "enum": [*OUTCOMES[kind], None]},
@@ -94,6 +96,7 @@ def _tool(kind: str) -> dict:
                         "reason": {"type": ["string", "null"], "enum": [*REASONS, None]},
                     },
                     "required": ["molecule", "stance", "reason"],
+                    "additionalProperties": False,
                 }},
                 "samples": {"type": "array", "items": line({"quantity": {"type": "integer"}})},
                 "shelf": {"type": "array", "items": line({"status": {"type": "string", "enum": SHELF}})},
@@ -101,6 +104,7 @@ def _tool(kind: str) -> dict:
                 "next_visit_on": {"type": ["string", "null"], "description": "YYYY-MM-DD"},
             },
             "required": ["outcome", "molecules_discussed", "feedback", "samples", "shelf", "order", "next_visit_on"],
+            "additionalProperties": False,
         },
     }
 
@@ -118,7 +122,7 @@ def _prompt(kind: str, transcript: str, skus: list[dict], today: datetime) -> st
         if kind == "clinic" else
         "shelf (stock on the pharmacy shelf: in / low / out) and order (packs ordered)"
     )
-    return f"""A COMIX medical rep just finished a visit to a {'pharmacy' if kind == 'pharmacy' else 'doctor / hospital'} and summarised it out loud. Fill the visit form from their words using the fill_visit tool.
+    return f"""A COMIX medical rep just finished a visit to a {'pharmacy' if kind == 'pharmacy' else 'doctor / hospital'} and summarised it out loud. Fill the visit form from their words.
 
 Today is {today:%A %d %B %Y} ({today:%Y-%m-%d}).
 
@@ -142,18 +146,19 @@ Rep's words:
 
 
 def extract(transcript: str, kind: str, skus: list[dict], today: datetime | None = None) -> dict:
-    from anthropic import Anthropic
+    from openai import OpenAI
 
     today = today or datetime.now(DUBAI)
-    tool = _tool(kind)
-    response = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY")).messages.create(
+    response = OpenAI(api_key=os.getenv("OPENAI_API_KEY")).chat.completions.create(
         model=EXTRACT_MODEL,
-        max_tokens=2000,
-        tools=[tool],
-        tool_choice={"type": "tool", "name": tool["name"]},
+        max_completion_tokens=4000,
+        response_format={"type": "json_schema", "json_schema": _schema(kind)},
         messages=[{"role": "user", "content": _prompt(kind, transcript, skus, today)}],
     )
-    raw = next((b.input for b in response.content if b.type == "tool_use"), {})
+    try:
+        raw = json.loads(response.choices[0].message.content or "{}")
+    except json.JSONDecodeError:
+        raw = {}
     return clean(raw, kind, skus)
 
 
