@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Phone } from "lucide-react";
+import { ArrowLeft, ChevronRight, MapPin, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { AccountStatus, VisitRow } from "@/lib/types";
+import { OUTCOME_LABEL, type AccountStatus, type VisitRow } from "@/lib/types";
 import { lastSeen, shortDate, typeLabel } from "@/lib/format";
 
 export default function AccountDetailPage() {
@@ -33,7 +33,7 @@ export default function AccountDetailPage() {
         }
       });
     sb.from("visits")
-      .select("id, account_id, visited_at, note, molecules")
+      .select("id, account_id, visited_at, note, molecules, outcome")
       .eq("account_id", id)
       .order("visited_at", { ascending: false })
       .limit(10)
@@ -76,10 +76,20 @@ export default function AccountDetailPage() {
             <h2 className="label">Recent visits</h2>
             {visits.length === 0 && <p className="text-surface-500">No visits yet.</p>}
             {visits.map((v) => (
-              <div key={v.id} className="card">
-                <div className="text-sm font-semibold text-surface-800">{shortDate(v.visited_at)}</div>
-                <div className="text-sm text-surface-600">{v.note || "No note"}</div>
-              </div>
+              <Link key={v.id} href={`/clients/${id}/visits/${v.id}`} className="card flex items-center gap-3 active:bg-surface-50">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 text-sm">
+                    <span className="font-semibold text-surface-800">{shortDate(v.visited_at)}</span>
+                    <span className={`text-xs font-medium ${v.outcome === "not_available" || v.outcome === "cancelled" ? "text-amber-700" : "text-pharma-700"}`}>
+                      {OUTCOME_LABEL[v.outcome]}
+                    </span>
+                  </div>
+                  <div className="truncate text-sm text-surface-600">
+                    {v.note || (v.molecules?.length ? v.molecules.join(", ") : "No note")}
+                  </div>
+                </div>
+                <ChevronRight size={18} className="shrink-0 text-surface-400" />
+              </Link>
             ))}
           </section>
         </>
