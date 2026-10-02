@@ -19,6 +19,7 @@ interface VisitDetail {
   sample_drops: { sku_label: string; quantity: number; batch: string | null }[];
   shelf_checks: { sku_label: string; status: ShelfStatus }[];
   orders: { status: string; order_lines: { sku_label: string; quantity: number }[] }[];
+  visit_voice_notes: { transcript: string } | { transcript: string }[] | null;
 }
 
 const STANCE_STYLE: Record<Stance, string> = {
@@ -60,7 +61,7 @@ export default function VisitDetailPage() {
     supabase()
       .from("visits")
       .select(
-        "id, visited_at, outcome, molecules, note, next_visit_on, accounts(name), visit_feedback(molecule, stance, reason), sample_drops(sku_label, quantity, batch), shelf_checks(sku_label, status), orders(status, order_lines(sku_label, quantity))",
+        "id, visited_at, outcome, molecules, note, next_visit_on, accounts(name), visit_feedback(molecule, stance, reason), sample_drops(sku_label, quantity, batch), shelf_checks(sku_label, status), orders(status, order_lines(sku_label, quantity)), visit_voice_notes(transcript)",
       )
       .eq("id", visitId)
       .maybeSingle()
@@ -81,6 +82,7 @@ export default function VisitDetailPage() {
   const feedbackFor = new Map(v.visit_feedback.map((f) => [f.molecule, f]));
   const discussed = Array.from(new Set([...(v.molecules ?? []), ...v.visit_feedback.map((f) => f.molecule)]));
   const orderLines = v.orders.flatMap((o) => o.order_lines);
+  const voice = Array.isArray(v.visit_voice_notes) ? v.visit_voice_notes[0] : v.visit_voice_notes;
 
   return (
     <div className="space-y-5">
@@ -170,6 +172,13 @@ export default function VisitDetailPage() {
         <p className="text-sm text-surface-600">
           Next visit planned for <span className="font-semibold text-surface-900">{shortDate(v.next_visit_on)}</span>
         </p>
+      )}
+
+      {voice?.transcript && (
+        <section>
+          <span className="label">Voice note</span>
+          <p className="card whitespace-pre-wrap text-sm italic text-surface-700">“{voice.transcript}”</p>
+        </section>
       )}
     </div>
   );

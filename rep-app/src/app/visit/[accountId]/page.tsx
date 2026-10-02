@@ -18,6 +18,7 @@ import {
 } from "@/lib/types";
 import { addDays, addMonths, shortDate, skuLabel, typeLabel, ymd } from "@/lib/format";
 import SkuRows, { type SkuLine } from "@/components/SkuRows";
+import VoiceNote, { type VoiceFields } from "@/components/VoiceNote";
 
 type NextChoice = "2w" | "1m" | "2m" | "none" | "date";
 
@@ -56,6 +57,7 @@ export default function VisitPage() {
   const [note, setNote] = useState("");
   const [nextChoice, setNextChoice] = useState<NextChoice>("none");
   const [nextDate, setNextDate] = useState("");
+  const [transcript, setTranscript] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -130,6 +132,28 @@ export default function VisitPage() {
     setFeedback((cur) => ({ ...cur, [m]: { ...cur[m], reason: cur[m]?.reason === reason ? undefined : reason } }));
   }
 
+  /** Pre-fill the form from the voice note; the rep checks it before saving. The note box is left alone. */
+  function applyVoice(text: string, f: VoiceFields) {
+    setTranscript(text);
+    if (f.outcome) setOutcome(f.outcome);
+    if (f.molecules.length) setMolecules((cur) => Array.from(new Set([...cur, ...f.molecules])));
+    if (f.feedback.length)
+      setFeedback((cur) => ({
+        ...cur,
+        ...Object.fromEntries(f.feedback.map((x) => [x.molecule, { stance: x.stance, reason: x.reason ?? undefined }])),
+      }));
+    const toLines = (items: { pack_key: string; quantity: number }[]) =>
+      items.map((x, i) => ({ key: Date.now() + i, molecule: byKey.get(x.pack_key)?.molecule ?? "", pack_key: x.pack_key, quantity: x.quantity }));
+    if (f.samples.length) setSamples(toLines(f.samples));
+    if (f.order.length) setOrder(toLines(f.order));
+    if (f.shelf.length) setShelf((cur) => ({ ...cur, ...Object.fromEntries(f.shelf.map((x) => [x.pack_key, x.status])) }));
+    if (f.next_visit_on) {
+      setNextChoice("date");
+      setNextDate(f.next_visit_on);
+    }
+    setError(null);
+  }
+
   function nextDateValue(): string | null {
     const now = new Date();
     switch (nextChoice) {
@@ -178,7 +202,7 @@ export default function VisitPage() {
       ? lines(order).map((l) => ({ pack_key: l.pack_key, sku_label: labelOf(l.pack_key), quantity: l.quantity }))
       : [];
 
-    const { error } = await supabase().rpc("save_visit", {
+    const { data: visitId, error } = await supabase().rpc("save_visit", {
       p_account_id: account.id,
       p_outcome: outcome,
       p_molecules: discussed,
@@ -193,6 +217,18 @@ export default function VisitPage() {
       setError(error.message);
       setSaving(false);
       return;
+    }
+    if (transcript) {
+      const { error: noteError } = await supabase()
+        .from("visit_voice_notes")
+        .insert({ visit_id: visitId, transcript });
+      if (noteError) {
+        // The visit itself is saved; don't let a retry log it twice.
+        setSaved(true);
+        setError(`Visit saved, but the voice note transcript wasn't: ${noteError.message}`);
+        setTimeout(() => router.replace("/"), 2500);
+        return;
+      }
     }
     setSaved(true);
     setTimeout(() => router.replace("/"), 900);
@@ -235,6 +271,16 @@ export default function VisitPage() {
           )}
         </section>
       )}
+
+      <section className="space-y-2">
+        <VoiceNote accountId={account.id} onResult={applyVoice} />
+        {transcript && (
+          <details className="rounded-xl bg-pharma-50 p-3 text-sm text-pharma-900">
+            <summary className="cursor-pointer font-medium">Filled from your voice note — check below before saving</summary>
+            <p className="mt-2 whitespace-pre-wrap text-pharma-800">{transcript}</p>
+          </details>
+        )}
+      </section>
 
       <section>
         <span className="label">What happened?</span>

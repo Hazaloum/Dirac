@@ -4,6 +4,7 @@ Run from backend/: uvicorn main:app --reload --port 8000
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import secrets
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="COMIX BD API", lifespan=lifespan)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+origins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"]  # 3001 = rep app
 if FRONTEND_URL:
     origins.extend([u.strip() for u in FRONTEND_URL.split(",") if u.strip()])
 
@@ -645,6 +646,37 @@ async def field_force_import_accounts(file: UploadFile = File(...)):
 def field_force_dashboard(days: int = 30):
     from field_force import dashboard
     return _field_force(lambda: dashboard(max(1, min(days, 365))))
+
+
+# ─── Rep app: voice notes ────────────────────────────────────────────────────
+# Called by the rep app with the rep's Supabase session (Bearer token), not
+# Dirac's cookie. Returns the transcript + form fields; nothing is saved here.
+
+MAX_VOICE_NOTE_BYTES = 20 * 1024 * 1024  # OpenAI's limit is 25 MB
+
+
+@app.post("/api/rep/voice-note")
+async def rep_voice_note(request: Request, account_id: int = Form(...), audio: UploadFile = File(...)):
+    import voice_notes
+
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Sign in to use voice notes")
+    content = await audio.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="The recording is empty")
+    if len(content) > MAX_VOICE_NOTE_BYTES:
+        raise HTTPException(status_code=413, detail="The recording is too long — keep it under a few minutes")
+
+    def run():
+        try:
+            voice_notes.rep_for_token(token)
+        except voice_notes.NotARep as e:
+            raise HTTPException(status_code=401, detail=str(e))
+        return voice_notes.process(content, audio.filename or "note.webm",
+                                   audio.content_type or "audio/webm", account_id)
+
+    return await asyncio.to_thread(_field_force, run)
 
 
 # ─── Evaluation pipeline ────────────────────────────────────────────────────
