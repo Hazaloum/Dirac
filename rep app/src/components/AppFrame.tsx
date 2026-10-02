@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 const TABS = [
   { href: "/", label: "Today", Icon: CalendarCheck },
-  { href: "/accounts", label: "Accounts", Icon: Users },
+  { href: "/clients", label: "Clients", Icon: Users },
   { href: "/week", label: "My week", Icon: CalendarDays },
 ];
 
@@ -44,7 +44,7 @@ export default function AppFrame({ children }: { children: ReactNode }) {
   }
 
   // The visit form has its own sticky save bar, so hide the tab bar there.
-  const hideTabs = pathname.startsWith("/visit/") || pathname === "/accounts/new";
+  const hideTabs = pathname.startsWith("/visit/") || pathname === "/clients/new";
 
   return (
     <div className="mx-auto min-h-dvh max-w-xl">

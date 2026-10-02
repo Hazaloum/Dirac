@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { AccountStatus } from "@/lib/types";
 import { addDays, today, ymd } from "@/lib/format";
@@ -40,8 +40,8 @@ export default function TodayPage() {
         </h1>
       </header>
 
-      <Link href="/accounts" className="btn-primary flex items-center justify-center">
-        Unplanned visit
+      <Link href="/visit/new" className="btn-primary flex items-center justify-center gap-2">
+        <Plus size={20} /> New visit
       </Link>
 
       {error && <p className="text-sm text-red-700">{error}</p>}

@@ -221,7 +221,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Persists across Railway restarts (Supabase)
 
 ### Field force (rep CRM)
-- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (accounts due a visit) → Accounts (search/add) → visit screen (doctor/hospital: molecules discussed, samples, note, next visit; pharmacy: shelf check in/low/out, order) → My week. No backend of its own: RLS + `log_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
+- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (clients due a visit, "+ New visit" → pick a client) → Clients (search/add, `/clients`) → visit screen (doctor/hospital: molecules discussed, samples; pharmacy: shelf check in/low/out, order — samples and orders pick a molecule from Dirac's inventory, then its strength/pack) → My week. The UI says "clients"; the database tables keep the name `accounts`. No backend of its own: RLS + `log_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
 - **Dirac `/field-force`**: Setup (create rep logins with a starting password, areas, import account list CSV/Excel, area/rep overrides) and Dashboard (coverage per rep, visits, samples and orders by SKU, shelf alerts, overdue accounts). Endpoints `/api/field-force/*` in `main.py` → `field_force.py`.
 - Orders are only those reps capture; direct distributor orders are not tracked yet.
 

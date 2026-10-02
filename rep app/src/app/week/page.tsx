@@ -72,7 +72,7 @@ export default function WeekPage() {
         {visits?.map((v) => (
           <div key={v.id} className="card">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="truncate font-semibold text-surface-900">{names[v.account_id] ?? "Account"}</span>
+              <span className="truncate font-semibold text-surface-900">{names[v.account_id] ?? "Client"}</span>
               <span className="shrink-0 text-xs text-surface-500">
                 {shortDate(v.visited_at)} · {shortTime(v.visited_at)}
               </span>

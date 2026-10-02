@@ -40,7 +40,7 @@ function Dashboard({ data }: { data: FieldDashboard }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <div className="matthew-stat"><small>Accounts on track</small><strong>{t.on_track}<span className="text-base text-surface-400"> / {t.accounts}</span></strong></div>
+        <div className="matthew-stat"><small>Clients on track</small><strong>{t.on_track}<span className="text-base text-surface-400"> / {t.accounts}</span></strong></div>
         <div className="matthew-stat"><small>Visits · {data.days}d</small><strong>{t.visits}</strong></div>
         <div className="matthew-stat"><small>Samples · {data.days}d</small><strong>{t.samples}</strong></div>
         <div className="matthew-stat"><small>Orders · {data.days}d</small><strong>{t.orders}</strong></div>
@@ -59,7 +59,7 @@ function Dashboard({ data }: { data: FieldDashboard }) {
               <tr key={r.rep_id} className="border-t border-surface-100">
                 <td className="py-2.5 font-medium text-surface-900">{r.name}</td>
                 <td className="py-2.5">
-                  {r.coverage_pct == null ? <span className="text-surface-400">No accounts</span> : (
+                  {r.coverage_pct == null ? <span className="text-surface-400">No clients</span> : (
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-24 rounded-full bg-surface-100">
                         <div className="h-1.5 rounded-full bg-pharma-700" style={{ width: `${r.coverage_pct}%` }} />
@@ -88,8 +88,8 @@ function Dashboard({ data }: { data: FieldDashboard }) {
             ))}</ul>
           )}
         </Panel>
-        <Panel title="Overdue accounts">
-          {data.overdue.length === 0 ? <Empty>Every account is within its visit cadence.</Empty> : (
+        <Panel title="Overdue clients">
+          {data.overdue.length === 0 ? <Empty>Every client is within its visit cadence.</Empty> : (
             <ul className="divide-y divide-surface-100">{data.overdue.map((a, i) => (
               <li key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
                 <span><span className="font-medium text-surface-900">{a.name}</span><span className="block text-xs text-surface-500 capitalize">{a.type}{a.area ? ` · ${a.area}` : ""}</span></span>
@@ -160,7 +160,7 @@ function Setup({ setup, accounts, onChange, onError }: {
             <input required type="email" placeholder="Email (their login)" value={repForm.email} onChange={(e) => setRepForm({ ...repForm, email: e.target.value })} className="rounded-lg border border-surface-300 px-3 py-2 text-sm" />
             <input required minLength={8} placeholder="Starting password (8+ characters)" value={repForm.password} onChange={(e) => setRepForm({ ...repForm, password: e.target.value })} className="rounded-lg border border-surface-300 px-3 py-2 text-sm" />
             <select value={repForm.role} onChange={(e) => setRepForm({ ...repForm, role: e.target.value as RepRole })} className="rounded-lg border border-surface-300 px-3 py-2 text-sm">
-              <option value="rep">Rep</option><option value="manager">Manager (sees all accounts)</option>
+              <option value="rep">Rep</option><option value="manager">Manager (sees all clients)</option>
             </select>
             <div className="md:col-span-2">
               <p className="mb-1.5 text-xs text-surface-500">Areas</p>
@@ -199,14 +199,14 @@ function Setup({ setup, accounts, onChange, onError }: {
         <div className="flex flex-wrap gap-2">{setup.areas.map((a) => (
           <span key={a.id} className="flex items-center gap-1.5 rounded-full border border-surface-300 px-3 py-1 text-xs text-surface-700">
             {a.name}
-            <button aria-label={`Delete ${a.name}`} disabled={busy} onClick={() => confirm(`Delete area ${a.name}? Its accounts become area-less.`) && run(() => api.deleteArea(a.id))}>
+            <button aria-label={`Delete ${a.name}`} disabled={busy} onClick={() => confirm(`Delete area ${a.name}? Its clients become area-less.`) && run(() => api.deleteArea(a.id))}>
               <Trash2 className="h-3 w-3 text-surface-400 hover:text-rose-700" />
             </button>
           </span>
         ))}</div>
       </Panel>
 
-      <Panel title={`Accounts (${accounts.length})`} action={
+      <Panel title={`Clients (${accounts.length})`} action={
         <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-pharma-800">
           <Upload className="h-3.5 w-3.5" /> Import list
           <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => {
@@ -214,7 +214,7 @@ function Setup({ setup, accounts, onChange, onError }: {
             e.target.value = "";
             if (file) run(async () => {
               const r = await api.importFieldAccounts(file);
-              setImportNote([`Imported ${r.created} account${r.created === 1 ? "" : "s"}${r.skipped ? `, skipped ${r.skipped} already there` : ""}.`, ...r.errors]);
+              setImportNote([`Imported ${r.created} client${r.created === 1 ? "" : "s"}${r.skipped ? `, skipped ${r.skipped} already there` : ""}.`, ...r.errors]);
             });
           }} />
         </label>
@@ -230,12 +230,12 @@ function Setup({ setup, accounts, onChange, onError }: {
         )}
         <div className="mb-3 flex items-center gap-2 rounded-lg border border-surface-300 px-3 py-2">
           <Search className="h-4 w-4 text-surface-400" />
-          <input placeholder="Search accounts" value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 bg-transparent text-sm focus:outline-none" />
+          <input placeholder="Search clients" value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 bg-transparent text-sm focus:outline-none" />
         </div>
-        {accounts.length === 0 ? <Empty>No accounts yet — import your list.</Empty> : (
+        {accounts.length === 0 ? <Empty>No clients yet — import your list.</Empty> : (
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-surface-500"><tr>
-              <th className="pb-2 font-medium">Account</th><th className="pb-2 font-medium">Area</th>
+              <th className="pb-2 font-medium">Client</th><th className="pb-2 font-medium">Area</th>
               <th className="pb-2 font-medium">Covered by</th><th className="pb-2 font-medium">Last visit</th>
             </tr></thead>
             <tbody>{visibleAccounts.slice(0, 300).map((a) => (
@@ -293,7 +293,7 @@ export default function FieldForcePage() {
         <div>
           <p className="matthew-eyebrow mb-3">Medical reps</p>
           <h1 className="matthew-page-title">Field force</h1>
-          <p className="matthew-lede mt-3">What the reps are seeing in clinics and pharmacies, and who covers which accounts.</p>
+          <p className="matthew-lede mt-3">What the reps are seeing in clinics and pharmacies, and who covers which clients.</p>
         </div>
         <div className="flex gap-1 rounded-lg bg-surface-100 p-1">
           {(["dashboard", "setup"] as Tab[]).map((t) => (

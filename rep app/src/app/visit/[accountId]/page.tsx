@@ -43,7 +43,7 @@ export default function VisitPage() {
       .maybeSingle()
       .then(({ data, error }) => {
         if (error) setLoadError(error.message);
-        else if (!data) setLoadError("Account not found.");
+        else if (!data) setLoadError("Client not found.");
         else setAccount(data as AccountStatus);
       });
     sb.from("inventory_stock")

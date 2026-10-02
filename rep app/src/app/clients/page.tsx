@@ -14,7 +14,7 @@ const FILTERS: { v: AccountType | "all"; label: string }[] = [
   { v: "hospital", label: "Hospitals" },
 ];
 
-export default function AccountsPage() {
+export default function ClientsPage() {
   const [rows, setRows] = useState<AccountStatus[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -43,12 +43,12 @@ export default function AccountsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-surface-900">Accounts</h1>
+        <h1 className="text-2xl font-bold text-surface-900">Clients</h1>
         <Link
-          href="/accounts/new"
+          href="/clients/new"
           className="flex min-h-[44px] items-center gap-1 rounded-full bg-pharma-900 px-4 text-sm font-semibold text-white"
         >
-          <Plus size={16} /> Add account
+          <Plus size={16} /> Add client
         </Link>
       </div>
 
@@ -76,10 +76,10 @@ export default function AccountsPage() {
 
       {error && <p className="text-sm text-red-700">{error}</p>}
       {!rows && !error && <p className="text-surface-500">Loading…</p>}
-      {rows && shown.length === 0 && <p className="text-center text-surface-500">No accounts found.</p>}
+      {rows && shown.length === 0 && <p className="text-center text-surface-500">No clients found.</p>}
       <div className="space-y-3">
         {shown.map((a) => (
-          <AccountRow key={a.id} a={a} href={`/accounts/${a.id}`} />
+          <AccountRow key={a.id} a={a} href={`/clients/${a.id}`} />
         ))}
       </div>
     </div>

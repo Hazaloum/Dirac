@@ -54,11 +54,11 @@ export default function NewAccountPage() {
       .select("id")
       .single();
     if (error || !data) {
-      setError(error?.message ?? "Could not save the account.");
+      setError(error?.message ?? "Could not save the client.");
       setBusy(false);
       return;
     }
-    router.replace(`/accounts/${data.id}`);
+    router.replace(`/clients/${data.id}`);
   }
 
   return (
@@ -67,7 +67,7 @@ export default function NewAccountPage() {
         <button type="button" aria-label="Back" onClick={() => router.back()} className="flex h-11 w-11 items-center justify-center">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-2xl font-bold text-surface-900">Add account</h1>
+        <h1 className="text-2xl font-bold text-surface-900">Add client</h1>
       </div>
 
       <div className="flex gap-2">
@@ -110,7 +110,7 @@ export default function NewAccountPage() {
 
       {error && <p className="text-sm text-red-700">{error}</p>}
       <button className="btn-primary" disabled={busy || !name.trim()}>
-        {busy ? "Saving…" : "Save account"}
+        {busy ? "Saving…" : "Save client"}
       </button>
     </form>
   );

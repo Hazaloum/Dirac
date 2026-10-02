@@ -24,7 +24,7 @@ export default function AccountDetailPage() {
       .maybeSingle()
       .then(async ({ data, error }) => {
         if (error) return setError(error.message);
-        if (!data) return setError("Account not found.");
+        if (!data) return setError("Client not found.");
         const acc = data as AccountStatus;
         setA(acc);
         if (acc.parent_id) {

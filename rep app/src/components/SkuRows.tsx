@@ -3,10 +3,17 @@
 import { Plus, X } from "lucide-react";
 import type { Sku } from "@/lib/types";
 import { skuLabel } from "@/lib/format";
+
+/** SKU label without the molecule, for the second picker: '5 MG · Tablets · Pack of 30'. */
+function packLabel(s: Sku): string {
+  return skuLabel({ ...s, molecule: "" }).replace(/^·\s*/, "").trim();
+}
 import Stepper from "./Stepper";
 
 export interface SkuLine {
   key: number;
+  /** Molecule picked first (from Dirac's inventory), then one of its packs. */
+  molecule: string;
   pack_key: string;
   quantity: number;
   batch?: string;
@@ -42,18 +49,16 @@ export default function SkuRows({
           <div className="flex items-center gap-2">
             <select
               className="field"
-              value={l.pack_key}
-              onChange={(e) => patch(l.key, { pack_key: e.target.value })}
+              value={l.molecule}
+              onChange={(e) => {
+                const packs = g.find(([mol]) => mol === e.target.value)?.[1] ?? [];
+                // One pack for this molecule → pick it straight away.
+                patch(l.key, { molecule: e.target.value, pack_key: packs.length === 1 ? packs[0].pack_key : "" });
+              }}
             >
-              <option value="">Choose a product…</option>
-              {g.map(([mol, items]) => (
-                <optgroup key={mol} label={mol}>
-                  {items.map((s) => (
-                    <option key={s.pack_key} value={s.pack_key}>
-                      {skuLabel(s)}
-                    </option>
-                  ))}
-                </optgroup>
+              <option value="">Choose a molecule…</option>
+              {g.map(([mol]) => (
+                <option key={mol} value={mol}>{mol}</option>
               ))}
             </select>
             <button
@@ -65,6 +70,20 @@ export default function SkuRows({
               <X size={20} />
             </button>
           </div>
+          {l.molecule && (
+            <select
+              className="field"
+              value={l.pack_key}
+              onChange={(e) => patch(l.key, { pack_key: e.target.value })}
+            >
+              <option value="">Choose strength and pack…</option>
+              {(g.find(([mol]) => mol === l.molecule)?.[1] ?? []).map((s) => (
+                <option key={s.pack_key} value={s.pack_key}>
+                  {packLabel(s)}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center justify-between gap-3">
             <Stepper value={l.quantity} onChange={(n) => patch(l.key, { quantity: n })} />
             {withBatch && (
@@ -82,7 +101,7 @@ export default function SkuRows({
         type="button"
         className="btn-secondary flex items-center justify-center gap-2"
         onClick={() =>
-          onChange([...lines, { key: Date.now() + lines.length, pack_key: "", quantity: 1 }])
+          onChange([...lines, { key: Date.now() + lines.length, molecule: "", pack_key: "", quantity: 1 }])
         }
       >
         <Plus size={18} /> {addLabel}
