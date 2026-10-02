@@ -36,12 +36,24 @@ def _text(value) -> str:
     return str(value).strip().upper()
 
 
-def _strength(value) -> str:
-    """'0500MG' → '500 MG'; '0000' (not stated) → ''."""
+_DOSE = r"(\d+(?:\.\d+)?)\s*(MCG|MG|G|IU|%)(?:\s*/\s*(ML|G))?"
+
+
+def _strength(value, pack=None) -> str:
+    """Strength from IQVIA's Strength column, else from the pack text.
+
+    '0500MG' → '500 MG'. Most rows leave the column as '0000' and only state
+    the dose in the pack text: 'F.C. TABS 500 MG 50' → '500 MG',
+    'ORAL SOLUT. 100 MG /ML 1 300 ML' → '100 MG/ML'.
+    """
     match = re.fullmatch(r"0*(\d+(?:\.\d+)?)?\s*(\D*)", _text(value))
-    if not match or not match.group(1):
+    if match and match.group(1):
+        return f"{match.group(1)} {match.group(2)}".strip()
+    dose = re.search(_DOSE, _text(pack))
+    if not dose:
         return ""
-    return f"{match.group(1)} {match.group(2)}".strip()
+    amount, unit, per = dose.groups()
+    return f"{amount} {unit}" + (f"/{per}" if per else "")
 
 
 def _form(nfc3) -> str:
@@ -55,14 +67,18 @@ def _form(nfc3) -> str:
 def _pack_size(pack) -> str:
     """Pack size from IQVIA's free-text pack.
 
-    'FILM C.TABS 500 MG 20' → '20'; 'SPRAY 1 60 ML' → '60 ML';
-    'SOL.APPLE 4 237 ML' → '4 × 237 ML'.
+    'FILM C.TABS 500 MG 20' → '20'; 'F.C. TABS 100 1000 MG' → '100';
+    'SPRAY 1 60 ML' → '60 ML'; 'SOL.APPLE 4 237 ML' → '4 × 237 ML'.
     """
     text = _text(pack)
-    measured = re.search(r"(\d+)\s+(\d+(?:\.\d+)?)\s*(ML|G|L|KG|OZ|MG|LB)$", text)
+    measured = re.search(r"(\d+)\s+(\d+(?:\.\d+)?)\s*(ML|L|G|KG|OZ|LB)$", text)
     if measured:
         count, size, unit = measured.groups()
         return f"{size} {unit}" if count == "1" else f"{count} × {size} {unit}"
+    # Count written before the dose: 'F.C. TABS 100 1000 MG'.
+    count_first = re.search(r"(\d+)\s+\d+(?:\.\d+)?\s*(?:MCG|MG|IU)$", text)
+    if count_first:
+        return count_first.group(1)
     counted = re.search(r"(\d+)\s*$", text)
     return counted.group(1) if counted else text
 
@@ -74,7 +90,7 @@ def _packs_by_molecule(df, molecules: set[str]) -> dict[str, dict]:
     grouped: dict[str, dict] = {}
     for values in subset.to_dict("records"):
         molecule = _text(values.get("Molecule Combination"))
-        strength, form, size = _strength(values.get("Strength")), _form(values.get("NFC3")), _pack_size(values.get("Pack"))
+        strength, form, size = _strength(values.get("Strength"), values.get("Pack")), _form(values.get("NFC3")), _pack_size(values.get("Pack"))
         key = hashlib.sha256("\x1f".join((molecule, strength, form, size)).encode()).hexdigest()[:24]
         entry = grouped.setdefault(molecule, {
             "molecule": molecule,

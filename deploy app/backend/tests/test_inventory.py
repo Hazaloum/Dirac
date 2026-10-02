@@ -47,6 +47,13 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(inventory._pack_size("FILM C.TABS 500 MG 20"), "20")
         self.assertEqual(inventory._pack_size("SPRAY 1 60 ML"), "60 ML")
         self.assertEqual(inventory._pack_size("SOL.APPLE 4 237 ML"), "4 × 237 ML")
+        self.assertEqual(inventory._pack_size("F.C. TABS 100 1000 MG"), "100")
+
+    def test_strength_falls_back_to_pack_text(self):
+        self.assertEqual(inventory._strength("0500MG", "F.C. TABS 500 MG 50"), "500 MG")
+        self.assertEqual(inventory._strength("0000", "F.C. TABS 100 1000 MG"), "1000 MG")
+        self.assertEqual(inventory._strength("0000", "ORAL SOLUT. 100 MG /ML 1 300 ML"), "100 MG/ML")
+        self.assertEqual(inventory._strength("0000", "TABS 30"), "")
 
 
 if __name__ == "__main__":
