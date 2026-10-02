@@ -296,7 +296,7 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 | `SUPABASE_KEY` | Railway | COMIX OS anon key (Supabase → Project Settings → API) |
 | `SUPABASE_SERVICE_KEY` | Railway | COMIX OS service-role key — Field force page only. Server-side, never in a frontend. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel (rep app) | Rep app talks to Supabase directly as the signed-in rep |
-| `NEXT_PUBLIC_API_URL` | Vercel (rep app) | Railway backend URL, for voice notes. The rep app's URL must also be in Railway's `FRONTEND_URL` (CORS). |
+| `NEXT_PUBLIC_API_URL` | Vercel (rep app) | Railway backend URL, for voice notes. CORS already allows any `*.vercel.app` origin. |
 
 ---
 

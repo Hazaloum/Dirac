@@ -57,6 +57,8 @@ if FRONTEND_URL:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    # Any Vercel deployment (Dirac, the rep app, previews) — saves listing every URL in FRONTEND_URL.
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
