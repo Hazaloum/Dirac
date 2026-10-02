@@ -168,6 +168,15 @@ export const api = {
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
 
+  // Purchase orders (stock in when received) and sales orders (stock out when delivered)
+  getOrders: () => req<{ purchase: StockOrder[]; sales: StockOrder[] }>("/api/inventory/orders"),
+  createOrder: (kind: OrderKind, body: { party: string; order_date?: string; note?: string; lines: { pack_key: string; quantity: number }[] }) =>
+    req(`/api/inventory/orders/${kind}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  closeOrder: (kind: OrderKind, id: number) => req(`/api/inventory/orders/${kind}/${id}/close`, { method: "POST" }),
+  cancelOrder: (kind: OrderKind, id: number) => req(`/api/inventory/orders/${kind}/${id}/cancel`, { method: "POST" }),
+
   // Field force (medical rep CRM) — setup + dashboard
   getFieldForceSetup: () => req<FieldForceSetup>("/api/field-force/setup"),
   createRep: (payload: { name: string; email: string; password: string; role: RepRole; area_ids: number[] }) =>
@@ -598,6 +607,22 @@ export interface InventorySku {
   form: string;
   pack_size: string;
   stock_quantity: number;
+  /** Open purchase orders (incoming) and open sales orders (promised out). */
+  on_order: number;
+  committed: number;
+}
+
+export type OrderKind = "purchase" | "sales";
+
+export interface StockOrder {
+  id: number;
+  number: string;       // PO-0001 / SO-0001
+  party: string;        // supplier or customer
+  order_date: string;
+  note: string | null;
+  status: "open" | "received" | "delivered" | "cancelled";
+  closed_at: string | null;
+  lines: { pack_key: string; sku_label: string; quantity: number }[];
 }
 
 export interface InventoryMolecule {

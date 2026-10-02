@@ -121,8 +121,11 @@ def list_inventory(df) -> dict:
     """Every portfolio molecule with the SKUs carried (possibly none yet)."""
     molecules = _portfolio_molecules()
     available = _packs_by_molecule(df, molecules)
+    on_order, committed = _open_quantities("purchase"), _open_quantities("sales")
     carried: dict[str, list[dict]] = {}
     for row in _carried(molecules) if molecules else []:
+        row["on_order"] = on_order.get(row["pack_key"], 0)
+        row["committed"] = committed.get(row["pack_key"], 0)
         carried.setdefault(row["molecule"], []).append(row)
 
     result = [
@@ -185,3 +188,92 @@ def set_stock(pack_key: str, quantity: int) -> dict | None:
         {"stock_quantity": quantity, "updated_at": datetime.now(timezone.utc).isoformat()}
     ).eq("pack_key", pack_key).execute().data
     return rows[0] if rows else None
+
+
+# ─── Purchase and sales orders ────────────────────────────────────────────────
+# A PO (COMIX → manufacturer) adds stock when received; an SO (customer →
+# COMIX) removes stock when delivered. Open orders show as "on order" and
+# "committed" next to each SKU.
+
+ORDER_KINDS = {
+    "purchase": {"table": "purchase_orders", "lines": "purchase_order_lines", "fk": "purchase_order_id",
+                 "party": "supplier", "close": "receive_purchase_order", "prefix": "PO"},
+    "sales": {"table": "sales_orders", "lines": "sales_order_lines", "fk": "sales_order_id",
+              "party": "customer", "close": "deliver_sales_order", "prefix": "SO"},
+}
+
+
+def sku_label(row: dict) -> str:
+    """'ARIPIPRAZOLE 5 MG · Tablets · Pack of 28'"""
+    size = row.get("pack_size") or ""
+    size = f"Pack of {size}" if size.isdigit() else size
+    form = (row.get("form") or "").capitalize()
+    return " · ".join(x for x in [f"{row['molecule']} {row.get('strength') or ''}".strip(), form, size] if x)
+
+
+def _open_quantities(kind: str) -> dict[str, int]:
+    spec = ORDER_KINDS[kind]
+    rows = get_client().table(spec["lines"]).select(f"pack_key, quantity, {spec['table']}!inner(status)") \
+        .eq(f"{spec['table']}.status", "open").execute().data
+    totals: dict[str, int] = {}
+    for row in rows:
+        totals[row["pack_key"]] = totals.get(row["pack_key"], 0) + row["quantity"]
+    return totals
+
+
+def list_orders(limit: int = 50) -> dict:
+    """Latest purchase and sales orders, open ones first, each with its lines."""
+    out = {}
+    for kind, spec in ORDER_KINDS.items():
+        rows = get_client().table(spec["table"]).select(f"*, lines:{spec['lines']}(pack_key, sku_label, quantity)") \
+            .order("id", desc=True).limit(limit).execute().data
+        for row in rows:
+            row["number"] = f"{spec['prefix']}-{row['id']:04d}"
+            row["party"] = row.pop(spec["party"])
+        out[kind] = sorted(rows, key=lambda r: r["status"] != "open")
+    return out
+
+
+def create_order(kind: str, party: str, order_date: str | None, note: str | None, lines: list[dict]) -> dict:
+    """Create an open PO/SO. Lines must be carried SKUs; repeated SKUs are merged."""
+    spec = ORDER_KINDS[kind]
+    if not party.strip():
+        raise ValueError(f"Enter the {spec['party']}")
+    carried = {row["pack_key"]: row for row in _carried()}
+    merged: dict[str, int] = {}
+    for line in lines:
+        if line["pack_key"] not in carried:
+            raise ValueError("One of the SKUs is not in inventory")
+        merged[line["pack_key"]] = merged.get(line["pack_key"], 0) + int(line["quantity"])
+    if not merged:
+        raise ValueError("Add at least one SKU")
+
+    client = get_client()
+    order = client.table(spec["table"]).insert({
+        spec["party"]: party.strip(),
+        **({"order_date": order_date} if order_date else {}),
+        "note": (note or "").strip() or None,
+    }).execute().data[0]
+    client.table(spec["lines"]).insert([
+        {spec["fk"]: order["id"], "pack_key": key, "sku_label": sku_label(carried[key]), "quantity": qty}
+        for key, qty in merged.items()
+    ]).execute()
+    return order
+
+
+def close_order(kind: str, order_id: int) -> None:
+    """Receive a PO / deliver an SO — this is what moves stock."""
+    from postgrest.exceptions import APIError
+
+    try:
+        get_client().rpc(ORDER_KINDS[kind]["close"], {"p_id": order_id}).execute()
+    except APIError as e:
+        raise ValueError(e.message or str(e)) from e
+
+
+def cancel_order(kind: str, order_id: int) -> None:
+    spec = ORDER_KINDS[kind]
+    rows = get_client().table(spec["table"]).update({"status": "cancelled", "closed_at": datetime.now(timezone.utc).isoformat()}) \
+        .eq("id", order_id).eq("status", "open").execute().data
+    if not rows:
+        raise ValueError("Only open orders can be cancelled")

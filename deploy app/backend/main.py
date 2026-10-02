@@ -538,6 +538,52 @@ def set_inventory_skus(molecule: str, body: SkuSelectionRequest):
     return options
 
 
+class OrderLine(BaseModel):
+    pack_key: str
+    quantity: int = Field(gt=0, le=10_000_000)
+
+
+class OrderCreateRequest(BaseModel):
+    party:      str                 # supplier for a PO, customer for an SO
+    order_date: str | None = None   # YYYY-MM-DD, defaults to today
+    note:       str | None = None
+    lines:      list[OrderLine]
+
+
+def _order_kind(kind: str) -> str:
+    if kind not in ("purchase", "sales"):
+        raise HTTPException(status_code=404, detail="Unknown order type")
+    return kind
+
+
+@app.get("/api/inventory/orders")
+def get_inventory_orders():
+    from inventory import list_orders
+    return list_orders()
+
+
+@app.post("/api/inventory/orders/{kind}")
+def create_inventory_order(kind: str, body: OrderCreateRequest):
+    from inventory import create_order
+    lines = [line.model_dump() for line in body.lines]
+    return _field_force(lambda: create_order(_order_kind(kind), body.party, body.order_date, body.note, lines))
+
+
+@app.post("/api/inventory/orders/{kind}/{order_id}/close")
+def close_inventory_order(kind: str, order_id: int):
+    """Receive a PO / deliver an SO — moves stock."""
+    from inventory import close_order
+    _field_force(lambda: close_order(_order_kind(kind), order_id))
+    return {"ok": True}
+
+
+@app.post("/api/inventory/orders/{kind}/{order_id}/cancel")
+def cancel_inventory_order(kind: str, order_id: int):
+    from inventory import cancel_order
+    _field_force(lambda: cancel_order(_order_kind(kind), order_id))
+    return {"ok": True}
+
+
 @app.put("/api/inventory/{pack_key}")
 def update_inventory_stock(pack_key: str, body: StockUpdateRequest):
     from inventory import set_stock

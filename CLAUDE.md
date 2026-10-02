@@ -228,6 +228,8 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 ### Inventory
 The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carries. Clicking a molecule opens a picker: dosage forms as boxes → strength / pack-size options → select. Options come from IQVIA, normalised to molecule + strength + form (NFC3) + pack size so the same pack from several manufacturers shows once. A row in Supabase `inventory_stock` = a carried SKU (with its description and stock in packs); `PUT /api/inventory/skus/{molecule}` sets the selection, `PUT /api/inventory/{pack_key}` sets stock.
 
+**Purchase and sales orders.** "+ Purchase order" (COMIX → supplier) and "+ Sales order" (customer → COMIX) on the Inventory page create open orders (`purchase_orders`/`sales_orders` + `_lines`). Stock moves only when a PO is marked **Received** (`receive_purchase_order`, stock up) or an SO **Delivered** (`deliver_sales_order`, stock down; refused if any SKU is short). Open orders show per SKU as "+X on order" / "Y committed". Endpoints: `GET /api/inventory/orders`, `POST /api/inventory/orders/{purchase|sales}`, `POST …/{id}/close`, `POST …/{id}/cancel`. Rep-app orders (`orders` table) are separate and don't move stock.
+
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
 
@@ -250,6 +252,8 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `outreach_companies` | One row per company per run — overview, UAE MOHAP/UPP status, agents, contacts JSON. |
 | `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
 | `inventory_stock` | One row per carried SKU — pack key, molecule, strength, form, pack size, stock quantity. |
+| `purchase_orders` / `purchase_order_lines` | POs to suppliers; open → received (adds stock) or cancelled. Shown as PO-0001. |
+| `sales_orders` / `sales_order_lines` | Sales orders from customers; open → delivered (removes stock) or cancelled. Shown as SO-0001. |
 
 **Field force / rep CRM** (RLS-locked: anon gets nothing; reps see their own territory; Dirac uses the service-role key):
 
