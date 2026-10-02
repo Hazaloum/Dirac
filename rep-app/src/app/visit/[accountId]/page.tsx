@@ -133,10 +133,17 @@ export default function VisitPage() {
     setFeedback((cur) => ({ ...cur, [m]: { ...cur[m], reason: cur[m]?.reason === reason ? undefined : reason } }));
   }
 
-  /** Pre-fill the form from the voice note; the rep checks it before saving. The note box is left alone. */
+  /** Pre-fill the form from the voice note; the rep checks it before saving. */
   function applyVoice(text: string, f: VoiceFields) {
+    const previousSummary = aiFields?.summary;
     setTranscript(text);
     setAiFields(f);
+    if (f.summary)
+      // A new recording replaces the last summary but keeps anything the rep typed.
+      setNote((cur) => {
+        const typed = cur.trim() === previousSummary ? "" : cur.trim();
+        return typed ? `${typed}\n${f.summary}` : f.summary;
+      });
     if (f.outcome) setOutcome(f.outcome);
     if (f.molecules.length) setMolecules((cur) => Array.from(new Set([...cur, ...f.molecules])));
     if (f.feedback.length)

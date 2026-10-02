@@ -25,8 +25,10 @@ class CleanTest(unittest.TestCase):
             "shelf": [{"pack_key": "a10", "status": "out"}],  # pharmacy-only
             "order": [{"pack_key": "a10", "quantity": 10}],
             "next_visit_on": "2026-10-16",
+            "summary": "  Doctor wants research material on aripiprazole.  ",
         }
         out = voice_notes.clean(raw, "clinic", SKUS)
+        self.assertEqual(out["summary"], "Doctor wants research material on aripiprazole.")
         self.assertEqual(out["outcome"], "met")
         self.assertEqual(out["molecules"], ["ARIPIPRAZOLE", "QUETIAPINE"])
         self.assertEqual(out["feedback"], [

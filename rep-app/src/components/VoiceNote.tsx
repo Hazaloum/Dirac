@@ -15,6 +15,8 @@ export interface VoiceFields {
   shelf: { pack_key: string; status: ShelfStatus }[];
   order: { molecule: string; pack_key: string | null; quantity: number }[];
   next_visit_on: string | null;
+  /** Short written summary of what the rep said — goes into the note. */
+  summary: string;
 }
 
 const MAX_SECONDS = 180;

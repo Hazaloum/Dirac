@@ -2,9 +2,9 @@
 voice_notes.py — turn a rep's spoken visit summary into the visit form's fields.
 
 The rep app records audio and posts it here with the rep's Supabase session.
-We transcribe it, then ask an OpenAI model to fill only the structured fields
-(outcome, molecules discussed, doctor stance + reason, samples, shelf check,
-order, next visit). Every value is checked against the allowed options and
+We transcribe it, then ask an OpenAI model to fill the form: the structured
+fields (outcome, molecules discussed, doctor stance + reason, samples, shelf
+check, order, next visit) and a short summary for the note. Every value is checked against the allowed options and
 COMIX's carried SKUs, so nothing invented reaches the form. The rep reviews
 the pre-filled form and saves it; the transcript is stored with the visit.
 """
@@ -103,8 +103,9 @@ def _schema(kind: str) -> dict:
                 "shelf": {"type": "array", "items": line({"status": {"type": "string", "enum": SHELF}})},
                 "order": {"type": "array", "items": line({"quantity": {"type": "integer"}})},
                 "next_visit_on": {"type": ["string", "null"], "description": "YYYY-MM-DD"},
+                "summary": {"type": "string"},
             },
-            "required": ["outcome", "molecules_discussed", "feedback", "samples", "shelf", "order", "next_visit_on"],
+            "required": ["outcome", "molecules_discussed", "feedback", "samples", "shelf", "order", "next_visit_on", "summary"],
             "additionalProperties": False,
         },
     }
@@ -147,6 +148,7 @@ Rules:
   - not_interested = declined or negative. Reasons: price, efficacy, side_effects, competitor (prefers another brand), not_stocked (not available in nearby pharmacies); null if no reason given.
   - If they discussed a molecule but the rep gave no reaction, list it in molecules_discussed with no feedback entry.
 - next_visit_on: convert "in two weeks", "next month", "Thursday" into a date from today.
+- summary: the visit note, in English, 1–4 short sentences as the rep would write it. Cover what happened, the doctor's / pharmacist's reaction, and especially anything the fields can't hold — requests (e.g. wants research material), objections, promises, follow-ups, personal details worth remembering. Plain facts, no filler, no invented details.
 
 Rep's words:
 \"\"\"{transcript}\"\"\""""
@@ -232,7 +234,9 @@ def clean(raw: dict, kind: str, skus: list[dict]) -> dict:
     except (TypeError, ValueError):
         next_visit = None
 
+    summary = raw.get("summary")
     return {
+        "summary": summary.strip()[:1000] if isinstance(summary, str) else "",
         "outcome": raw.get("outcome") if raw.get("outcome") in OUTCOMES[kind] else None,
         "molecules": discussed,
         "feedback": list(feedback.values()),
