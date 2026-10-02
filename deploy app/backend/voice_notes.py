@@ -78,8 +78,9 @@ def transcribe(audio: bytes, filename: str, content_type: str, molecules: list[s
 
 def _schema(kind: str) -> dict:
     """Strict JSON schema for the visit form (OpenAI structured outputs)."""
-    line = lambda extra: {"type": "object", "properties": {"pack_key": {"type": "string"}, **extra},
-                          "required": ["pack_key", *extra.keys()], "additionalProperties": False}
+    line = lambda extra: {"type": "object",
+                          "properties": {"molecule": {"type": "string"}, "pack_key": {"type": ["string", "null"]}, **extra},
+                          "required": ["molecule", "pack_key", *extra.keys()], "additionalProperties": False}
     return {
         "name": "fill_visit",
         "strict": True,
@@ -137,8 +138,14 @@ SKUs COMIX carries (use the pack_key on the left):
 Rules:
 - Only fill what the rep actually said. Unknown → null or an empty list. Never guess.
 - Match drug names to the list even if mispronounced or said in Arabic. If a molecule isn't on the list, leave it out.
-- A sample/shelf/order line needs a specific SKU. If the rep names a molecule and strength and only one carried pack fits, use it; if several fit and they didn't say which, leave the line out.
-- Stance: prescribing = already prescribes it; will_try = agreed to try / will start; not_interested = declined. Reasons: price, efficacy, side_effects, competitor (prefers another brand), not_stocked (not available in nearby pharmacies).
+- Sample/shelf/order lines: always give the molecule. Give the pack_key only when the rep's words point to exactly one carried pack (e.g. they said the strength and only one pack has it); otherwise pack_key is null and the rep picks the pack. Never drop a line just because the pack is unclear.
+- Quantities are in boxes/packs as the rep said them ("20 boxes" → 20).
+- Shelf: "X is out / low / in stock" with no pack named → one line for that molecule with pack_key null.
+- Stance — be strict, don't overstate:
+  - prescribing = the doctor says they already prescribe / use it.
+  - will_try = positive but not yet prescribing: liked it, interested, will try, will consider, open to it.
+  - not_interested = declined or negative. Reasons: price, efficacy, side_effects, competitor (prefers another brand), not_stocked (not available in nearby pharmacies); null if no reason given.
+  - If they discussed a molecule but the rep gave no reaction, list it in molecules_discussed with no feedback entry.
 - next_visit_on: convert "in two weeks", "next month", "Thursday" into a date from today.
 
 Rep's words:
@@ -166,25 +173,47 @@ def clean(raw: dict, kind: str, skus: list[dict]) -> dict:
     """Keep only values the form accepts: allowed options and carried SKUs/molecules."""
     keys = {s["pack_key"] for s in skus}
     molecules = {s["molecule"].upper(): s["molecule"] for s in skus}
+    molecule_of = {s["pack_key"]: s["molecule"] for s in skus}
+    packs_of: dict[str, list[str]] = {}
+    for s in skus:
+        packs_of.setdefault(s["molecule"], []).append(s["pack_key"])
     clinic = kind == "clinic"
 
     def molecule(name) -> str | None:
         return molecules.get(str(name or "").strip().upper())
 
     def lines(items, field, allowed=None) -> list[dict]:
+        """A known pack, or a known molecule with the pack left for the rep (pack_key None)."""
         out, seen = [], set()
         for item in items or []:
             key, value = item.get("pack_key"), item.get(field)
-            if key not in keys or key in seen:
-                continue
             if allowed is None:
                 if not isinstance(value, int) or value <= 0:
                     continue
             elif value not in allowed:
                 continue
-            seen.add(key)
-            out.append({"pack_key": key, field: value})
+            if key in keys:
+                line = {"molecule": molecule_of[key], "pack_key": key, field: value}
+            elif molecule(item.get("molecule")):
+                line = {"molecule": molecule(item.get("molecule")), "pack_key": None, field: value}
+            else:
+                continue
+            ident = line["pack_key"] or line["molecule"]
+            if ident in seen:
+                continue
+            seen.add(ident)
+            out.append(line)
         return out
+
+    def shelf_lines(items) -> list[dict]:
+        """Shelf status per pack; a molecule-wide status applies to each of its packs."""
+        out: dict[str, dict] = {}
+        for line in lines(items, "status", SHELF):
+            targets = [line["pack_key"]] if line["pack_key"] else packs_of.get(line["molecule"], [])
+            for key in targets:
+                if line["pack_key"] or key not in out:  # an explicit pack beats a molecule-wide status
+                    out[key] = {"pack_key": key, "status": line["status"]}
+        return list(out.values())
 
     feedback = {}
     for f in (raw.get("feedback") or []) if clinic else []:
@@ -193,7 +222,9 @@ def clean(raw: dict, kind: str, skus: list[dict]) -> dict:
             reason = f.get("reason") if f["stance"] == "not_interested" and f.get("reason") in REASONS else None
             feedback[m] = {"molecule": m, "stance": f["stance"], "reason": reason}
     discussed = [m for m in (molecule(x) for x in (raw.get("molecules_discussed") or [])) if m] if clinic else []
-    discussed = list(dict.fromkeys([*discussed, *feedback]))
+    samples = lines(raw.get("samples"), "quantity") if clinic else []
+    # A molecule sampled was a molecule discussed.
+    discussed = list(dict.fromkeys([*discussed, *feedback, *(l["molecule"] for l in samples)]))
 
     next_visit = raw.get("next_visit_on")
     try:
@@ -205,8 +236,8 @@ def clean(raw: dict, kind: str, skus: list[dict]) -> dict:
         "outcome": raw.get("outcome") if raw.get("outcome") in OUTCOMES[kind] else None,
         "molecules": discussed,
         "feedback": list(feedback.values()),
-        "samples": lines(raw.get("samples"), "quantity") if clinic else [],
-        "shelf": lines(raw.get("shelf"), "status", SHELF) if not clinic else [],
+        "samples": samples,
+        "shelf": shelf_lines(raw.get("shelf")) if not clinic else [],
         "order": lines(raw.get("order"), "quantity") if not clinic else [],
         "next_visit_on": next_visit,
     }

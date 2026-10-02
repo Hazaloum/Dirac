@@ -58,6 +58,7 @@ export default function VisitPage() {
   const [nextChoice, setNextChoice] = useState<NextChoice>("none");
   const [nextDate, setNextDate] = useState("");
   const [transcript, setTranscript] = useState<string | null>(null);
+  const [aiFields, setAiFields] = useState<VoiceFields | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -135,6 +136,7 @@ export default function VisitPage() {
   /** Pre-fill the form from the voice note; the rep checks it before saving. The note box is left alone. */
   function applyVoice(text: string, f: VoiceFields) {
     setTranscript(text);
+    setAiFields(f);
     if (f.outcome) setOutcome(f.outcome);
     if (f.molecules.length) setMolecules((cur) => Array.from(new Set([...cur, ...f.molecules])));
     if (f.feedback.length)
@@ -142,8 +144,8 @@ export default function VisitPage() {
         ...cur,
         ...Object.fromEntries(f.feedback.map((x) => [x.molecule, { stance: x.stance, reason: x.reason ?? undefined }])),
       }));
-    const toLines = (items: { pack_key: string; quantity: number }[]) =>
-      items.map((x, i) => ({ key: Date.now() + i, molecule: byKey.get(x.pack_key)?.molecule ?? "", pack_key: x.pack_key, quantity: x.quantity }));
+    const toLines = (items: VoiceFields["samples"]) =>
+      items.map((x, i) => ({ key: Date.now() + i, molecule: x.molecule, pack_key: x.pack_key ?? "", quantity: x.quantity }));
     if (f.samples.length) setSamples(toLines(f.samples));
     if (f.order.length) setOrder(toLines(f.order));
     if (f.shelf.length) setShelf((cur) => ({ ...cur, ...Object.fromEntries(f.shelf.map((x) => [x.pack_key, x.status])) }));
@@ -177,6 +179,11 @@ export default function VisitPage() {
       return;
     }
     const lines = (l: SkuLine[]) => l.filter((x) => x.pack_key && x.quantity > 0);
+    const noPack = [...(showSamples ? samples : []), ...(showOrder ? order : [])].find((x) => x.molecule && !x.pack_key);
+    if (noPack) {
+      setError(`Choose the strength and pack for ${noPack.molecule}.`);
+      return;
+    }
     if (showOrder && lines(order).length === 0) {
       setError("Add at least one order line, or choose “No order”.");
       return;
@@ -221,7 +228,7 @@ export default function VisitPage() {
     if (transcript) {
       const { error: noteError } = await supabase()
         .from("visit_voice_notes")
-        .insert({ visit_id: visitId, transcript });
+        .insert({ visit_id: visitId, transcript, ai_fields: aiFields });
       if (noteError) {
         // The visit itself is saved; don't let a retry log it twice.
         setSaved(true);

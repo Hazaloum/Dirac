@@ -10,9 +10,10 @@ export interface VoiceFields {
   outcome: Outcome | null;
   molecules: string[];
   feedback: { molecule: string; stance: Stance; reason: Reason | null }[];
-  samples: { pack_key: string; quantity: number }[];
+  /** pack_key is null when the rep didn't say which pack — they pick it on the form. */
+  samples: { molecule: string; pack_key: string | null; quantity: number }[];
   shelf: { pack_key: string; status: ShelfStatus }[];
-  order: { pack_key: string; quantity: number }[];
+  order: { molecule: string; pack_key: string | null; quantity: number }[];
   next_visit_on: string | null;
 }
 
