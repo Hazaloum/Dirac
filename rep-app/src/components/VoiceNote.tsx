@@ -83,17 +83,19 @@ export default function VoiceNote({
   async function upload(blob: Blob, ext: string) {
     setState("working");
     try {
+      const api = process.env.NEXT_PUBLIC_API_URL;
+      if (!api) throw new Error("Voice notes aren't set up yet (NEXT_PUBLIC_API_URL is missing in Vercel).");
       const { data } = await supabase().auth.getSession();
       const form = new FormData();
       form.append("account_id", String(accountId));
       form.append("audio", blob, `note.${ext}`);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rep/voice-note`, {
+      const res = await fetch(`${api.replace(/\/$/, "")}/api/rep/voice-note`, {
         method: "POST",
         headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` },
         body: form,
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || "Couldn't process the voice note.");
+      if (!res.ok) throw new Error(body.detail || `Couldn't process the voice note (error ${res.status}).`);
       if (!body.transcript) throw new Error("Didn't catch anything — try again a bit closer to the phone.");
       onResult(body.transcript, body.fields);
     } catch (e) {
