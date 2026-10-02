@@ -4,7 +4,11 @@
 
 COMIX is a Dubai-based pharmaceutical licensing company. They in-license generic molecules from manufacturers globally and commercialise them in the UAE through local distributors. Current focus: CNS. Expanding into cardiovascular, metabolic, oncology. Strong preference for the private market channel (higher margins than LPO/government).
 
-This repo is the **web application** that powers COMIX's BD intelligence workflow. It replaces the old CLI scripts (`agent.py`, `outreach_agent.py`) with a full-stack hosted product.
+This repo holds two apps sharing one Supabase database:
+- **Dirac** (`deploy app/`) — the BD intelligence web app (desktop, COMIX team).
+- **Rep app** (`rep app/`) — the mobile CRM for COMIX's medical reps (see "Field force" below).
+
+Dirac powers COMIX's BD intelligence workflow. It replaces the old CLI scripts (`agent.py`, `outreach_agent.py`) with a full-stack hosted product.
 
 ---
 
@@ -35,6 +39,7 @@ Claude_App/
     │   ├── store.py                   # Supabase: analysis runs, My Portfolio, pipeline
     │   ├── db.py                      # Supabase: outreach runs + companies
     │   ├── inventory.py               # Inventory view + stock quantities (Supabase)
+    │   ├── field_force.py             # Rep CRM setup (reps, areas, accounts) + dashboard — service-role client
     │   ├── supabase_client.py         # Shared Supabase client + paging fetch_all()
     │   ├── reference_data.py          # Read/write IQVIA, UPP, MOHAP, WHO tables in Supabase
     │   ├── sheets.py                  # Google Sheets export (optional, no-ops if unconfigured)
@@ -215,6 +220,11 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Same upload/craft input modes as Analysis
 - Persists across Railway restarts (Supabase)
 
+### Field force (rep CRM)
+- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (accounts due a visit) → Accounts (search/add) → visit screen (doctor/hospital: molecules discussed, samples, note, next visit; pharmacy: shelf check in/low/out, order) → My week. No backend of its own: RLS + `log_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
+- **Dirac `/field-force`**: Setup (create rep logins with a starting password, areas, import account list CSV/Excel, area/rep overrides) and Dashboard (coverage per rep, visits, samples and orders by SKU, shelf alerts, overdue accounts). Endpoints `/api/field-force/*` in `main.py` → `field_force.py`.
+- Orders are only those reps capture; direct distributor orders are not tracked yet.
+
 ### Inventory
 The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carries. Clicking a molecule opens a picker: dosage forms as boxes → strength / pack-size options → select. Options come from IQVIA, normalised to molecule + strength + form (NFC3) + pack size so the same pack from several manufacturers shows once. A row in Supabase `inventory_stock` = a carried SKU (with its description and stock in packs); `PUT /api/inventory/skus/{molecule}` sets the selection, `PUT /api/inventory/{pack_key}` sets stock.
 
@@ -240,6 +250,19 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `outreach_companies` | One row per company per run — overview, UAE MOHAP/UPP status, agents, contacts JSON. |
 | `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
 | `inventory_stock` | One row per carried SKU — pack key, molecule, strength, form, pack size, stock quantity. |
+
+**Field force / rep CRM** (RLS-locked: anon gets nothing; reps see their own territory; Dirac uses the service-role key):
+
+| Table | Contents |
+|-------|----------|
+| `reps` | id = Supabase Auth user id, name, email, role `rep`/`manager`, active |
+| `areas`, `rep_areas` | Named areas and which reps cover them |
+| `accounts` | Doctor / pharmacy / hospital, area, optional `assigned_rep_id` override, `parent_id` (doctor's hospital) |
+| `visits` | Rep × account × time, molecules discussed, note, next visit date |
+| `sample_drops`, `shelf_checks`, `orders`, `order_lines` | What happened on a visit; reference `inventory_stock.pack_key` with a `sku_label` snapshot |
+| view `account_status` | Accounts + last visit, cadence (doctor/hospital 28d, pharmacy 14d) and `due_on` |
+
+`log_visit(...)` (Postgres function, runs as the rep) writes a visit with its samples, shelf checks and order in one transaction and deducts samples from `inventory_stock` (floored at 0). A rep sees accounts assigned to them, created by them, or unassigned in their areas; managers see all.
 
 JSON payloads are stored as JSON strings in `text` columns.
 
@@ -269,6 +292,8 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 | `NEXT_PUBLIC_API_URL` | Vercel | Backend Railway URL (e.g. `https://xxx.railway.app`) |
 | `SUPABASE_URL` | Railway | `https://xgaomspclfexhkdfgwgv.supabase.co` |
 | `SUPABASE_KEY` | Railway | COMIX OS anon key (Supabase → Project Settings → API) |
+| `SUPABASE_SERVICE_KEY` | Railway | COMIX OS service-role key — Field force page only. Server-side, never in a frontend. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel (rep app) | Rep app talks to Supabase directly as the signed-in rep |
 
 ---
 

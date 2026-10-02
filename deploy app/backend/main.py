@@ -544,6 +544,109 @@ def update_inventory_stock(pack_key: str, body: StockUpdateRequest):
     return item
 
 
+# ─── Field force (medical rep CRM) ───────────────────────────────────────────
+# Reps use the separate rep app; these endpoints are COMIX's setup + dashboard.
+
+def _field_force(call):
+    """Run a field_force call, mapping a missing service key to a clear 503."""
+    try:
+        return call()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.get("/api/field-force/setup")
+def field_force_setup():
+    from field_force import list_setup
+    return _field_force(list_setup)
+
+
+class RepCreateRequest(BaseModel):
+    name:     str
+    email:    str
+    password: str = Field(min_length=8)
+    role:     str = "rep"
+    area_ids: list[int] = Field(default_factory=list)
+
+
+@app.post("/api/field-force/reps")
+def field_force_create_rep(body: RepCreateRequest):
+    if body.role not in {"rep", "manager"}:
+        raise HTTPException(status_code=422, detail="Role must be rep or manager")
+    from field_force import create_rep
+    try:
+        return _field_force(lambda: create_rep(body.name, body.email, body.password, body.role, body.area_ids))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not create rep: {e}")
+
+
+class RepUpdateRequest(BaseModel):
+    name:     Optional[str] = None
+    role:     Optional[str] = None
+    active:   Optional[bool] = None
+    area_ids: Optional[list[int]] = None
+    password: Optional[str] = Field(default=None, min_length=8)
+
+
+@app.put("/api/field-force/reps/{rep_id}")
+def field_force_update_rep(rep_id: str, body: RepUpdateRequest):
+    if body.role is not None and body.role not in {"rep", "manager"}:
+        raise HTTPException(status_code=422, detail="Role must be rep or manager")
+    from field_force import update_rep
+    _field_force(lambda: update_rep(rep_id, body.name, body.role, body.active, body.area_ids, body.password))
+    return {"ok": True}
+
+
+class AreaCreateRequest(BaseModel):
+    name:    str
+    emirate: Optional[str] = None
+
+
+@app.post("/api/field-force/areas")
+def field_force_create_area(body: AreaCreateRequest):
+    if not body.name.strip():
+        raise HTTPException(status_code=422, detail="Area name is required")
+    from field_force import create_area
+    return _field_force(lambda: create_area(body.name, body.emirate))
+
+
+@app.delete("/api/field-force/areas/{area_id}")
+def field_force_delete_area(area_id: int):
+    from field_force import delete_area
+    _field_force(lambda: delete_area(area_id))
+    return {"ok": True}
+
+
+@app.get("/api/field-force/accounts")
+def field_force_accounts():
+    from field_force import list_accounts
+    return {"accounts": _field_force(list_accounts)}
+
+
+@app.put("/api/field-force/accounts/{account_id}")
+def field_force_update_account(account_id: int, body: dict):
+    from field_force import update_account
+    _field_force(lambda: update_account(account_id, body))
+    return {"ok": True}
+
+
+@app.post("/api/field-force/accounts/import")
+async def field_force_import_accounts(file: UploadFile = File(...)):
+    from field_force import import_accounts
+    content = await file.read()
+    return _field_force(lambda: import_accounts(content, file.filename or "upload.xlsx"))
+
+
+@app.get("/api/field-force/dashboard")
+def field_force_dashboard(days: int = 30):
+    from field_force import dashboard
+    return _field_force(lambda: dashboard(max(1, min(days, 365))))
+
+
 # ─── Evaluation pipeline ────────────────────────────────────────────────────
 
 class PipelineDecisionRequest(BaseModel):

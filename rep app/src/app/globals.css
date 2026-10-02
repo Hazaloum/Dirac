@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --ink: #16211d; --paper: #f4f5f3; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--paper); }
+body { color: var(--ink); background: var(--paper); min-height: 100dvh; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, select, textarea { font: inherit; }
+input, select, textarea { font-size: 16px; } /* avoid iOS zoom on focus */
+
+@layer components {
+  .btn { @apply min-h-[52px] w-full rounded-2xl px-5 text-base font-semibold transition active:scale-[0.98] disabled:opacity-50; }
+  .btn-primary { @apply btn bg-pharma-900 text-white; }
+  .btn-secondary { @apply btn border border-surface-300 bg-white text-surface-800; }
+  .field { @apply min-h-[52px] w-full rounded-2xl border border-surface-300 bg-white px-4 text-surface-900 placeholder:text-surface-400; }
+  .chip { @apply min-h-[44px] rounded-full border border-surface-300 bg-white px-4 text-sm font-medium text-surface-700 transition active:scale-95; }
+  .chip-on { @apply border-pharma-900 bg-pharma-900 text-white; }
+  .card { @apply rounded-2xl border border-surface-200 bg-white p-4; }
+  .label { @apply mb-2 block text-xs font-semibold uppercase tracking-wide text-surface-500; }
+}

@@ -168,6 +168,33 @@ export const api = {
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
 
+  // Field force (medical rep CRM) — setup + dashboard
+  getFieldForceSetup: () => req<FieldForceSetup>("/api/field-force/setup"),
+  createRep: (payload: { name: string; email: string; password: string; role: RepRole; area_ids: number[] }) =>
+    req<FieldRep>("/api/field-force/reps", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    }),
+  updateRep: (repId: string, payload: Partial<{ name: string; role: RepRole; active: boolean; area_ids: number[]; password: string }>) =>
+    req(`/api/field-force/reps/${repId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    }),
+  createArea: (name: string, emirate?: string) =>
+    req<FieldArea>("/api/field-force/areas", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, emirate }),
+    }),
+  deleteArea: (areaId: number) => req(`/api/field-force/areas/${areaId}`, { method: "DELETE" }),
+  getFieldAccounts: () => req<{ accounts: FieldAccount[] }>("/api/field-force/accounts"),
+  updateFieldAccount: (accountId: number, changes: Partial<FieldAccount>) =>
+    req(`/api/field-force/accounts/${accountId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes),
+    }),
+  importFieldAccounts: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return req<{ created: number; skipped: number; errors: string[] }>("/api/field-force/accounts/import", { method: "POST", body: form });
+  },
+  getFieldDashboard: (days = 30) => req<FieldDashboard>(`/api/field-force/dashboard?days=${days}`),
+
   // Cross-catalogue evaluation pipeline
   getPipeline: () => req<{ decisions: PipelineDecision[] }>("/api/pipeline"),
 
@@ -595,4 +622,51 @@ export interface SkuOption {
 export interface SkuOptions {
   molecule: string;
   forms: { form: string; packs: SkuOption[] }[];
+}
+
+export type RepRole = "rep" | "manager";
+
+export interface FieldArea {
+  id: number;
+  name: string;
+  emirate: string | null;
+}
+
+export interface FieldRep {
+  id: string;
+  name: string;
+  email: string;
+  role: RepRole;
+  active: boolean;
+  area_ids: number[];
+}
+
+export interface FieldForceSetup {
+  reps: FieldRep[];
+  areas: FieldArea[];
+}
+
+export interface FieldAccount {
+  id: number;
+  type: "doctor" | "pharmacy" | "hospital";
+  name: string;
+  specialty: string | null;
+  area_id: number | null;
+  area_name: string | null;
+  assigned_rep_id: string | null;
+  assigned_rep_name: string | null;
+  created_by_name: string | null;
+  phone: string | null;
+  last_visited_at: string | null;
+  due_on: string;
+}
+
+export interface FieldDashboard {
+  days: number;
+  totals: { reps: number; accounts: number; on_track: number; visits: number; samples: number; orders: number; stock_alerts: number };
+  reps: { rep_id: string; name: string; accounts: number; on_track: number; coverage_pct: number | null; visits_7d: number; visits: number; samples: number; orders: number }[];
+  stock_alerts: { account: string; sku: string; status: "low" | "out"; checked_at: string }[];
+  samples_by_sku: { sku: string; quantity: number }[];
+  orders_by_sku: { sku: string; quantity: number }[];
+  overdue: { name: string; type: string; area: string | null; last_visited_at: string | null }[];
 }

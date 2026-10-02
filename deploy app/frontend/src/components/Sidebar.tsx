@@ -11,6 +11,7 @@ import {
   Radar,
   Boxes,
   Search,
+  Users,
 } from "lucide-react";
 
 const navigation = [
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Forecast", href: "/forecast", icon: ChartNoAxesCombined },
   { name: "Market Discovery", href: "/market-discovery", icon: Layers3 },
   { name: "My Portfolio", href: "/portfolio", icon: BriefcaseBusiness },
+  { name: "Field Force", href: "/field-force", icon: Users },
   { name: "Inventory", href: "/inventory", icon: Boxes },
   { name: "Outreach", href: "/outreach", icon: Radar },
 ];
