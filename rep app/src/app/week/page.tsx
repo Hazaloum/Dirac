@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import type { VisitRow } from "@/lib/types";
+import { OUTCOME_LABEL, type VisitRow } from "@/lib/types";
 import { addDays, shortDate, shortTime, weekStart } from "@/lib/format";
 
 export default function WeekPage() {
@@ -23,7 +23,7 @@ export default function WeekPage() {
     (async () => {
       const { data: v, error: vErr } = await sb
         .from("visits")
-        .select("id, account_id, visited_at, note, molecules")
+        .select("id, account_id, visited_at, note, molecules, outcome")
         .gte("visited_at", fromIso)
         .lt("visited_at", toIso)
         .order("visited_at", { ascending: false });
@@ -77,6 +77,9 @@ export default function WeekPage() {
                 {shortDate(v.visited_at)} · {shortTime(v.visited_at)}
               </span>
             </div>
+            <p className={`mt-1 text-xs font-medium ${v.outcome === "not_available" || v.outcome === "cancelled" ? "text-amber-700" : "text-pharma-700"}`}>
+              {OUTCOME_LABEL[v.outcome]}
+            </p>
             {v.note && <p className="mt-1 line-clamp-2 text-sm text-surface-600">{v.note}</p>}
           </div>
         ))}

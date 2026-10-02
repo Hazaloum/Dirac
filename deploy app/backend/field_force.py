@@ -17,6 +17,7 @@ import pandas as pd
 from supabase_client import fetch_all, get_service_client
 
 ACCOUNT_TYPES = {"doctor", "pharmacy", "hospital"}
+NOT_REACHED = {"not_available", "cancelled"}
 DEFAULT_CADENCE = {"doctor": 28, "hospital": 28, "pharmacy": 14}
 
 
@@ -206,6 +207,7 @@ def dashboard(days: int = 30) -> dict:
               if _parse_ts(o["created_at"]) >= since and o["status"] != "cancelled"]
     order_ids = {o["id"] for o in orders}
     lines = [l for l in fetch_all("order_lines", client=db) if l["order_id"] in order_ids]
+    feedback = [f for f in fetch_all("visit_feedback", client=db) if f["visit_id"] in visit_ids]
 
     areas_by_rep: dict[str, set[int]] = defaultdict(set)
     for row in rep_areas:
@@ -222,6 +224,7 @@ def dashboard(days: int = 30) -> dict:
         return bool(account["last_visited_at"]) and date.fromisoformat(account["due_on"]) >= today
 
     visits_by_rep = Counter(v["rep_id"] for v in visits)
+    reached_by_rep = Counter(v["rep_id"] for v in visits if v.get("outcome") not in NOT_REACHED)
     week_by_rep = Counter(v["rep_id"] for v in visits if _parse_ts(v["visited_at"]) >= week_start)
     rep_of_visit = {v["id"]: v["rep_id"] for v in visits}
     samples_by_rep = Counter()
@@ -241,6 +244,7 @@ def dashboard(days: int = 30) -> dict:
             "coverage_pct": round(covered / len(own) * 100) if own else None,
             "visits_7d": week_by_rep[rep["id"]],
             "visits": visits_by_rep[rep["id"]],
+            "reached": reached_by_rep[rep["id"]],
             "samples": samples_by_rep[rep["id"]],
             "orders": orders_by_rep[rep["id"]],
         })
@@ -265,6 +269,25 @@ def dashboard(days: int = 30) -> dict:
             totals[r["sku_label"]] += r["quantity"]
         return [{"sku": sku, "quantity": qty} for sku, qty in totals.most_common()]
 
+    # Doctor feedback: each doctor's latest stance per molecule in the window.
+    latest_stance: dict[tuple[int, str], dict] = {}
+    for f in feedback:
+        visit = all_visits[f["visit_id"]]
+        key = (visit["account_id"], f["molecule"])
+        if key not in latest_stance or visit["visited_at"] > latest_stance[key]["at"]:
+            latest_stance[key] = {**f, "at": visit["visited_at"]}
+    by_molecule: dict[str, dict] = {}
+    for f in latest_stance.values():
+        row = by_molecule.setdefault(f["molecule"], {"molecule": f["molecule"], "prescribing": 0, "will_try": 0,
+                                                      "not_interested": 0, "reasons": Counter()})
+        row[f["stance"]] += 1
+        if f["stance"] == "not_interested" and f.get("reason"):
+            row["reasons"][f["reason"]] += 1
+    feedback_rows = sorted(
+        ({**r, "reasons": [{"reason": k, "count": n} for k, n in r["reasons"].most_common()]} for r in by_molecule.values()),
+        key=lambda r: -(r["prescribing"] + r["will_try"] + r["not_interested"]),
+    )
+
     overdue = sorted(
         (a for a in accounts if not on_track(a)),
         key=lambda a: (a["last_visited_at"] is not None, a["due_on"]),
@@ -276,12 +299,14 @@ def dashboard(days: int = 30) -> dict:
             "accounts": len(accounts),
             "on_track": sum(on_track(a) for a in accounts),
             "visits": len(visits),
+            "reached": sum(v.get("outcome") not in NOT_REACHED for v in visits),
             "samples": sum(s["quantity"] for s in samples),
             "orders": len(orders),
             "stock_alerts": len(alerts),
         },
         "reps": rep_rows,
         "stock_alerts": alerts,
+        "feedback": feedback_rows,
         "samples_by_sku": by_sku(samples),
         "orders_by_sku": by_sku(lines),
         "overdue": [{"name": a["name"], "type": a["type"], "area": a["area_name"],

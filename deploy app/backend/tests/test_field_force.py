@@ -63,7 +63,8 @@ class FakeDB:
     def account_status(self):
         out = []
         for a in self.tables.get("accounts", []):
-            visits = sorted((v for v in self.tables.get("visits", []) if v["account_id"] == a["id"]),
+            visits = sorted((v for v in self.tables.get("visits", []) if v["account_id"] == a["id"]
+                             and v.get("outcome") not in field_force.NOT_REACHED),
                             key=lambda v: v["visited_at"], reverse=True)
             cadence = a.get("visit_every_days") or (14 if a["type"] == "pharmacy" else 28)
             last = visits[0]["visited_at"] if visits else None
@@ -122,9 +123,12 @@ class DashboardTest(unittest.TestCase):
                 {"id": 2, "type": "pharmacy", "name": "Pharm North", "area_id": 1, "assigned_rep_id": None},
                 {"id": 3, "type": "doctor", "name": "Dr South", "area_id": 2, "assigned_rep_id": "r1"},  # override
             ],
-            visits=[{"id": 10, "rep_id": "r1", "account_id": 1, "visited_at": recent},
-                    {"id": 11, "rep_id": "r1", "account_id": 2, "visited_at": recent},
-                    {"id": 12, "rep_id": "r1", "account_id": 2, "visited_at": old}],
+            visits=[{"id": 10, "rep_id": "r1", "account_id": 1, "visited_at": recent, "outcome": "met"},
+                    {"id": 11, "rep_id": "r1", "account_id": 2, "visited_at": recent, "outcome": "order_taken"},
+                    {"id": 12, "rep_id": "r1", "account_id": 2, "visited_at": old, "outcome": "no_order"},
+                    {"id": 13, "rep_id": "r1", "account_id": 3, "visited_at": recent, "outcome": "not_available"}],
+            visit_feedback=[{"visit_id": 10, "molecule": "ARIPIPRAZOLE", "stance": "not_interested", "reason": "price"},
+                            {"visit_id": 13, "molecule": "QUETIAPINE", "stance": "will_try", "reason": None}],
             sample_drops=[{"visit_id": 10, "pack_key": "p1", "sku_label": "ARI 10 MG", "quantity": 2}],
             shelf_checks=[{"visit_id": 12, "pack_key": "p1", "sku_label": "ARI 10 MG", "status": "out"},
                           {"visit_id": 11, "pack_key": "p1", "sku_label": "ARI 10 MG", "status": "low"}],
@@ -138,12 +142,15 @@ class DashboardTest(unittest.TestCase):
         two = next(r for r in d["reps"] if r["name"] == "Rep Two")
         self.assertEqual(one["accounts"], 3)       # 2 in North + 1 assigned override
         self.assertEqual(one["on_track"], 2)       # Dr South never visited
-        self.assertEqual(one["visits"], 2)         # the 60-day-old visit is outside the window
+        self.assertEqual(one["visits"], 3)         # the 60-day-old visit is outside the window
+        self.assertEqual(one["reached"], 2)        # "not available" doesn't count as reached
         self.assertEqual(one["samples"], 2)
         self.assertEqual(two["accounts"], 0)       # Dr South is overridden away from Rep Two
         self.assertEqual([a["status"] for a in d["stock_alerts"]], ["low"])  # latest check wins
         self.assertEqual(d["orders_by_sku"], [{"sku": "ARI 10 MG", "quantity": 50}])
-        self.assertEqual([a["name"] for a in d["overdue"]], ["Dr South"])
+        self.assertEqual([a["name"] for a in d["overdue"]], ["Dr South"])  # not available ≠ visited
+        ari = next(f for f in d["feedback"] if f["molecule"] == "ARIPIPRAZOLE")
+        self.assertEqual((ari["not_interested"], ari["reasons"]), (1, [{"reason": "price", "count": 1}]))
 
 
 if __name__ == "__main__":

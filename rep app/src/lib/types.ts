@@ -47,6 +47,52 @@ export interface VisitRow {
   visited_at: string;
   note: string | null;
   molecules: string[] | null;
+  outcome: Outcome;
 }
 
 export type ShelfStatus = "in" | "low" | "out";
+
+export type Outcome = "met" | "not_available" | "cancelled" | "order_taken" | "no_order";
+export type Stance = "prescribing" | "will_try" | "not_interested";
+export type Reason = "price" | "efficacy" | "side_effects" | "competitor" | "not_stocked";
+
+export const OUTCOMES: Record<"clinic" | "pharmacy", { v: Outcome; label: string }[]> = {
+  clinic: [
+    { v: "met", label: "Met" },
+    { v: "not_available", label: "Not available" },
+    { v: "cancelled", label: "Cancelled" },
+  ],
+  pharmacy: [
+    { v: "order_taken", label: "Order taken" },
+    { v: "no_order", label: "No order" },
+    { v: "not_available", label: "Not available" },
+  ],
+};
+
+export const OUTCOME_LABEL: Record<Outcome, string> = {
+  met: "Met",
+  not_available: "Not available",
+  cancelled: "Cancelled",
+  order_taken: "Order taken",
+  no_order: "No order",
+};
+
+export const STANCES: { v: Stance; label: string }[] = [
+  { v: "prescribing", label: "Prescribing" },
+  { v: "will_try", label: "Will try" },
+  { v: "not_interested", label: "Not interested" },
+];
+
+export const REASONS: { v: Reason; label: string }[] = [
+  { v: "price", label: "Price" },
+  { v: "efficacy", label: "Efficacy" },
+  { v: "side_effects", label: "Side effects" },
+  { v: "competitor", label: "Uses competitor" },
+  { v: "not_stocked", label: "Not stocked nearby" },
+];
+
+export interface Feedback {
+  molecule: string;
+  stance: Stance;
+  reason: Reason | null;
+}

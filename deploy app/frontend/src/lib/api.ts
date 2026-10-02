@@ -663,9 +663,10 @@ export interface FieldAccount {
 
 export interface FieldDashboard {
   days: number;
-  totals: { reps: number; accounts: number; on_track: number; visits: number; samples: number; orders: number; stock_alerts: number };
-  reps: { rep_id: string; name: string; accounts: number; on_track: number; coverage_pct: number | null; visits_7d: number; visits: number; samples: number; orders: number }[];
+  totals: { reps: number; accounts: number; on_track: number; visits: number; reached: number; samples: number; orders: number; stock_alerts: number };
+  reps: { rep_id: string; name: string; accounts: number; on_track: number; coverage_pct: number | null; visits_7d: number; visits: number; reached: number; samples: number; orders: number }[];
   stock_alerts: { account: string; sku: string; status: "low" | "out"; checked_at: string }[];
+  feedback: { molecule: string; prescribing: number; will_try: number; not_interested: number; reasons: { reason: string; count: number }[] }[];
   samples_by_sku: { sku: string; quantity: number }[];
   orders_by_sku: { sku: string; quantity: number }[];
   overdue: { name: string; type: string; area: string | null; last_visited_at: string | null }[];

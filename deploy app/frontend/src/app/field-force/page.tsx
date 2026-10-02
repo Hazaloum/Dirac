@@ -30,6 +30,10 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   );
 }
 
+const REASON_LABEL: Record<string, string> = {
+  price: "Price", efficacy: "Efficacy", side_effects: "Side effects", competitor: "Uses competitor", not_stocked: "Not stocked nearby",
+};
+
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-surface-500">{children}</p>;
 }
@@ -41,7 +45,7 @@ function Dashboard({ data }: { data: FieldDashboard }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <div className="matthew-stat"><small>Clients on track</small><strong>{t.on_track}<span className="text-base text-surface-400"> / {t.accounts}</span></strong></div>
-        <div className="matthew-stat"><small>Visits · {data.days}d</small><strong>{t.visits}</strong></div>
+        <div className="matthew-stat"><small>Visits · {data.days}d</small><strong>{t.visits}</strong>{t.visits > 0 && <span className="text-xs text-surface-500">{Math.round(t.reached / t.visits * 100)}% reached the client</span>}</div>
         <div className="matthew-stat"><small>Samples · {data.days}d</small><strong>{t.samples}</strong></div>
         <div className="matthew-stat"><small>Orders · {data.days}d</small><strong>{t.orders}</strong></div>
         <div className="matthew-stat"><small>Shelf alerts</small><strong className={t.stock_alerts ? "!text-rose-700" : ""}>{t.stock_alerts}</strong></div>
@@ -52,7 +56,7 @@ function Dashboard({ data }: { data: FieldDashboard }) {
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-surface-500"><tr>
               <th className="pb-2 font-medium">Rep</th><th className="pb-2 font-medium">Coverage</th>
-              <th className="pb-2 font-medium">Visits 7d</th><th className="pb-2 font-medium">Visits {data.days}d</th>
+              <th className="pb-2 font-medium">Visits 7d</th><th className="pb-2 font-medium">Visits {data.days}d</th><th className="pb-2 font-medium">Reached</th>
               <th className="pb-2 font-medium">Samples</th><th className="pb-2 font-medium">Orders</th>
             </tr></thead>
             <tbody>{data.reps.map((r) => (
@@ -69,9 +73,42 @@ function Dashboard({ data }: { data: FieldDashboard }) {
                   )}
                 </td>
                 <td className="py-2.5">{r.visits_7d}</td><td className="py-2.5">{r.visits}</td>
+                <td className="py-2.5">{r.visits ? `${r.reached} (${Math.round(r.reached / r.visits * 100)}%)` : "—"}</td>
                 <td className="py-2.5">{r.samples}</td><td className="py-2.5">{r.orders}</td>
               </tr>
             ))}</tbody>
+          </table>
+        )}
+      </Panel>
+
+      <Panel title={`Doctor feedback · ${data.days}d`}>
+        {data.feedback.length === 0 ? <Empty>No doctor stances logged yet.</Empty> : (
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-surface-500"><tr>
+              <th className="pb-2 font-medium">Molecule</th><th className="pb-2 font-medium">Doctors</th>
+              <th className="pb-2 font-medium">Why not</th>
+            </tr></thead>
+            <tbody>{data.feedback.map((f) => {
+              const total = f.prescribing + f.will_try + f.not_interested;
+              return (
+                <tr key={f.molecule} className="border-t border-surface-100 align-top">
+                  <td className="py-2.5 font-medium text-surface-900">{f.molecule}</td>
+                  <td className="py-2.5">
+                    <div className="flex h-2 w-40 overflow-hidden rounded-full bg-surface-100">
+                      <div className="bg-emerald-600" style={{ width: `${f.prescribing / total * 100}%` }} />
+                      <div className="bg-amber-400" style={{ width: `${f.will_try / total * 100}%` }} />
+                      <div className="bg-rose-600" style={{ width: `${f.not_interested / total * 100}%` }} />
+                    </div>
+                    <span className="mt-1 block text-xs text-surface-600">
+                      {f.prescribing} prescribing · {f.will_try} will try · {f.not_interested} not interested
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-xs text-surface-600">
+                    {f.reasons.length ? f.reasons.map((r) => `${REASON_LABEL[r.reason] ?? r.reason} (${r.count})`).join(" · ") : "—"}
+                  </td>
+                </tr>
+              );
+            })}</tbody>
           </table>
         )}
       </Panel>

@@ -221,8 +221,8 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Persists across Railway restarts (Supabase)
 
 ### Field force (rep CRM)
-- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (clients due a visit, "+ New visit" → pick a client) → Clients (search/add, `/clients`) → visit screen (doctor/hospital: molecules discussed, samples; pharmacy: shelf check in/low/out, order — samples and orders pick a molecule from Dirac's inventory, then its strength/pack) → My week. The UI says "clients"; the database tables keep the name `accounts`. No backend of its own: RLS + `log_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
-- **Dirac `/field-force`**: Setup (create rep logins with a starting password, areas, import account list CSV/Excel, area/rep overrides) and Dashboard (coverage per rep, visits, samples and orders by SKU, shelf alerts, overdue accounts). Endpoints `/api/field-force/*` in `main.py` → `field_force.py`.
+- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (clients due a visit, "+ New visit" → pick a client) → Clients (search/add, `/clients`) → visit screen → My week. The visit screen starts with the **outcome** (doctor/hospital: Met / Not available / Cancelled; pharmacy: Order taken / No order / Not available), which decides what else shows: Met → molecules discussed + the **doctor's stance** per molecule (Prescribing / Will try / Not interested, with a reason only when not interested: price, efficacy, side effects, uses competitor, not stocked nearby) + samples; Not available → samples left; pharmacy → shelf check (in/low/out) and, for Order taken, order lines. Samples and orders pick a molecule from Dirac's inventory, then its strength/pack. The screen shows each molecule's last stance for that client, and molecules the doctor said they'd try are pre-selected so the rep asks again. The UI says "clients"; the database tables keep the name `accounts`. No backend of its own: RLS + `save_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
+- **Dirac `/field-force`**: Setup (create rep logins with a starting password, areas, import account list CSV/Excel, area/rep overrides) and Dashboard (coverage per rep, visits and % that reached the client, doctor feedback per molecule with reasons, samples and orders by SKU, shelf alerts, overdue accounts). Endpoints `/api/field-force/*` in `main.py` → `field_force.py`.
 - Orders are only those reps capture; direct distributor orders are not tracked yet.
 
 ### Inventory
@@ -258,11 +258,12 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `reps` | id = Supabase Auth user id, name, email, role `rep`/`manager`, active |
 | `areas`, `rep_areas` | Named areas and which reps cover them |
 | `accounts` | Doctor / pharmacy / hospital, area, optional `assigned_rep_id` override, `parent_id` (doctor's hospital) |
-| `visits` | Rep × account × time, molecules discussed, note, next visit date |
+| `visits` | Rep × account × time, `outcome` (met / not_available / cancelled / order_taken / no_order), molecules discussed, note, next visit date |
+| `visit_feedback` | Doctor's stance per molecule on a visit (prescribing / will_try / not_interested) + reason when not interested |
 | `sample_drops`, `shelf_checks`, `orders`, `order_lines` | What happened on a visit; reference `inventory_stock.pack_key` with a `sku_label` snapshot |
-| view `account_status` | Accounts + last visit, cadence (doctor/hospital 28d, pharmacy 14d) and `due_on` |
+| view `account_status` | Accounts + last visit that reached the client (not_available/cancelled don't count), last note, cadence (doctor/hospital 28d, pharmacy 14d) and `due_on` |
 
-`log_visit(...)` (Postgres function, runs as the rep) writes a visit with its samples, shelf checks and order in one transaction and deducts samples from `inventory_stock` (floored at 0). A rep sees accounts assigned to them, created by them, or unassigned in their areas; managers see all.
+`save_visit(...)` (Postgres function, runs as the rep) writes a visit with its outcome, feedback, samples, shelf checks and order in one transaction and deducts samples from `inventory_stock` (floored at 0). A rep sees accounts assigned to them, created by them, or unassigned in their areas; managers see all.
 
 JSON payloads are stored as JSON strings in `text` columns.
 
