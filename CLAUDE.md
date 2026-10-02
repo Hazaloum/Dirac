@@ -6,7 +6,7 @@ COMIX is a Dubai-based pharmaceutical licensing company. They in-license generic
 
 This repo holds two apps sharing one Supabase database:
 - **Dirac** (`deploy app/`) — the BD intelligence web app (desktop, COMIX team).
-- **Rep app** (`rep app/`) — the mobile CRM for COMIX's medical reps (see "Field force" below).
+- **Rep app** (`rep-app/`) — the mobile CRM for COMIX's medical reps (see "Field force" below).
 
 Dirac powers COMIX's BD intelligence workflow. It replaces the old CLI scripts (`agent.py`, `outreach_agent.py`) with a full-stack hosted product.
 
@@ -221,7 +221,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Persists across Railway restarts (Supabase)
 
 ### Field force (rep CRM)
-- **Rep app** (`rep app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (clients due a visit, "+ New visit" → pick a client) → Clients (search/add, `/clients`) → visit screen → My week. The visit screen starts with the **outcome** (doctor/hospital: Met / Not available / Cancelled; pharmacy: Order taken / No order / Not available), which decides what else shows: Met → molecules discussed + the **doctor's stance** per molecule (Prescribing / Will try / Not interested, with a reason only when not interested: price, efficacy, side effects, uses competitor, not stocked nearby) + samples; Not available → samples left; pharmacy → shelf check (in/low/out) and, for Order taken, order lines. Samples and orders pick a molecule from Dirac's inventory, then its strength/pack. The screen shows each molecule's last stance for that client, and molecules the doctor said they'd try are pre-selected so the rep asks again. The UI says "clients"; the database tables keep the name `accounts`. No backend of its own: RLS + `save_visit` do the work. Deployed as a second Vercel project with root directory `rep app`.
+- **Rep app** (`rep-app/`, Next.js 14 + supabase-js, mobile-first, installable): login → Today (clients due a visit, "+ New visit" → pick a client) → Clients (search/add, `/clients`) → visit screen → My week. The visit screen starts with the **outcome** (doctor/hospital: Met / Not available / Cancelled; pharmacy: Order taken / No order / Not available), which decides what else shows: Met → molecules discussed + the **doctor's stance** per molecule (Prescribing / Will try / Not interested, with a reason only when not interested: price, efficacy, side effects, uses competitor, not stocked nearby) + samples; Not available → samples left; pharmacy → shelf check (in/low/out) and, for Order taken, order lines. Samples and orders pick a molecule from Dirac's inventory, then its strength/pack. The screen shows each molecule's last stance for that client, and molecules the doctor said they'd try are pre-selected so the rep asks again. The UI says "clients"; the database tables keep the name `accounts`. No backend of its own: RLS + `save_visit` do the work. Deployed as a second Vercel project with root directory `rep-app`.
 - **Dirac `/field-force`**: Setup (create rep logins with a starting password, areas, import account list CSV/Excel, area/rep overrides) and Dashboard (coverage per rep, visits and % that reached the client, doctor feedback per molecule with reasons, samples and orders by SKU, shelf alerts, overdue accounts). Endpoints `/api/field-force/*` in `main.py` → `field_force.py`.
 - Orders are only those reps capture; direct distributor orders are not tracked yet.
 

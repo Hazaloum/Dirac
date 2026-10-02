@@ -1,7 +1,7 @@
 """
 field_force.py — Dirac's side of the medical rep CRM.
 
-Reps use the separate mobile rep app (`rep app/`); this module lets COMIX set
+Reps use the separate mobile rep app (`rep-app/`); this module lets COMIX set
 the field force up (reps, areas, accounts) and see what is happening
 (coverage, samples, shelf stock-outs, orders). The CRM tables are locked to
 signed-in reps, so everything here uses the service-role client.
