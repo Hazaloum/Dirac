@@ -15,3 +15,4 @@ gspread==6.1.2
 google-auth==2.34.0
 firecrawl-anydoc==0.1.6
 supabase==2.28.3
+playwright==1.56.0

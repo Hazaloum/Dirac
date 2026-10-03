@@ -6,12 +6,17 @@ Tecnimede gives no API, so a headless browser logs in as COMIX's portal user
 and reads the table. Each line is upserted into Supabase `supplier_order_lines`.
 An order = one customer reference (COMIX's PO number); it can have several lines.
 
-Run: python scripts/sync_tecnimede.py   (needs `playwright install chromium` once)
+Runs every morning at 09:00 Dubai time inside the backend (`daily_sync`), on
+demand from the PO Tracker's Sync button (`run_sync`), or by hand:
+python scripts/sync_tecnimede.py   (locally needs `playwright install chromium` once;
+the backend's Docker image ships Chromium).
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import re
+import threading
 from datetime import datetime, timedelta, timezone
 
 from supabase_client import fetch_all, get_client
@@ -221,6 +226,53 @@ def sync(headless: bool = True) -> dict:
     return save(scrape(headless=headless))
 
 
+# ─── On demand + every morning ────────────────────────────────────────────────
+
+SYNC_HOUR = 9  # Dubai time
+_sync_lock = threading.Lock()
+last_sync: dict = {}  # {"at", "ok", "trigger", "lines"/"open" or "error"} — the latest attempt in this process
+
+
+def run_sync(trigger: str) -> dict:
+    """One sync at a time; remembers how the latest attempt went."""
+    if not _sync_lock.acquire(blocking=False):
+        raise PortalError("A sync is already running — give it a minute")
+    started = datetime.now(timezone.utc).isoformat()
+    try:
+        result = sync()
+        last_sync.clear()
+        last_sync.update({"at": started, "ok": True, "trigger": trigger, **result})
+        return result
+    except Exception as e:
+        last_sync.clear()
+        last_sync.update({"at": started, "ok": False, "trigger": trigger, "error": str(e)})
+        raise
+    finally:
+        _sync_lock.release()
+
+
+def seconds_until_next_run(now: datetime | None = None) -> float:
+    now = (now or datetime.now(timezone.utc)).astimezone(DUBAI)
+    target = now.replace(hour=SYNC_HOUR, minute=0, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return (target - now).total_seconds()
+
+
+async def daily_sync() -> None:
+    """Background task started with the backend: sync at 09:00 Dubai every day."""
+    if not (os.getenv("TECNIMEDE_USERNAME") and os.getenv("TECNIMEDE_PASSWORD")):
+        print("Tecnimede daily sync off — TECNIMEDE_USERNAME / TECNIMEDE_PASSWORD not set")
+        return
+    while True:
+        await asyncio.sleep(seconds_until_next_run())
+        try:
+            result = await asyncio.to_thread(run_sync, "schedule")
+            print(f"Tecnimede daily sync: {result}")
+        except Exception as e:  # keep the loop alive; the failure shows on the PO Tracker
+            print(f"Tecnimede daily sync failed: {e}")
+
+
 def list_orders() -> dict:
     """Lines grouped into orders by customer reference, open orders first (earliest requested date first)."""
     rows = [r for r in fetch_all("supplier_order_lines", order="id") if r["supplier"] == SUPPLIER]
@@ -248,4 +300,4 @@ def list_orders() -> dict:
     done = sorted((o for o in orders if o["completed"]), key=lambda o: o["accepted_at"] or "", reverse=True)
     orders = open_orders + done
     synced = max((r["synced_at"] for r in rows), default=None)
-    return {"stages": STAGES, "synced_at": synced, "orders": orders}
+    return {"stages": STAGES, "synced_at": synced, "last_sync": last_sync or None, "orders": orders}

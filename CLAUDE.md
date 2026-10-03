@@ -231,11 +231,13 @@ The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carr
 **Purchase and sales orders.** "+ Purchase order" (COMIX → supplier) and "+ Sales order" (customer → COMIX) on the Inventory page create open orders (`purchase_orders`/`sales_orders` + `_lines`). Stock moves only when a PO is marked **Received** (`receive_purchase_order`, stock up) or an SO **Delivered** (`deliver_sales_order`, stock down; refused if any SKU is short). Open orders show per SKU as "+X on order" / "Y committed". Endpoints: `GET /api/inventory/orders`, `POST /api/inventory/orders/{purchase|sales}`, `POST …/{id}/close`, `POST …/{id}/cancel`. Rep-app orders (`orders` table) are separate and don't move stock.
 
 ### PO Tracker (`/po-tracker`, Operations)
-Tecnimede gives no API, so `scripts/sync_tecnimede.py` (`tecnimede.py`) drives a headless Chromium (Playwright): logs in with `TECNIMEDE_USERNAME`/`TECNIMEDE_PASSWORD`, reads the portal's **All Orders** list view (scrolling past the 50-row pages), and upserts every line into `supplier_order_lines` (`open` = not completed). Runs locally for now (`playwright install chromium` once; `--show` to watch, `--dry-run` to only print).
+Tecnimede gives no API, so `scripts/sync_tecnimede.py` (`tecnimede.py`) drives a headless Chromium (Playwright): logs in with `TECNIMEDE_USERNAME`/`TECNIMEDE_PASSWORD`, reads the portal's **All Orders** list view (scrolling past the 50-row pages), and upserts every line into `supplier_order_lines` (`open` = not completed). Runs **every day at 09:00 Dubai** inside the backend (`tecnimede.daily_sync`, started in `lifespan`; off if the Tecnimede vars aren't set) and **on demand** from the PO Tracker's Sync button (`POST /api/po-tracker/sync`, one at a time; the latest attempt's failure shows on the page). By hand: `python scripts/sync_tecnimede.py` (`--show` to watch, `--dry-run` to only print; locally needs `playwright install chromium` once).
+
+**The backend deploys from `deploy app/backend/Dockerfile`** (Playwright's official Python image, Chromium included) so the sync can run on Railway.
 
 - **An order = one Customer Reference** (COMIX's PO number), tidied by `order_ref()` (`P - 0362026` → `P-036/2026`). Order lines (`… | 10`, `… | 20`) are its lines.
 - **Stops, in order** (portal status): Order Registered → Order Placed to Factory → Order with Logistics Operator → Completed (Order Available for Pickup). Shown as bus stops per line.
-- **Dates:** Acceptance Order Date = when COMIX placed the order; Requested Delivery Date = when COMIX asked for it; Factory Confirmation Date = predicted batch release. Each stop shows a date: Registered = acceptance date; At factory = the day the sync first saw it there (`stage_seen`, the portal gives no date — "—" if unknown); With logistics = factory confirmation ("pred." until reached); Ready for pickup = requested date (or the day seen completed). An open order past its requested date shows "Overdue by N days"; a line whose batch release is after the requested date shows "N days after requested". Re-run the sync regularly so `stage_seen` dates accumulate.
+- **Dates:** Acceptance Order Date = when COMIX placed the order; Requested Delivery Date = when COMIX asked for it; Factory Confirmation Date = predicted batch release. Each stop shows a date: Registered = acceptance date; At factory = the day the sync first saw it there (`stage_seen`, the portal gives no date — "—" if unknown); Batch release (portal: Order with Logistics Operator) = factory confirmation ("pred." until reached); Ready for pickup = requested date (or the day seen completed). An open order past its requested date shows "Overdue by N days"; a line whose batch release is after the requested date shows "N days after requested". Re-run the sync regularly so `stage_seen` dates accumulate.
 - `GET /api/po-tracker` → `tecnimede.list_orders()`. Not linked to stock yet (deliberately).
 
 ### State passing between pages
@@ -309,7 +311,7 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 | `SUPABASE_KEY` | Railway | COMIX OS anon key (Supabase → Project Settings → API) |
 | `SUPABASE_SERVICE_KEY` | Railway | COMIX OS service-role key — Field force page only. Server-side, never in a frontend. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel (rep app) | Rep app talks to Supabase directly as the signed-in rep |
-| `TECNIMEDE_USERNAME` / `TECNIMEDE_PASSWORD` | backend `.env` (local) | Tecnimede portal login for `scripts/sync_tecnimede.py` |
+| `TECNIMEDE_USERNAME` / `TECNIMEDE_PASSWORD` | Railway + backend `.env` | Tecnimede portal login for the PO Tracker sync (09:00 daily + Sync button) |
 | `NEXT_PUBLIC_API_URL` | Vercel (rep app) | Railway backend URL, for voice notes. CORS already allows any `*.vercel.app` origin. |
 
 ---

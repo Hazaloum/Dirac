@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 
 import tecnimede
 
@@ -49,6 +50,12 @@ class ParseTest(unittest.TestCase):
                          {"Order Registered": "2026-10-03"})
         kept = {"status": logistics, "stage_seen": {logistics: "2026-09-20"}}
         self.assertEqual(tecnimede.track_stage(kept, logistics, "2026-10-03", False), {logistics: "2026-09-20"})
+
+    def test_next_run_is_9am_dubai(self):
+        before = datetime(2026, 10, 3, 4, 30, tzinfo=timezone.utc)   # 08:30 Dubai → 30 min
+        after = datetime(2026, 10, 3, 5, 0, tzinfo=timezone.utc)     # 09:00 Dubai → tomorrow
+        self.assertEqual(tecnimede.seconds_until_next_run(before), 30 * 60)
+        self.assertEqual(tecnimede.seconds_until_next_run(after), 24 * 3600)
 
     def test_changed_table_is_reported(self):
         with self.assertRaises(tecnimede.PortalError):

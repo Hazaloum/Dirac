@@ -170,6 +170,7 @@ export const api = {
 
   // Purchase orders (stock in when received) and sales orders (stock out when delivered)
   getPoTracker: () => req<PoTracker>("/api/po-tracker"),
+  syncPoTracker: () => req<{ lines: number; open: number; closed: number }>("/api/po-tracker/sync", { method: "POST" }),
   getOrders: () => req<{ purchase: StockOrder[]; sales: StockOrder[] }>("/api/inventory/orders"),
   createOrder: (kind: OrderKind, body: { party: string; order_date?: string; note?: string; lines: { pack_key: string; quantity: number }[] }) =>
     req(`/api/inventory/orders/${kind}`, {
@@ -650,6 +651,8 @@ export interface SupplierOrder {
 export interface PoTracker {
   stages: string[];
   synced_at: string | null;
+  /** Latest sync attempt since the backend started (button or 09:00 schedule). */
+  last_sync: { at: string; ok: boolean; trigger: "button" | "schedule"; error?: string } | null;
   orders: SupplierOrder[];
 }
 

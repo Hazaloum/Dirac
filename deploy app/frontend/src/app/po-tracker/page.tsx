@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Ship } from "lucide-react";
+import { Loader2, RefreshCw, Ship } from "lucide-react";
 import { api, type PoTracker, type SupplierOrder, type SupplierOrderLine } from "@/lib/api";
 import { ddmmyy, ddmmyyTime } from "@/lib/dates";
 
 /** Short names for the portal's four statuses, in order (PoTracker.stages holds the portal's names). */
-const STOP_NAMES = ["Registered", "At factory", "With logistics", "Ready for pickup"];
+const STOP_NAMES = ["Registered", "At factory", "Batch release", "Ready for pickup"];
 const PORTAL_STATUS = ["Order Registered", "Order Placed to Factory", "Order with Logistics Operator",
   "Completed (Order Available for Pickup)"];
 
@@ -133,8 +133,23 @@ export default function PoTrackerPage() {
   const [data, setData] = useState<PoTracker | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("open");
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => { api.getPoTracker().then(setData).catch((e: Error) => setError(e.message)); }, []);
+  const load = () => api.getPoTracker().then(setData).catch((e: Error) => setError(e.message));
+  useEffect(() => { load(); }, []);
+
+  async function syncNow() {
+    setSyncing(true); setError("");
+    try {
+      await api.syncPoTracker();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+  const failed = data?.last_sync && !data.last_sync.ok ? data.last_sync : null;
 
   const counts = useMemo(() => ({
     open: data?.orders.filter((o) => !o.completed).length ?? 0,
@@ -153,6 +168,12 @@ export default function PoTrackerPage() {
             Tecnimede · synced {ddmmyyTime(data.synced_at)}
           </span>
         )}
+        <button onClick={syncNow} disabled={syncing}
+          title="Pull the latest from the Tecnimede portal (also runs every day at 09:00)"
+          className="flex items-center gap-1.5 rounded-lg border border-pharma-700 px-3 py-1.5 text-xs font-medium text-pharma-800 hover:bg-pharma-50 disabled:opacity-60">
+          {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {syncing ? "Syncing… (up to a minute)" : "Sync"}
+        </button>
         <div className="ml-auto flex gap-1 rounded-full bg-surface-100 p-1">
           {(["open", "completed", "all"] as Filter[]).map((f) => (
             <button key={f} onClick={() => setFilter(f)}
@@ -164,6 +185,11 @@ export default function PoTrackerPage() {
       </div>
 
       {error && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {!error && failed && (
+        <div role="alert" className="mb-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          The {failed.trigger === "schedule" ? "09:00" : "last"} sync on {ddmmyyTime(failed.at)} failed: {failed.error}
+        </div>
+      )}
       {!data && !error && <p className="text-surface-500">Loading orders…</p>}
       {data && data.orders.length === 0 && (
         <div className="rounded-xl border border-surface-300 bg-white p-8 text-center text-sm text-surface-600">

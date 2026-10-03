@@ -45,7 +45,10 @@ async def lifespan(app: FastAPI):
         _state["dfs"]["iqvia"]["Molecule Combination"].dropna().unique().tolist()
     )
     print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
+    from tecnimede import daily_sync
+    daily = asyncio.create_task(daily_sync())
     yield
+    daily.cancel()
 
 app = FastAPI(title="COMIX BD API", lifespan=lifespan)
 
@@ -561,6 +564,16 @@ def get_po_tracker():
     """Tecnimede orders grouped by COMIX PO number (synced by scripts/sync_tecnimede.py)."""
     from tecnimede import list_orders
     return list_orders()
+
+
+@app.post("/api/po-tracker/sync")
+async def sync_po_tracker():
+    """Pull the latest orders from the Tecnimede portal now (~30–60 s)."""
+    import tecnimede
+    try:
+        return await asyncio.to_thread(tecnimede.run_sync, "button")
+    except tecnimede.PortalError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/api/inventory/orders")
