@@ -574,6 +574,8 @@ async def sync_po_tracker():
         return await asyncio.to_thread(tecnimede.run_sync, "button")
     except tecnimede.PortalError as e:
         raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Sync failed: {str(e).splitlines()[0][:300]}")
 
 
 @app.get("/api/inventory/orders")

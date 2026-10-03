@@ -239,7 +239,13 @@ def run_sync(trigger: str) -> dict:
         raise PortalError("A sync is already running — give it a minute")
     started = datetime.now(timezone.utc).isoformat()
     try:
-        result = sync()
+        try:
+            result = sync()
+        except Exception as e:
+            if "Executable doesn't exist" in str(e) or "playwright install" in str(e):
+                raise PortalError("This server has no browser to run the sync yet — "
+                                  "run scripts/sync_tecnimede.py from a Mac for now") from e
+            raise
         last_sync.clear()
         last_sync.update({"at": started, "ok": True, "trigger": trigger, **result})
         return result
