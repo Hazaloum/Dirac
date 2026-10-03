@@ -40,7 +40,7 @@ def main() -> None:
         print(f"\n{len(lines)} open lines (dry run, nothing saved)")
         return
     result = tecnimede.save(lines)
-    print(f"\nSaved {result['open']} open lines; {result['closed']} lines no longer open.")
+    print(f"\nSaved {result['lines']} lines ({result['open']} still open).")
 
 
 if __name__ == "__main__":
