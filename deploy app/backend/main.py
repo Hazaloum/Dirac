@@ -720,6 +720,21 @@ def field_force_dashboard(days: int = 30):
 
 # ─── Rep app: molecule research cards ────────────────────────────────────────
 
+def _rep_call(call):
+    """Run a rep-app call so every failure comes back as JSON with a message.
+
+    An unhandled exception becomes a bare 500 without CORS headers, which the
+    browser reports only as "Load failed" — hiding the actual cause.
+    """
+    try:
+        return _field_force(call)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Rep app call failed: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=502, detail=f"{type(e).__name__}: {str(e).splitlines()[0][:300] if str(e) else ''}")
+
+
 @app.post("/api/rep/research/{molecule}/refresh")
 async def rep_research_refresh(molecule: str, request: Request):
     """Pull recent PubMed papers for a molecule and rewrite its research cards (~30 s)."""
@@ -737,7 +752,7 @@ async def rep_research_refresh(molecule: str, request: Request):
             raise HTTPException(status_code=401, detail=str(e))
         return research.refresh(molecule)
 
-    return await asyncio.to_thread(_field_force, run)
+    return await asyncio.to_thread(_rep_call, run)
 
 
 # ─── Rep app: voice notes ────────────────────────────────────────────────────
@@ -768,7 +783,7 @@ async def rep_voice_note(request: Request, account_id: int = Form(...), audio: U
         return voice_notes.process(content, audio.filename or "note.webm",
                                    audio.content_type or "audio/webm", account_id)
 
-    return await asyncio.to_thread(_field_force, run)
+    return await asyncio.to_thread(_rep_call, run)
 
 
 # ─── Evaluation pipeline ────────────────────────────────────────────────────
