@@ -718,6 +718,28 @@ def field_force_dashboard(days: int = 30):
     return _field_force(lambda: dashboard(max(1, min(days, 365))))
 
 
+# ─── Rep app: molecule research cards ────────────────────────────────────────
+
+@app.post("/api/rep/research/{molecule}/refresh")
+async def rep_research_refresh(molecule: str, request: Request):
+    """Pull recent PubMed papers for a molecule and rewrite its research cards (~30 s)."""
+    import research
+    import voice_notes
+
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Sign in first")
+
+    def run():
+        try:
+            voice_notes.rep_for_token(token)
+        except voice_notes.NotARep as e:
+            raise HTTPException(status_code=401, detail=str(e))
+        return research.refresh(molecule)
+
+    return await asyncio.to_thread(_field_force, run)
+
+
 # ─── Rep app: voice notes ────────────────────────────────────────────────────
 # Called by the rep app with the rep's Supabase session (Bearer token), not
 # Dirac's cookie. Returns the transcript + form fields; nothing is saved here.

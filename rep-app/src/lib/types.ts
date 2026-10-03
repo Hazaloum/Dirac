@@ -96,3 +96,19 @@ export interface Feedback {
   stance: Stance;
   reason: Reason | null;
 }
+
+/** A recent paper on a molecule, summarised for reps (written by the backend). */
+export interface ResearchCard {
+  id: number;
+  molecule: string;
+  pmid: string;
+  title: string;
+  journal: string | null;
+  published_on: string | null;
+  study: string | null;
+  finding: string;
+  say: string | null;
+  caution: string | null;
+  rank: number;
+  created_at: string;
+}

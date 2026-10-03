@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { Sku } from "@/lib/types";
 
@@ -9,7 +10,7 @@ import type { Sku } from "@/lib/types";
 const formLabel = (form: string | null) => (form ? form.charAt(0) + form.slice(1).toLowerCase() : "");
 const packLabel = (size: string | null) => (size && /^\d+$/.test(size) ? `Pack of ${size}` : size ?? "");
 
-/** The molecules COMIX carries, with their packs. What reps should know about each is still to come. */
+/** The molecules COMIX carries, with their packs. Tap one for its page (latest research). */
 export default function MoleculesPage() {
   const [skus, setSkus] = useState<Sku[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,10 @@ export default function MoleculesPage() {
 
       <div className="space-y-3">
         {molecules.map(([molecule, packs]) => (
-          <section key={molecule} className="card">
-            <h2 className="font-semibold text-surface-900">{molecule}</h2>
+          <Link key={molecule} href={`/molecules/${encodeURIComponent(molecule)}`} className="card block active:bg-surface-50">
+            <h2 className="flex items-center justify-between font-semibold text-surface-900">
+              {molecule} <ChevronRight size={18} className="text-surface-400" />
+            </h2>
             <ul className="mt-2 space-y-1 text-sm text-surface-700">
               {packs.map((p) => (
                 <li key={p.pack_key}>
@@ -58,7 +61,7 @@ export default function MoleculesPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </Link>
         ))}
       </div>
     </div>
