@@ -38,5 +38,13 @@ class ResearchTest(unittest.TestCase):
         self.assertEqual(cards[0]["title"], "Aripiprazole versus placebo.")
 
 
+class NewestTest(unittest.TestCase):
+    def test_keeps_the_five_newest_by_date(self):
+        papers = [{"pmid": str(i), "published_on": d} for i, d in
+                  enumerate(["2025-11-18", "2026-07-01", None, "2026-09-01", "2026-05-20", "2026-02-19", "2026-06-10"])]
+        self.assertEqual([p["published_on"] for p in research.newest(papers)],
+                         ["2026-09-01", "2026-07-01", "2026-06-10", "2026-05-20", "2026-02-19"])
+
+
 if __name__ == "__main__":
     unittest.main()

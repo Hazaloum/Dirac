@@ -1,9 +1,8 @@
 """
 research.py — recent research cards per molecule for the reps (Curie).
 
-Pulls the newest trials / meta-analyses / systematic reviews for a molecule
-from PubMed, then asks gpt-5.6-luna to pick the 5 most useful for a rep and
-write each one up as: what the study found, one line the rep can say to the
+Pulls the 5 most recent trials / meta-analyses / systematic reviews for a
+molecule from PubMed, then asks gpt-5.6-luna to write each one up as: what the study found, one line the rep can say to the
 doctor, and a caution. Cards are stored in Supabase `molecule_research`
 (replaced on each refresh) so every rep reads the same set instantly.
 """
@@ -21,7 +20,7 @@ from supabase_client import get_service_client
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 SUMMARY_MODEL = "gpt-5.6-luna"
-CANDIDATES = 20
+CANDIDATES = 15  # PubMed's date sort is by issue date; we re-sort by publication date and keep the newest 5
 CARDS = 5
 MONTHS = {m: i for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], start=1)}
@@ -118,7 +117,7 @@ def _prompt(molecule: str, forms: list[str], articles: list[dict]) -> str:
 Molecule: {molecule}
 What COMIX sells: {', '.join(forms) or 'oral forms'}
 
-From the recent papers below, pick the {CARDS} most useful for a rep promoting COMIX's {molecule}, newest first when equally useful. Skip papers about formulations COMIX doesn't sell (e.g. long-acting injections when COMIX sells tablets), lab-marker-only or mechanistic studies, and anything a busy doctor wouldn't act on.
+Write one card for EVERY paper below (they are the {CARDS} most recent). If a paper is about a formulation COMIX doesn't sell (e.g. a long-acting injection when COMIX sells tablets) or is a lab-marker / mechanistic study, still write the card and say so in the caution.
 
 For each card:
 - study: type and size in a few words, e.g. "Meta-analysis · 11 trials, 1,135 children" or "Randomised double-blind trial · 60 patients, 7 weeks".
@@ -149,8 +148,10 @@ def summarize(molecule: str, forms: list[str], articles: list[dict]) -> list[dic
 
 
 def build_cards(molecule: str, cards: list[dict], articles: list[dict]) -> list[dict]:
-    """Join the AI's cards to the real papers; drop any PMID the AI made up or repeated."""
+    """Join the AI's cards to the real papers (newest first); drop any PMID the AI made up or repeated."""
     by_pmid = {a["pmid"]: a for a in articles}
+    order = {a["pmid"]: i for i, a in enumerate(newest(articles, len(articles)))}
+    cards = sorted(cards, key=lambda c: order.get(str(c.get("pmid", "")).strip(), len(order)))
     out, seen = [], set()
     for card in cards:
         paper = by_pmid.get(str(card.get("pmid", "")).strip())
@@ -181,10 +182,14 @@ def _forms(molecule: str) -> list[str]:
     return sorted({f"{r['strength']} {r['form'].lower()}".strip() for r in rows if r.get("form")})
 
 
+def newest(articles: list[dict], n: int = CARDS) -> list[dict]:
+    return sorted(articles, key=lambda a: a["published_on"] or "", reverse=True)[:n]
+
+
 def refresh(molecule: str) -> list[dict]:
-    """Pull PubMed, summarise, and replace the molecule's cards."""
+    """Pull the 5 newest papers from PubMed, summarise them, and replace the molecule's cards."""
     molecule = molecule.strip().upper()
-    articles = fetch(search(molecule))
+    articles = newest(fetch(search(molecule)))
     if not articles:
         raise ValueError(f"No recent trials or reviews found on PubMed for {molecule.title()}")
     cards = summarize(molecule, _forms(molecule), articles)
