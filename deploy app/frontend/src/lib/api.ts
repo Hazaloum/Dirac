@@ -169,7 +169,7 @@ export const api = {
   }),
 
   // Purchase orders (stock in when received) and sales orders (stock out when delivered)
-  getSupplierOrders: () => req<SupplierOrderLine[]>("/api/inventory/supplier-orders"),
+  getPoTracker: () => req<PoTracker>("/api/po-tracker"),
   getOrders: () => req<{ purchase: StockOrder[]; sales: StockOrder[] }>("/api/inventory/orders"),
   createOrder: (kind: OrderKind, body: { party: string; order_date?: string; note?: string; lines: { pack_key: string; quantity: number }[] }) =>
     req(`/api/inventory/orders/${kind}`, {
@@ -631,6 +631,24 @@ export interface SupplierOrderLine {
   factory_confirmation: string | null;
   open: boolean;
   synced_at: string;
+  /** Index into PoTracker.stages; null for a status we don't know. */
+  stage: number | null;
+}
+
+export interface SupplierOrder {
+  ref: string;                      // COMIX PO number, tidied (P-039/2026)
+  items: string[];
+  accepted_at: string | null;       // when COMIX placed it
+  requested_delivery: string | null;
+  stage: number | null;             // furthest-behind line
+  completed: boolean;
+  lines: SupplierOrderLine[];
+}
+
+export interface PoTracker {
+  stages: string[];
+  synced_at: string | null;
+  orders: SupplierOrder[];
 }
 
 export interface StockOrder {

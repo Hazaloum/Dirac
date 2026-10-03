@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Boxes, Check, ChevronRight, Loader2, Plus, Trash2, X } from "lucide-react";
-import { api, type InventoryResponse, type InventorySku, type OrderKind, type SkuOptions, type StockOrder, type SupplierOrderLine } from "@/lib/api";
+import { api, type InventoryResponse, type InventorySku, type OrderKind, type SkuOptions, type StockOrder } from "@/lib/api";
 
 /** 'FILM-COATED TABLETS (MR)' → 'Film-coated tablets (MR)' */
 function formLabel(form: string) {
@@ -295,51 +295,6 @@ function OrderList({ orders, onChange, onError }: {
   );
 }
 
-// ─── Supplier portal orders (Tecnimede) ───────────────────────────────────────
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
-
-function SupplierOrders({ lines }: { lines: SupplierOrderLine[] }) {
-  const open = lines.filter((l) => l.open);
-  if (!lines.length) return null;
-  const lastSync = lines.reduce((max, l) => (l.synced_at > max ? l.synced_at : max), "");
-  // One block per COMIX PO number, lines sorted by ETA.
-  const byPo = new Map<string, SupplierOrderLine[]>();
-  for (const l of open) byPo.set(l.customer_reference || l.order_line, [...(byPo.get(l.customer_reference || l.order_line) ?? []), l]);
-
-  return (
-    <section className="mt-10 space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold text-surface-900">Incoming from Tecnimede</h2>
-        <span className="text-xs text-surface-400">Synced {new Date(lastSync).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-      </div>
-      {open.length === 0 && <p className="text-sm text-surface-500">No open orders on the portal.</p>}
-      {Array.from(byPo.entries()).map(([po, poLines]) => (
-        <div key={po} className="rounded-xl border border-surface-300 bg-white px-4 py-3">
-          <p className="mb-2 text-sm font-semibold text-surface-900">{po}</p>
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-surface-500"><tr>
-              <th className="pb-1 font-medium">Item</th><th className="pb-1 text-right font-medium">Pending</th>
-              <th className="pb-1 pl-4 font-medium">Status</th><th className="pb-1 text-right font-medium">ETA</th>
-            </tr></thead>
-            <tbody>{poLines.map((l) => (
-              <tr key={l.id} className="border-t border-surface-100 align-top">
-                <td className="py-1.5 text-surface-800">{l.item_description}</td>
-                <td className="py-1.5 text-right font-medium tabular-nums">{(l.pending_quantity ?? 0).toLocaleString()}</td>
-                <td className="py-1.5 pl-4 text-xs text-surface-600">{l.status}</td>
-                <td className="py-1.5 text-right text-xs">
-                  {l.factory_confirmation ? <span className="font-medium text-surface-900">{fmtDate(l.factory_confirmation)}</span>
-                    : <span className="text-surface-400" title="Requested date — not yet confirmed by the factory">{fmtDate(l.requested_delivery)} (req.)</span>}
-                </td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const [data, setData] = useState<InventoryResponse>({ molecules: [], unmatched_molecules: [] });
@@ -350,8 +305,6 @@ export default function InventoryPage() {
   const [error, setError] = useState("");
   const [orders, setOrders] = useState<{ purchase: StockOrder[]; sales: StockOrder[] }>({ purchase: [], sales: [] });
   const [newOrder, setNewOrder] = useState<OrderKind | null>(null);
-  const [supplierLines, setSupplierLines] = useState<SupplierOrderLine[]>([]);
-  useEffect(() => { api.getSupplierOrders().then(setSupplierLines).catch(() => setSupplierLines([])); }, []);
   const refresh = useCallback(async () => {
     const [inventory, orderList] = await Promise.all([api.getInventory(), api.getOrders()]);
     setData(inventory);
@@ -418,7 +371,6 @@ export default function InventoryPage() {
         </section>)}
       </div>}
     {!loading && <OrderList orders={orders} onChange={refresh} onError={setError} />}
-    <SupplierOrders lines={supplierLines} />
     {newOrder && <OrderForm kind={newOrder} skus={carriedSkus} onClose={() => setNewOrder(null)}
       onSaved={() => { setNewOrder(null); refresh().catch((e: Error) => setError(e.message)); }} />}
     {picking && <SkuPicker molecule={picking} onClose={() => setPicking(null)} onSaved={() => { setPicking(null); refresh().catch((e: Error) => setError(e.message)); }} />}

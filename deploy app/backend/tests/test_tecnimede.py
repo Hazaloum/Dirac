@@ -32,6 +32,13 @@ class ParseTest(unittest.TestCase):
         self.assertEqual((line["order_line"], line["factory_confirmation"], line["order_quantity"]),
                          ("9820269308 | 20", None, None))
 
+    def test_order_refs_are_tidied(self):
+        cases = {"P - 034/2025": "P-034/2025", "P-011/2023": "P-011/2023", "051/2026": "P-051/2026",
+                 "P - 0362026": "P-036/2026", "P - 014": "P-014", "Mail de 23.02.2026": "Mail de 23.02.2026",
+                 "": "(no reference)"}
+        for raw, ref in cases.items():
+            self.assertEqual(tecnimede.order_ref(raw), ref, raw)
+
     def test_changed_table_is_reported(self):
         with self.assertRaises(tecnimede.PortalError):
             tecnimede.parse_rows(["Something else"], [["x"]])

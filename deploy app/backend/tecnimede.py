@@ -2,9 +2,9 @@
 tecnimede.py — pull COMIX's open orders from Tecnimede's supplier portal.
 
 Tecnimede gives no API, so a headless browser logs in as COMIX's portal user
-(TECNIMEDE_USERNAME / TECNIMEDE_PASSWORD), opens the "Open Orders" list view
-and reads the table. Each line is upserted into Supabase
-`supplier_order_lines`; lines that drop off the open list are marked closed.
+(TECNIMEDE_USERNAME / TECNIMEDE_PASSWORD), opens the "All Orders" list view
+and reads the table. Each line is upserted into Supabase `supplier_order_lines`.
+An order = one customer reference (COMIX's PO number); it can have several lines.
 
 Run: python scripts/sync_tecnimede.py   (needs `playwright install chromium` once)
 """
@@ -18,7 +18,16 @@ from supabase_client import fetch_all, get_client
 
 SUPPLIER = "Tecnimede"
 PORTAL = "https://tecnimedeimprove.my.site.com"
-OPEN_ORDERS = f"{PORTAL}/s/recordlist/Order__c/00BVk00000IfpKLMAZ"
+ALL_ORDERS = f"{PORTAL}/s/recordlist/Order__c/00BVk00000IfpKLMAZ?Order__c-filterId=My_Orders"
+
+# The portal's statuses, in order. A line moves left to right.
+STAGES = [
+    "Order Registered",
+    "Order Placed to Factory",
+    "Order with Logistics Operator",
+    "Completed (Order Available for Pickup)",
+]
+DONE = STAGES[-1]
 
 # Table header → our column.
 COLUMNS = {
@@ -60,6 +69,15 @@ def _timestamp(text: str) -> str | None:
     return f"{m[3]}-{int(m[2]):02d}-{int(m[1]):02d}T{int(m[4]):02d}:{m[5]}:00+04:00"
 
 
+def order_ref(text: str | None) -> str:
+    """COMIX's PO number, tidied: 'P - 0362026' / 'P-036/2026' / '036/2026' → 'P-036/2026'."""
+    raw = (text or "").strip()
+    m = re.match(r"^P?\s*-?\s*(\d{2,3})\s*/?\s*(20\d{2})?\s*$", raw, re.IGNORECASE)
+    if not m:
+        return raw or "(no reference)"
+    return f"P-{m[1].zfill(3)}" + (f"/{m[2]}" if m[2] else "")
+
+
 def parse_rows(headers: list[str], rows: list[list[str]]) -> list[dict]:
     """Table cells → supplier_order_lines rows (keyed by header, so column order doesn't matter)."""
     index = {name: headers.index(name) for name in COLUMNS if name in headers}
@@ -96,8 +114,8 @@ _READ_TABLE = """() => {
     .map(th => (th.getAttribute('title') || th.innerText || '').trim().split('\\n')[0]);
   const rows = [...table.querySelectorAll('tbody tr')]
     .map(tr => [...tr.querySelectorAll('th, td')].map(c => c.innerText.trim()));
-  const count = (document.body.innerText.match(/(\\d+)\\+? items?/) || [])[1];
-  return {headers, rows, total: count ? Number(count) : null};
+  const count = document.body.innerText.match(/(\\d+)(\\+?) items?/);
+  return {headers, rows, total: count ? Number(count[1]) : null, more: !!(count && count[2])};
 }"""
 
 
@@ -112,7 +130,7 @@ def scrape(headless: bool = True) -> list[dict]:
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
         try:
-            page.goto(OPEN_ORDERS, wait_until="domcontentloaded")
+            page.goto(ALL_ORDERS, wait_until="domcontentloaded")
             # Not signed in → the portal shows its login form.
             password_box = page.locator("input[type=password]")
             try:
@@ -129,24 +147,27 @@ def scrape(headless: bool = True) -> list[dict]:
                 except PlaywrightTimeout:
                     raise PortalError("Login didn't go through — check the username/password "
                                       "(or the portal now asks for a verification code)")
-                if "recordlist" not in page.url:
-                    page.goto(OPEN_ORDERS, wait_until="domcontentloaded")
+                if "My_Orders" not in page.url:
+                    page.goto(ALL_ORDERS, wait_until="domcontentloaded")
 
             try:
                 page.wait_for_selector("table tbody tr", timeout=45_000)
             except PlaywrightTimeout:
-                raise PortalError("The Open Orders table didn't load")
+                raise PortalError("The All Orders table didn't load")
 
-            # Lightning loads long lists as you scroll — scroll until every row is in.
+            # Lightning loads long lists 50 rows at a time as you scroll ("50+ items").
             data = page.evaluate(_READ_TABLE)
-            for _ in range(20):
-                if not data or data["total"] is None or len(data["rows"]) >= data["total"]:
+            for _ in range(40):
+                if not data or (not data["more"] and data["total"] is not None and len(data["rows"]) >= data["total"]):
                     break
+                before = len(data["rows"])
                 page.locator("table tbody tr").last.scroll_into_view_if_needed()
-                page.wait_for_timeout(1500)
+                page.wait_for_timeout(2000)
                 data = page.evaluate(_READ_TABLE)
+                if len(data["rows"]) == before and not data["more"]:
+                    break
             if not data:
-                raise PortalError("The Open Orders table didn't load")
+                raise PortalError("The All Orders table didn't load")
             return parse_rows(data["headers"], data["rows"])
         finally:
             browser.close()
@@ -155,28 +176,54 @@ def scrape(headless: bool = True) -> list[dict]:
 # ─── Saving ───────────────────────────────────────────────────────────────────
 
 def save(lines: list[dict]) -> dict:
-    """Upsert the open lines; anything previously open but no longer listed is closed."""
+    """Upsert every line; `open` = not yet completed. Lines no longer listed are closed."""
     client = get_client()
     now = datetime.now(timezone.utc).isoformat()
     if lines:
         client.table("supplier_order_lines").upsert(
-            [{**line, "supplier": SUPPLIER, "open": True, "synced_at": now} for line in lines],
+            [{**line, "supplier": SUPPLIER, "open": line["status"] != DONE, "synced_at": now} for line in lines],
             on_conflict="supplier,order_line",
         ).execute()
     seen = {line["order_line"] for line in lines}
+    open_count = sum(line["status"] != DONE for line in lines)
     previously_open = [r["order_line"] for r in fetch_all("supplier_order_lines", "order_line, supplier, open", order="id")
                        if r["supplier"] == SUPPLIER and r["open"]]
     closed = [line for line in previously_open if line not in seen]
     if closed:
         client.table("supplier_order_lines").update({"open": False, "synced_at": now}) \
             .eq("supplier", SUPPLIER).in_("order_line", closed).execute()
-    return {"open": len(lines), "closed": len(closed)}
+    return {"lines": len(lines), "open": open_count, "closed": len(closed)}
 
 
 def sync(headless: bool = True) -> dict:
     return save(scrape(headless=headless))
 
 
-def list_lines() -> list[dict]:
-    rows = fetch_all("supplier_order_lines", order="id")
-    return sorted(rows, key=lambda r: (not r["open"], r["factory_confirmation"] or r["requested_delivery"] or "9999"))
+def list_orders() -> dict:
+    """Lines grouped into orders by customer reference, open orders first (earliest requested date first)."""
+    rows = [r for r in fetch_all("supplier_order_lines", order="id") if r["supplier"] == SUPPLIER]
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        stage = STAGES.index(row["status"]) if row["status"] in STAGES else None
+        grouped.setdefault(order_ref(row["customer_reference"]), []).append({**row, "stage": stage})
+
+    orders = []
+    for ref, lines in grouped.items():
+        lines.sort(key=lambda l: l["order_line"])
+        stages = [l["stage"] for l in lines if l["stage"] is not None]
+        requested = [l["requested_delivery"] for l in lines if l["requested_delivery"]]
+        accepted = [l["accepted_at"] for l in lines if l["accepted_at"]]
+        orders.append({
+            "ref": ref,
+            "items": sorted({l["item_description"] for l in lines}),
+            "accepted_at": min(accepted) if accepted else None,
+            "requested_delivery": min(requested) if requested else None,
+            "stage": min(stages) if stages else None,          # the furthest-behind line
+            "completed": all(l["status"] == DONE for l in lines),
+            "lines": lines,
+        })
+    open_orders = sorted((o for o in orders if not o["completed"]), key=lambda o: o["requested_delivery"] or "9999")
+    done = sorted((o for o in orders if o["completed"]), key=lambda o: o["accepted_at"] or "", reverse=True)
+    orders = open_orders + done
+    synced = max((r["synced_at"] for r in rows), default=None)
+    return {"stages": STAGES, "synced_at": synced, "orders": orders}
