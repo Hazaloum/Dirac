@@ -169,6 +169,7 @@ export const api = {
   }),
 
   // Purchase orders (stock in when received) and sales orders (stock out when delivered)
+  getSupplierOrders: () => req<SupplierOrderLine[]>("/api/inventory/supplier-orders"),
   getOrders: () => req<{ purchase: StockOrder[]; sales: StockOrder[] }>("/api/inventory/orders"),
   createOrder: (kind: OrderKind, body: { party: string; order_date?: string; note?: string; lines: { pack_key: string; quantity: number }[] }) =>
     req(`/api/inventory/orders/${kind}`, {
@@ -613,6 +614,24 @@ export interface InventorySku {
 }
 
 export type OrderKind = "purchase" | "sales";
+
+/** A line from a supplier's own portal (synced by scripts/sync_tecnimede.py). */
+export interface SupplierOrderLine {
+  id: number;
+  supplier: string;
+  order_line: string;
+  customer_reference: string | null;
+  item_description: string;
+  order_quantity: number | null;
+  pending_quantity: number | null;
+  status: string | null;
+  factory_order_number: string | null;
+  accepted_at: string | null;
+  requested_delivery: string | null;
+  factory_confirmation: string | null;
+  open: boolean;
+  synced_at: string;
+}
 
 export interface StockOrder {
   id: number;

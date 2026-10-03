@@ -230,6 +230,8 @@ The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carr
 
 **Purchase and sales orders.** "+ Purchase order" (COMIX → supplier) and "+ Sales order" (customer → COMIX) on the Inventory page create open orders (`purchase_orders`/`sales_orders` + `_lines`). Stock moves only when a PO is marked **Received** (`receive_purchase_order`, stock up) or an SO **Delivered** (`deliver_sales_order`, stock down; refused if any SKU is short). Open orders show per SKU as "+X on order" / "Y committed". Endpoints: `GET /api/inventory/orders`, `POST /api/inventory/orders/{purchase|sales}`, `POST …/{id}/close`, `POST …/{id}/cancel`. Rep-app orders (`orders` table) are separate and don't move stock.
 
+**Supplier portal sync (Tecnimede).** Tecnimede gives no API, so `scripts/sync_tecnimede.py` (`tecnimede.py`) drives a headless Chromium (Playwright): logs in with `TECNIMEDE_USERNAME`/`TECNIMEDE_PASSWORD`, reads the portal's "Open Orders" list view table, and upserts each line into `supplier_order_lines` (lines that drop off the list are marked `open = false`). Inventory shows them as "Incoming from Tecnimede", grouped by COMIX PO number with pending quantity, status and ETA (factory confirmation date, else requested date). Runs locally for now (`playwright install chromium` once); `--show` to watch, `--dry-run` to only print. Fragile by nature: breaks if the portal adds 2FA or changes the table headers (it errors clearly when columns go missing). Not yet mapped to SKUs/`purchase_orders`.
+
 ### State passing between pages
 `ForecastSession` (molecule cards + ATC1 groupings) is serialised to `localStorage` under key `comix_forecast_session` before navigating to `/forecast`. The forecast page reads it back on mount. Both pages import the key/type from `src/lib/forecastSession.ts` — not from the page file (Next.js forbids named exports from page components).
 
@@ -253,6 +255,7 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
 | `inventory_stock` | One row per carried SKU — pack key, molecule, strength, form, pack size, stock quantity. |
 | `purchase_orders` / `purchase_order_lines` | POs to suppliers; open → received (adds stock) or cancelled. Shown as PO-0001. |
+| `supplier_order_lines` | Order lines scraped from supplier portals (Tecnimede): COMIX PO ref, item, ordered/pending qty, status, factory confirmation date, `open` flag. |
 | `sales_orders` / `sales_order_lines` | Sales orders from customers; open → delivered (removes stock) or cancelled. Shown as SO-0001. |
 
 **Field force / rep CRM** (RLS-locked: anon gets nothing; reps see their own territory; Dirac uses the service-role key):
@@ -300,6 +303,7 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 | `SUPABASE_KEY` | Railway | COMIX OS anon key (Supabase → Project Settings → API) |
 | `SUPABASE_SERVICE_KEY` | Railway | COMIX OS service-role key — Field force page only. Server-side, never in a frontend. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel (rep app) | Rep app talks to Supabase directly as the signed-in rep |
+| `TECNIMEDE_USERNAME` / `TECNIMEDE_PASSWORD` | backend `.env` (local) | Tecnimede portal login for `scripts/sync_tecnimede.py` |
 | `NEXT_PUBLIC_API_URL` | Vercel (rep app) | Railway backend URL, for voice notes. CORS already allows any `*.vercel.app` origin. |
 
 ---

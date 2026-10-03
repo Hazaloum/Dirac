@@ -556,6 +556,13 @@ def _order_kind(kind: str) -> str:
     return kind
 
 
+@app.get("/api/inventory/supplier-orders")
+def get_supplier_orders():
+    """Order lines pulled from supplier portals (scripts/sync_tecnimede.py)."""
+    from tecnimede import list_lines
+    return list_lines()
+
+
 @app.get("/api/inventory/orders")
 def get_inventory_orders():
     from inventory import list_orders
