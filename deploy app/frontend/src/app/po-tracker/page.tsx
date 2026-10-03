@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Ship } from "lucide-react";
 import { api, type PoTracker, type SupplierOrder, type SupplierOrderLine } from "@/lib/api";
 
-/** Short names for the portal's four statuses, in order. */
+/** Short names for the portal's four statuses, in order (PoTracker.stages holds the portal's names). */
 const STOP_NAMES = ["Registered", "At factory", "With logistics", "Ready for pickup"];
+const PORTAL_STATUS = ["Order Registered", "Order Placed to Factory", "Order with Logistics Operator",
+  "Completed (Order Available for Pickup)"];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -19,22 +21,39 @@ function daysBetween(a: string, b: string) {
   return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86400000);
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Days past the requested date, or 0 if not overdue. */
+function overdueDays(requested: string | null, completed: boolean) {
+  return !completed && requested && requested < today() ? daysBetween(requested, today()) : 0;
+}
+
 // ─── One line as bus stops ────────────────────────────────────────────────────
 function Stops({ line }: { line: SupplierOrderLine }) {
   const stage = line.stage ?? -1;
   const done = line.stage === STOP_NAMES.length - 1;
-  const overdue = !done && !!line.requested_delivery && line.requested_delivery < today();
+  const overdue = overdueDays(line.requested_delivery, done);
   const lateBy = line.factory_confirmation && line.requested_delivery
     ? daysBetween(line.requested_delivery, line.factory_confirmation) : 0;
+  const seen = (i: number) => line.stage_seen?.[PORTAL_STATUS[i]];
+  const muted = "text-surface-400";
 
-  // Date shown under each stop.
-  const under: (JSX.Element | null)[] = [
-    <span key="0">{fmt(line.accepted_at)}</span>,
-    null,
+  // A date under every stop: what the portal gives, or the day our sync saw the line get there.
+  const under: JSX.Element[] = [
+    <span key="0" title="Acceptance date — when the order was placed">{fmt(line.accepted_at)}</span>,
+    seen(1)
+      ? <span key="1" title="First seen at the factory">{fmt(seen(1)!)}</span>
+      : <span key="1" className={muted} title="The portal gives no date for this step">—</span>,
     line.factory_confirmation
-      ? <span key="2" title="Factory confirmation — predicted batch release">batch {fmt(line.factory_confirmation)}{stage < 2 ? " (pred.)" : ""}</span>
-      : null,
-    <span key="3" className={overdue ? "font-medium text-rose-700" : ""}>{done ? "done" : `req. ${fmt(line.requested_delivery)}`}</span>,
+      ? <span key="2" title="Factory confirmation — predicted batch release">
+          {stage >= 2 && seen(2) ? fmt(seen(2)!) : `batch ${fmt(line.factory_confirmation)}`}{stage < 2 ? " (pred.)" : ""}
+        </span>
+      : seen(2) ? <span key="2">{fmt(seen(2)!)}</span> : <span key="2" className={muted}>—</span>,
+    done
+      ? <span key="3">{seen(3) ? fmt(seen(3)!) : "done"}</span>
+      : <span key="3" className={overdue ? "font-medium text-rose-700" : ""} title="Requested delivery date">
+          req. {fmt(line.requested_delivery)}{overdue ? ` · ${overdue}d late` : ""}
+        </span>,
   ];
 
   return (
@@ -83,7 +102,7 @@ function Stops({ line }: { line: SupplierOrderLine }) {
 
 // ─── One order (customer reference) ──────────────────────────────────────────
 function OrderCard({ order }: { order: SupplierOrder }) {
-  const overdue = !order.completed && !!order.requested_delivery && order.requested_delivery < today();
+  const overdue = overdueDays(order.requested_delivery, order.completed);
   return (
     <section className="rounded-xl border border-surface-300 bg-white px-5 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -94,8 +113,9 @@ function OrderCard({ order }: { order: SupplierOrder }) {
           {order.completed ? (
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">Ready for pickup</span>
           ) : overdue ? (
-            <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700">
-              Overdue · requested {fmt(order.requested_delivery)}
+            <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700"
+              title={`Requested ${fmt(order.requested_delivery, true)}`}>
+              Overdue by {plural(overdue, "day")} · requested {fmt(order.requested_delivery)}
             </span>
           ) : (
             <span className="rounded-full bg-surface-100 px-2 py-0.5 font-medium text-surface-700">Requested {fmt(order.requested_delivery)}</span>

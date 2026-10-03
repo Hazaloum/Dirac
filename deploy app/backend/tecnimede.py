@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from supabase_client import fetch_all, get_client
 
 SUPPLIER = "Tecnimede"
+DUBAI = timezone(timedelta(hours=4))
 PORTAL = "https://tecnimedeimprove.my.site.com"
 ALL_ORDERS = f"{PORTAL}/s/recordlist/Order__c/00BVk00000IfpKLMAZ?Order__c-filterId=My_Orders"
 
@@ -175,22 +176,43 @@ def scrape(headless: bool = True) -> list[dict]:
 
 # ─── Saving ───────────────────────────────────────────────────────────────────
 
+def track_stage(previous: dict | None, status: str | None, today: str, first_sync: bool) -> dict:
+    """The line's stage_seen map, with today's date added if it just reached a new status.
+
+    The portal gives no date for each status change, so we note the day a sync
+    first sees it. Lines already at a status on the very first sync get no date
+    (we don't know when they got there).
+    """
+    seen = dict((previous or {}).get("stage_seen") or {})
+    if not status or status in seen:
+        return seen
+    moved = previous is not None and previous.get("status") != status
+    new_line = previous is None and not first_sync
+    if moved or new_line:
+        seen[status] = today
+    return seen
+
+
 def save(lines: list[dict]) -> dict:
     """Upsert every line; `open` = not yet completed. Lines no longer listed are closed."""
     client = get_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(DUBAI).date().isoformat()
+    existing = {r["order_line"]: r for r in fetch_all("supplier_order_lines", "order_line, supplier, status, open, stage_seen", order="id")
+                if r["supplier"] == SUPPLIER}
+    first_sync = not existing
     if lines:
         client.table("supplier_order_lines").upsert(
-            [{**line, "supplier": SUPPLIER, "open": line["status"] != DONE, "synced_at": now} for line in lines],
+            [{**line, "supplier": SUPPLIER, "open": line["status"] != DONE, "synced_at": now.isoformat(),
+              "stage_seen": track_stage(existing.get(line["order_line"]), line["status"], today, first_sync)}
+             for line in lines],
             on_conflict="supplier,order_line",
         ).execute()
     seen = {line["order_line"] for line in lines}
     open_count = sum(line["status"] != DONE for line in lines)
-    previously_open = [r["order_line"] for r in fetch_all("supplier_order_lines", "order_line, supplier, open", order="id")
-                       if r["supplier"] == SUPPLIER and r["open"]]
-    closed = [line for line in previously_open if line not in seen]
+    closed = [key for key, row in existing.items() if row["open"] and key not in seen]
     if closed:
-        client.table("supplier_order_lines").update({"open": False, "synced_at": now}) \
+        client.table("supplier_order_lines").update({"open": False, "synced_at": now.isoformat()}) \
             .eq("supplier", SUPPLIER).in_("order_line", closed).execute()
     return {"lines": len(lines), "open": open_count, "closed": len(closed)}
 

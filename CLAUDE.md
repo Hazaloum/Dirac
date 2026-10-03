@@ -235,7 +235,7 @@ Tecnimede gives no API, so `scripts/sync_tecnimede.py` (`tecnimede.py`) drives a
 
 - **An order = one Customer Reference** (COMIX's PO number), tidied by `order_ref()` (`P - 0362026` → `P-036/2026`). Order lines (`… | 10`, `… | 20`) are its lines.
 - **Stops, in order** (portal status): Order Registered → Order Placed to Factory → Order with Logistics Operator → Completed (Order Available for Pickup). Shown as bus stops per line.
-- **Dates:** Acceptance Order Date = when COMIX placed the order; Requested Delivery Date = when COMIX asked for it; Factory Confirmation Date = predicted batch release. An open order past its requested date is flagged overdue; a line whose batch release is after the requested date shows "N days after requested".
+- **Dates:** Acceptance Order Date = when COMIX placed the order; Requested Delivery Date = when COMIX asked for it; Factory Confirmation Date = predicted batch release. Each stop shows a date: Registered = acceptance date; At factory = the day the sync first saw it there (`stage_seen`, the portal gives no date — "—" if unknown); With logistics = factory confirmation ("pred." until reached); Ready for pickup = requested date (or the day seen completed). An open order past its requested date shows "Overdue by N days"; a line whose batch release is after the requested date shows "N days after requested". Re-run the sync regularly so `stage_seen` dates accumulate.
 - `GET /api/po-tracker` → `tecnimede.list_orders()`. Not linked to stock yet (deliberately).
 
 ### State passing between pages

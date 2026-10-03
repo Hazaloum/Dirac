@@ -39,6 +39,17 @@ class ParseTest(unittest.TestCase):
         for raw, ref in cases.items():
             self.assertEqual(tecnimede.order_ref(raw), ref, raw)
 
+    def test_stage_dates_are_noted_when_a_line_moves(self):
+        placed, logistics = "Order Placed to Factory", "Order with Logistics Operator"
+        before = {"status": placed, "stage_seen": {}}
+        self.assertEqual(tecnimede.track_stage(before, logistics, "2026-10-03", False), {logistics: "2026-10-03"})
+        self.assertEqual(tecnimede.track_stage(before, placed, "2026-10-03", False), {})          # no change
+        self.assertEqual(tecnimede.track_stage(None, placed, "2026-10-03", True), {})             # first sync: unknown
+        self.assertEqual(tecnimede.track_stage(None, "Order Registered", "2026-10-03", False),    # new line later on
+                         {"Order Registered": "2026-10-03"})
+        kept = {"status": logistics, "stage_seen": {logistics: "2026-09-20"}}
+        self.assertEqual(tecnimede.track_stage(kept, logistics, "2026-10-03", False), {logistics: "2026-09-20"})
+
     def test_changed_table_is_reported(self):
         with self.assertRaises(tecnimede.PortalError):
             tecnimede.parse_rows(["Something else"], [["x"]])

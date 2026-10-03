@@ -633,6 +633,8 @@ export interface SupplierOrderLine {
   synced_at: string;
   /** Index into PoTracker.stages; null for a status we don't know. */
   stage: number | null;
+  /** Portal status → date the sync first saw the line reach it (YYYY-MM-DD). */
+  stage_seen: Record<string, string>;
 }
 
 export interface SupplierOrder {
