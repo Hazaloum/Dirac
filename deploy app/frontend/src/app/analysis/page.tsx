@@ -1,5 +1,6 @@
 "use client";
 
+import { ddmmyyTime } from "@/lib/dates";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -491,7 +492,7 @@ export default function AnalysisPage() {
                       <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded-full capitalize">{run.source_type}</span>
                     </div>
                     <p className="text-xs text-surface-500 mt-0.5">
-                      {run.saved_at} · {run.stats?.total ?? 0} molecules · {run.stats?.matched_iqvia ?? 0} IQVIA matched
+                      {ddmmyyTime(run.saved_at)} · {run.stats?.total ?? 0} molecules · {run.stats?.matched_iqvia ?? 0} IQVIA matched
                       {run.model && <> · {run.model}</>}
                     </p>
                   </div>

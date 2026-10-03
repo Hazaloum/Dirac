@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { AccountStatus, AccountType } from "@/lib/types";
-import { addDays, today, ymd } from "@/lib/format";
+import { addDays, dayAndDate, today, ymd } from "@/lib/format";
 import AccountRow from "@/components/AccountRow";
 
 const GROUPS: { type: AccountType; label: string }[] = [
@@ -64,7 +64,7 @@ export default function TodayPage() {
 
   const due = (rows ?? []).filter((a) => a.due_on! <= t);
   const upcoming = (rows ?? []).filter((a) => a.due_on! > t);
-  const dateText = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const dateText = dayAndDate(new Date().toISOString());
 
   return (
     <div className="space-y-4">

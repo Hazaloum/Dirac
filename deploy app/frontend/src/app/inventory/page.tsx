@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Boxes, Check, ChevronRight, Loader2, Plus, Trash2, X } from "lucide-react";
+import { ddmmyy } from "@/lib/dates";
 import { api, type InventoryResponse, type InventorySku, type OrderKind, type SkuOptions, type StockOrder } from "@/lib/api";
 
 /** 'FILM-COATED TABLETS (MR)' → 'Film-coated tablets (MR)' */
@@ -262,7 +263,7 @@ function OrderList({ orders, onChange, onError }: {
             {badge(o.kind)}
             <span className="text-sm font-semibold text-surface-900">{o.number}</span>
             <span className="text-sm text-surface-600">· {o.party}</span>
-            <span className="ml-auto text-xs text-surface-400">{o.order_date}</span>
+            <span className="ml-auto text-xs text-surface-400">{ddmmyy(o.order_date)}</span>
           </div>
           <ul className="mt-2 space-y-0.5 text-sm text-surface-700">
             {o.lines.map((l) => <li key={l.pack_key} className="flex justify-between"><span>{l.sku_label}</span><span className="font-medium">{l.quantity} packs</span></li>)}

@@ -332,6 +332,9 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 
 8. **Forecast formula** — `Y2 = Y1 × (1 + growth_rate)`, `Y3 = Y2 × (1 + growth_rate)`. Growth rate is user-chosen (default 15%). No hidden ramp multipliers.
 
+
+9. **Dates display as DD/MM/YY** (times DD/MM/YY HH:MM) everywhere — Dirac uses `ddmmyy()` / `ddmmyyTime()` from `src/lib/dates.ts`, the rep app `shortDate()` / `dayAndDate()` from `src/lib/format.ts`. Never `toLocaleDateString` with month names.
+
 ---
 
 ## Updating the IQVIA dataset

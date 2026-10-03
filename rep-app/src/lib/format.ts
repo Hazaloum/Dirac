@@ -49,8 +49,17 @@ export function typeLabel(t: AccountType): string {
   return t === "doctor" ? "Doctor" : t === "pharmacy" ? "Pharmacy" : "Hospital";
 }
 
+/** Every date is shown as DD/MM/YY. "YYYY-MM-DD" is a calendar date (no timezone shift). */
 export function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const day = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const d = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
+}
+
+/** "Friday 02/10/26" */
+export function dayAndDate(iso: string): string {
+  return `${new Date(iso).toLocaleDateString("en-GB", { weekday: "long" })} ${shortDate(iso)}`;
 }
 
 export function shortTime(iso: string): string {

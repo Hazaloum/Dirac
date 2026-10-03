@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { OUTCOME_LABEL, REASONS, STANCES, type Outcome, type Reason, type ShelfStatus, type Stance } from "@/lib/types";
-import { shortDate, shortTime } from "@/lib/format";
+import { dayAndDate, shortDate, shortTime } from "@/lib/format";
 
 interface VisitDetail {
   id: number;
@@ -92,7 +92,7 @@ export default function VisitDetailPage() {
         </button>
         <p className="text-sm text-surface-600">{v.accounts?.name}</p>
         <h1 className="text-2xl font-bold text-surface-900">
-          {new Date(v.visited_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+          {dayAndDate(v.visited_at)}
         </h1>
         <p className="mt-1 flex items-center gap-2 text-sm">
           <span className="text-surface-600">{shortTime(v.visited_at)}</span>

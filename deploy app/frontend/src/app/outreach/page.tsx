@@ -1,5 +1,6 @@
 "use client";
 
+import { ddmmyyTime } from "@/lib/dates";
 import { useState, useRef, useEffect } from "react";
 import {
   Users, Play, Loader2, ChevronDown, Globe,
@@ -523,7 +524,7 @@ export default function OutreachPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-surface-800">{run.country}</p>
                         <p className="text-xs text-surface-500 mt-0.5">
-                          {run.run_date} · {run.companies_found} companies · {run.contacts_found} contacts
+                          {ddmmyyTime(run.run_date)} · {run.companies_found} companies · {run.contacts_found} contacts
                         </p>
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-surface-400" />
@@ -549,7 +550,7 @@ export default function OutreachPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-surface-700">
                 {selectedRun
-                  ? <>{selectedRun.country} <span className="text-surface-500 font-normal">· {selectedRun.run_date}</span></>
+                  ? <>{selectedRun.country} <span className="text-surface-500 font-normal">· {ddmmyyTime(selectedRun.run_date)}</span></>
                   : <>{country} <span className="text-surface-500 font-normal">· live run</span></>
                 }
               </h2>

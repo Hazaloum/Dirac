@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Ship } from "lucide-react";
 import { api, type PoTracker, type SupplierOrder, type SupplierOrderLine } from "@/lib/api";
+import { ddmmyy, ddmmyyTime } from "@/lib/dates";
 
 /** Short names for the portal's four statuses, in order (PoTracker.stages holds the portal's names). */
 const STOP_NAMES = ["Registered", "At factory", "With logistics", "Ready for pickup"];
@@ -11,11 +12,7 @@ const PORTAL_STATUS = ["Order Registered", "Order Placed to Factory", "Order wit
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-function fmt(iso: string | null, withYear = false) {
-  if (!iso) return "—";
-  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) });
-}
+const fmt = (iso: string | null) => ddmmyy(iso);
 
 function daysBetween(a: string, b: string) {
   return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86400000);
@@ -109,12 +106,12 @@ function OrderCard({ order }: { order: SupplierOrder }) {
         <h2 className="text-base font-semibold text-surface-900">{order.ref}</h2>
         <span className="text-sm text-surface-600">{order.items.join(" · ")}</span>
         <span className="ml-auto flex items-center gap-2 text-xs text-surface-500">
-          Ordered {fmt(order.accepted_at, true)}
+          Ordered {fmt(order.accepted_at)}
           {order.completed ? (
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">Ready for pickup</span>
           ) : overdue ? (
             <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700"
-              title={`Requested ${fmt(order.requested_delivery, true)}`}>
+              title={`Requested ${fmt(order.requested_delivery)}`}>
               Overdue by {plural(overdue, "day")} · requested {fmt(order.requested_delivery)}
             </span>
           ) : (
@@ -153,7 +150,7 @@ export default function PoTrackerPage() {
         <h1 className="text-3xl font-semibold text-surface-900">PO Tracker</h1>
         {data?.synced_at && (
           <span className="text-xs text-surface-400">
-            Tecnimede · synced {new Date(data.synced_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            Tecnimede · synced {ddmmyyTime(data.synced_at)}
           </span>
         )}
         <div className="ml-auto flex gap-1 rounded-full bg-surface-100 p-1">
