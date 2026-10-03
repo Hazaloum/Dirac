@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "COMIX Field",
-    short_name: "COMIX",
+    name: "Curie",
+    short_name: "Curie",
     description: "Visit logging for COMIX medical reps",
     start_url: "/",
     display: "standalone",

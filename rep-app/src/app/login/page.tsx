@@ -36,7 +36,7 @@ export default function LoginPage() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-pharma-900 text-3xl font-bold text-white">
           +
         </div>
-        <h1 className="text-2xl font-bold text-surface-900">COMIX Field</h1>
+        <h1 className="text-2xl font-bold text-surface-900">Curie</h1>
         <p className="text-sm text-surface-600">Sign in to log your visits</p>
       </div>
       <form onSubmit={submit} className="space-y-4">

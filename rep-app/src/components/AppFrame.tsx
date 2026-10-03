@@ -3,12 +3,13 @@
 import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarCheck, CalendarDays, Users } from "lucide-react";
+import { CalendarCheck, CalendarDays, Pill, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const TABS = [
   { href: "/", label: "Today", Icon: CalendarCheck },
   { href: "/clients", label: "Clients", Icon: Users },
+  { href: "/molecules", label: "Molecules", Icon: Pill },
   { href: "/week", label: "My week", Icon: CalendarDays },
 ];
 
@@ -51,7 +52,7 @@ export default function AppFrame({ children }: { children: ReactNode }) {
       <main className={hideTabs ? "px-4 pb-32 pt-4" : "px-4 pb-28 pt-4"}>{children}</main>
       {!hideTabs && (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-surface-200 bg-white pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto grid max-w-xl grid-cols-3">
+          <div className="mx-auto grid max-w-xl grid-cols-4">
             {TABS.map(({ href, label, Icon }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (

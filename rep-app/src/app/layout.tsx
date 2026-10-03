@@ -4,9 +4,9 @@ import { AuthProvider } from "@/lib/auth";
 import AppFrame from "@/components/AppFrame";
 
 export const metadata: Metadata = {
-  title: "COMIX Field",
+  title: "Curie",
   description: "Visit logging for COMIX medical reps",
-  appleWebApp: { capable: true, title: "COMIX", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Curie", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
