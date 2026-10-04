@@ -100,20 +100,22 @@ function Stops({ line }: { line: SupplierOrderLine }) {
 // ─── One order (customer reference) ──────────────────────────────────────────
 const title = (m: string) => m.charAt(0) + m.slice(1).toLowerCase();
 
-function MoleculeLink({ order, portfolio }: { order: SupplierOrder; portfolio: string[] }) {
-  const [molecule, setMolecule] = useState(order.molecule ?? "");
+function MoleculeLink({ order, portfolio, onLinked }: {
+  order: SupplierOrder; portfolio: string[]; onLinked: (ref: string, molecule: string | null) => void;
+}) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const molecule = order.molecule ?? "";
   // Keep a linked molecule selectable even if it has since left the portfolio.
   const options = molecule && !portfolio.includes(molecule) ? [molecule, ...portfolio] : portfolio;
 
   async function change(value: string) {
-    const before = molecule;
-    setMolecule(value); setSaving(true); setFailed(false);
+    setSaving(true); setFailed(false);
     try {
       await api.setPoMolecule(order.ref, value || null);
+      onLinked(order.ref, value || null);   // moves the card into its molecule's group
     } catch {
-      setMolecule(before); setFailed(true);
+      setFailed(true);
     } finally {
       setSaving(false);
     }
@@ -133,13 +135,15 @@ function MoleculeLink({ order, portfolio }: { order: SupplierOrder; portfolio: s
   );
 }
 
-function OrderCard({ order, portfolio }: { order: SupplierOrder; portfolio: string[] }) {
+function OrderCard({ order, portfolio, onLinked }: {
+  order: SupplierOrder; portfolio: string[]; onLinked: (ref: string, molecule: string | null) => void;
+}) {
   const overdue = overdueDays(order.requested_delivery, order.completed);
   return (
     <section className="rounded-xl border border-surface-300 bg-white px-5 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-base font-semibold text-surface-900">{order.ref}</h2>
-        <MoleculeLink order={order} portfolio={portfolio} />
+        <MoleculeLink order={order} portfolio={portfolio} onLinked={onLinked} />
         <span className="text-sm text-surface-600">{order.items.join(" · ")}</span>
         <span className="ml-auto flex items-center gap-2 text-xs text-surface-500">
           Ordered {fmt(order.accepted_at)}
@@ -194,6 +198,16 @@ export default function PoTrackerPage() {
   }), [data]);
   const shown = (data?.orders ?? []).filter((o) => filter === "all" || (filter === "open") === !o.completed);
 
+  // Linked orders grouped by molecule (A–Z), unlinked ones last; order within a group is kept.
+  const byMolecule = new Map<string, SupplierOrder[]>();
+  for (const o of shown) byMolecule.set(o.molecule ?? "", [...(byMolecule.get(o.molecule ?? "") ?? []), o]);
+  const groups = Array.from(byMolecule.entries())
+    .sort(([a], [b]) => (a === "") === (b === "") ? a.localeCompare(b) : a === "" ? 1 : -1);
+  const anyLinked = groups.some(([m]) => m !== "");
+
+  const onLinked = (ref: string, molecule: string | null) =>
+    setData((d) => d && { ...d, orders: d.orders.map((o) => (o.ref === ref ? { ...o, molecule } : o)) });
+
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
       <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -232,8 +246,22 @@ export default function PoTrackerPage() {
           No orders yet — run <code className="rounded bg-surface-100 px-1">python scripts/sync_tecnimede.py</code> from the backend folder.
         </div>
       )}
-      <div className="space-y-4">
-        {shown.map((order) => <OrderCard key={order.ref} order={order} portfolio={data?.portfolio ?? []} />)}
+      <div className="space-y-8">
+        {groups.map(([molecule, orders]) => (
+          <section key={molecule || "unlinked"}>
+            {anyLinked && (
+              <h2 className="mb-3 flex items-baseline gap-2 text-sm font-semibold uppercase tracking-wide text-surface-600">
+                {molecule ? title(molecule) : "Not linked yet"}
+                <span className="font-normal normal-case tracking-normal text-surface-400">{plural(orders.length, "order")}</span>
+              </h2>
+            )}
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <OrderCard key={order.ref} order={order} portfolio={data?.portfolio ?? []} onLinked={onLinked} />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </main>
   );
