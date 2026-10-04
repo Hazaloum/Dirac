@@ -566,6 +566,19 @@ def get_po_tracker():
     return list_orders()
 
 
+class OrderMoleculeBody(BaseModel):
+    ref: str
+    molecule: Optional[str] = None
+
+
+@app.put("/api/po-tracker/molecule")
+def set_po_molecule(body: OrderMoleculeBody):
+    """Link a PO Tracker order to a portfolio molecule (molecule null = unlink)."""
+    from tecnimede import link_molecule
+    link_molecule(body.ref, body.molecule)
+    return {"ref": body.ref, "molecule": body.molecule.strip().upper() if body.molecule else None}
+
+
 @app.post("/api/po-tracker/sync")
 async def sync_po_tracker():
     """Pull the latest orders from the Tecnimede portal now (~30–60 s)."""

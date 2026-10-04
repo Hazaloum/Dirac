@@ -282,6 +282,7 @@ async def daily_sync() -> None:
 def list_orders() -> dict:
     """Lines grouped into orders by customer reference, open orders first (earliest requested date first)."""
     rows = [r for r in fetch_all("supplier_order_lines", order="id") if r["supplier"] == SUPPLIER]
+    links = {r["ref"]: r["molecule"] for r in fetch_all("supplier_order_molecules", order="ref")}
     grouped: dict[str, list[dict]] = {}
     for row in rows:
         stage = STAGES.index(row["status"]) if row["status"] in STAGES else None
@@ -300,10 +301,23 @@ def list_orders() -> dict:
             "requested_delivery": min(requested) if requested else None,
             "stage": min(stages) if stages else None,          # the furthest-behind line
             "completed": all(l["status"] == DONE for l in lines),
+            "molecule": links.get(ref),
             "lines": lines,
         })
     open_orders = sorted((o for o in orders if not o["completed"]), key=lambda o: o["requested_delivery"] or "9999")
     done = sorted((o for o in orders if o["completed"]), key=lambda o: o["accepted_at"] or "", reverse=True)
     orders = open_orders + done
     synced = max((r["synced_at"] for r in rows), default=None)
-    return {"stages": STAGES, "synced_at": synced, "last_sync": last_sync or None, "orders": orders}
+    from inventory import _portfolio_molecules
+    return {"stages": STAGES, "synced_at": synced, "last_sync": last_sync or None,
+            "portfolio": sorted(_portfolio_molecules()), "orders": orders}
+
+
+def link_molecule(ref: str, molecule: str | None) -> None:
+    """Link an order (COMIX PO number) to a portfolio molecule; None removes the link."""
+    table = get_client().table("supplier_order_molecules")
+    if molecule:
+        table.upsert({"ref": ref, "molecule": molecule.strip().upper(),
+                      "updated_at": datetime.now(timezone.utc).isoformat()}).execute()
+    else:
+        table.delete().eq("ref", ref).execute()

@@ -98,12 +98,48 @@ function Stops({ line }: { line: SupplierOrderLine }) {
 }
 
 // ─── One order (customer reference) ──────────────────────────────────────────
-function OrderCard({ order }: { order: SupplierOrder }) {
+const title = (m: string) => m.charAt(0) + m.slice(1).toLowerCase();
+
+function MoleculeLink({ order, portfolio }: { order: SupplierOrder; portfolio: string[] }) {
+  const [molecule, setMolecule] = useState(order.molecule ?? "");
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Keep a linked molecule selectable even if it has since left the portfolio.
+  const options = molecule && !portfolio.includes(molecule) ? [molecule, ...portfolio] : portfolio;
+
+  async function change(value: string) {
+    const before = molecule;
+    setMolecule(value); setSaving(true); setFailed(false);
+    try {
+      await api.setPoMolecule(order.ref, value || null);
+    } catch {
+      setMolecule(before); setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-surface-500">
+      <select value={molecule} onChange={(e) => change(e.target.value)} disabled={saving}
+        title="Link this order to a molecule in My Portfolio"
+        className={`rounded-lg border px-2 py-1 text-xs ${molecule ? "border-pharma-700 bg-pharma-50 font-medium text-pharma-800" : "border-dashed border-surface-300 text-surface-500"}`}>
+        <option value="">Link molecule…</option>
+        {options.map((m) => <option key={m} value={m}>{title(m)}</option>)}
+      </select>
+      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+      {failed && <span className="text-rose-700">Couldn&apos;t save</span>}
+    </label>
+  );
+}
+
+function OrderCard({ order, portfolio }: { order: SupplierOrder; portfolio: string[] }) {
   const overdue = overdueDays(order.requested_delivery, order.completed);
   return (
     <section className="rounded-xl border border-surface-300 bg-white px-5 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-base font-semibold text-surface-900">{order.ref}</h2>
+        <MoleculeLink order={order} portfolio={portfolio} />
         <span className="text-sm text-surface-600">{order.items.join(" · ")}</span>
         <span className="ml-auto flex items-center gap-2 text-xs text-surface-500">
           Ordered {fmt(order.accepted_at)}
@@ -197,7 +233,7 @@ export default function PoTrackerPage() {
         </div>
       )}
       <div className="space-y-4">
-        {shown.map((order) => <OrderCard key={order.ref} order={order} />)}
+        {shown.map((order) => <OrderCard key={order.ref} order={order} portfolio={data?.portfolio ?? []} />)}
       </div>
     </main>
   );
