@@ -478,8 +478,8 @@ export default function DealTrackerPage() {
                   onDragOver={(e) => { e.preventDefault(); setDropOn(stage.key); }}
                   onDragLeave={() => setDropOn((s) => (s === stage.key ? null : s))}
                   onDrop={(e) => { e.preventDefault(); setDropOn(null); drop(Number(e.dataTransfer.getData("text/plain")), stage.key); }}
-                  className={`flex min-h-[320px] flex-col gap-2 rounded-xl bg-surface-100 p-2.5 ${dropOn === stage.key ? "outline-dashed outline-2 -outline-offset-2 outline-pharma-500" : ""}`}>
-                  <div className="grid gap-0.5 px-1 pb-1">
+                  className={`flex min-h-[320px] flex-col gap-2 rounded-xl border border-surface-300 bg-surface-100 p-2.5 ${dropOn === stage.key ? "outline-dashed outline-2 -outline-offset-2 outline-pharma-500" : ""}`}>
+                  <div className="grid gap-0.5 border-b border-surface-300 px-1 pb-2">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-pharma-700">{stage.phase}</span>
                     <span className="flex justify-between text-sm font-semibold text-surface-900">
                       {stage.name}<span className="font-normal tabular-nums text-surface-500">{cards.length}</span>
