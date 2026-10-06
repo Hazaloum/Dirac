@@ -6,8 +6,7 @@ import {
   api, type Deal, type DealBoard, type DealDetail, type DealField, type DealMah, type DealPortfolioResult, type DealStage, type DealStatus,
 } from "@/lib/api";
 import { ddmmyy } from "@/lib/dates";
-import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
-import { useRouter } from "next/navigation";
+import { InlineForecast } from "@/components/InlineForecast";
 
 const title = (m: string) => m.charAt(0) + m.slice(1).toLowerCase();
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -126,26 +125,11 @@ function DealDrawer({ deal, stages, reasons, onChange, onClose, onDeleted }: {
   const uploadStage = useRef<string>("");
   const fileInput = useRef<HTMLInputElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
-  const router = useRouter();
-
-  /** Open this molecule on the Forecast page (export the XLSX there, attach it here). */
-  async function openForecast() {
-    setBusy(true); setError("");
-    try {
-      const result = await api.enrichMolecules([deal.molecule]);
-      const molecules = result.molecules.filter((m) => m.in_iqvia);
-      if (!molecules.length) throw new Error(`${title(deal.molecule)} isn't in IQVIA, so there's no forecast.`);
-      const session: ForecastSession = { molecules, molecules_by_atc1: result.molecules_by_atc1 };
-      localStorage.setItem(FORECAST_SESSION_KEY, JSON.stringify(session));
-      router.push("/forecast");
-    } catch (e) {
-      setError(errorText(e)); setBusy(false);
-    }
-  }
+  const [showForecast, setShowForecast] = useState(false);
 
   useEffect(() => { setPartner(deal.partner); setNotes(deal.notes); }, [deal.id, deal.partner, deal.notes]);
   useEffect(() => { setOpen(deal.stage); setConfirmDelete(false); }, [deal.id, deal.stage]);
-  useEffect(() => { closeBtn.current?.focus(); }, [deal.id]);
+  useEffect(() => { closeBtn.current?.focus(); setShowForecast(false); }, [deal.id]);
 
   async function run(call: () => Promise<DealDetail>) {
     setError("");
@@ -172,7 +156,7 @@ function DealDrawer({ deal, stages, reasons, onChange, onClose, onDeleted }: {
   const stageName = (key: string | null) => stages.find((s) => s.key === key)?.name ?? key ?? "—";
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 grid w-full max-w-[480px] content-start gap-5 overflow-y-auto border-l border-surface-200 bg-white px-5 py-6 shadow-xl" aria-label={`${title(deal.molecule)} deal`}>
+    <aside className="fixed inset-y-0 right-0 z-40 grid w-full max-w-[640px] content-start gap-5 overflow-y-auto border-l border-surface-200 bg-white px-5 py-6 shadow-xl" aria-label={`${title(deal.molecule)} deal`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-surface-900">{title(deal.molecule)}</h2>
@@ -260,10 +244,16 @@ function DealDrawer({ deal, stages, reasons, onChange, onClose, onDeleted }: {
                       onSave={(v) => run(() => api.updateDeal(deal.id, { info: { [f.key]: v } }))} />
                   ))}
                   {stage.fields.some((f) => f.key === "forecast") && (
-                    <button disabled={busy} onClick={openForecast}
-                      className="justify-self-start rounded-lg border border-pharma-700 px-3 py-1.5 text-xs font-medium text-pharma-800 hover:bg-pharma-50 disabled:opacity-60">
-                      Generate forecast
-                    </button>
+                    <>
+                      <button onClick={() => setShowForecast((v) => !v)} aria-expanded={showForecast}
+                        className="justify-self-start rounded-lg border border-pharma-700 px-3 py-1.5 text-xs font-medium text-pharma-800 hover:bg-pharma-50">
+                        {showForecast ? "Hide forecast" : "Generate forecast"}
+                      </button>
+                      {showForecast && (
+                        <InlineForecast molecule={deal.molecule}
+                          onAttach={(file) => run(() => api.uploadDealDocument(deal.id, stage.key, file))} />
+                      )}
+                    </>
                   )}
                   {stage.trigger && (
                     <div className="grid gap-1.5 rounded-lg border border-dashed border-surface-300 p-2 text-xs">
