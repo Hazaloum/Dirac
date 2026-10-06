@@ -39,6 +39,7 @@ Claude_App/
     │   ├── store.py                   # Supabase: analysis runs, My Portfolio, pipeline
     │   ├── db.py                      # Supabase: outreach runs + companies
     │   ├── inventory.py               # Inventory view + stock quantities (Supabase)
+    │   ├── deals.py                   # Deal Tracker: stages/triggers config, deals, documents (Supabase)
     │   ├── field_force.py             # Rep CRM setup (reps, areas, accounts) + dashboard — service-role client
     │   ├── supabase_client.py         # Shared Supabase client + paging fetch_all()
     │   ├── reference_data.py          # Read/write IQVIA, UPP, MOHAP, WHO tables in Supabase
@@ -232,6 +233,15 @@ The `/inventory` page lists My Portfolio molecules with only the SKUs COMIX carr
 
 **Purchase and sales orders.** "+ Purchase order" (COMIX → supplier) and "+ Sales order" (customer → COMIX) on the Inventory page create open orders (`purchase_orders`/`sales_orders` + `_lines`). Stock moves only when a PO is marked **Received** (`receive_purchase_order`, stock up) or an SO **Delivered** (`deliver_sales_order`, stock down; refused if any SKU is short). Open orders show per SKU as "+X on order" / "Y committed". Endpoints: `GET /api/inventory/orders`, `POST /api/inventory/orders/{purchase|sales}`, `POST …/{id}/close`, `POST …/{id}/cancel`. Rep-app orders (`orders` table) are separate and don't move stock.
 
+### Deal Tracker (`/deal-tracker`, Deals)
+A kanban board for in-licensing deals: **one card per molecule** (unique), **columns = stages**. Ten stages, defined once in `deals.py` `STAGES` and served to the page: Sourced → Shortlisted → Partner engaged → Due diligence → Negotiating terms → Preparing submission → MOHAP registration → MOHAP pricing → Launch prep → Launched. Each stage has a **trigger** (the event that moves the deal on, e.g. "CDA / NDA signed") and the fields that trigger asks for.
+- **Never blocked:** a deal moves to any stage (drag the card, or "Move to …" in the drawer) with fields empty. Cards show the current stage's filled count and "N gaps earlier".
+- **Fields:** entered ones (text / date / longtext / choice) are stored in `deals.info` (JSON string, field key → value); `dirac` ones are computed on read from IQVIA + MOHAP/UPP (`lookup_molecule`, cached per process), the 15%-growth forecast, `pipeline_decisions` (decision + AI score), PO Tracker links (`supplier_order_molecules`) and `inventory_stock`.
+- Per deal: partner, marketing authorisation holder (COMIX / partner's local agent / not decided — varies per deal), status active / on hold / dropped + reason, notes. Stage and status changes are logged in `deal_events`.
+- **Documents are optional**, any stage: uploaded through the backend into the private Supabase Storage bucket `deal-documents`; listed in `deal_documents`; downloaded via `GET /api/deals/documents/{id}`. Max 20 MB.
+- Endpoints: `GET/POST /api/deals`, `GET/PATCH/DELETE /api/deals/{id}`, `POST /api/deals/{id}/move` `{stage}`, `POST /api/deals/{id}/documents` (form: stage, file), `GET/DELETE /api/deals/documents/{doc_id}`.
+- Reaching Launched does not add the molecule to My Portfolio automatically (yet).
+
 ### PO Tracker (`/po-tracker`, Operations)
 Tecnimede gives no API, so `scripts/sync_tecnimede.py` (`tecnimede.py`) drives a headless Chromium (Playwright): logs in with `TECNIMEDE_USERNAME`/`TECNIMEDE_PASSWORD`, reads the portal's **All Orders** list view (scrolling past the 50-row pages), and upserts every line into `supplier_order_lines` (`open` = not completed). Runs **every day at 09:00 Dubai** inside the backend (`tecnimede.daily_sync`, started in `lifespan`; off if the Tecnimede vars aren't set) and **on demand** from the PO Tracker's Sync button (`POST /api/po-tracker/sync`, one at a time; the latest attempt's failure shows on the page). By hand: `python scripts/sync_tecnimede.py` (`--show` to watch, `--dry-run` to only print; locally needs `playwright install chromium` once).
 
@@ -268,6 +278,8 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `purchase_orders` / `purchase_order_lines` | POs to suppliers; open → received (adds stock) or cancelled. Shown as PO-0001. |
 | `supplier_order_lines` | Order lines scraped from supplier portals (Tecnimede): COMIX PO ref, item, ordered/pending qty, status, factory confirmation date, `open` flag. |
 | `supplier_order_molecules` | PO Tracker order (COMIX PO number) → linked portfolio molecule. |
+| `deals` | Deal Tracker — one row per molecule: partner, MAH, stage, status + reason, entered fields (`info` JSON), notes. |
+| `deal_events` / `deal_documents` | Deal stage/status history; optional uploaded files (bytes in Storage bucket `deal-documents`). |
 | `sales_orders` / `sales_order_lines` | Sales orders from customers; open → delivered (removes stock) or cancelled. Shown as SO-0001. |
 
 **Field force / rep CRM** (RLS-locked: anon gets nothing; reps see their own territory; Dirac uses the service-role key):

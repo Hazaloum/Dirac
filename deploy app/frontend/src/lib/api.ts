@@ -168,6 +168,31 @@ export const api = {
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
 
+  // Deal Tracker
+  getDeals: () => req<DealBoard>("/api/deals"),
+  getDeal: (id: number) => req<DealDetail>(`/api/deals/${id}`),
+  createDeal: (body: { molecule: string; partner?: string; stage?: string }) =>
+    req<DealDetail>("/api/deals", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  updateDeal: (id: number, body: DealUpdate) =>
+    req<DealDetail>(`/api/deals/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  moveDeal: (id: number, stage: string) =>
+    req<DealDetail>(`/api/deals/${id}/move`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }),
+    }),
+  deleteDeal: (id: number) => req<{ ok: boolean }>(`/api/deals/${id}`, { method: "DELETE" }),
+  uploadDealDocument: (id: number, stage: string, file: File) => {
+    const form = new FormData();
+    form.append("stage", stage);
+    form.append("file", file);
+    return req<DealDetail>(`/api/deals/${id}/documents`, { method: "POST", body: form });
+  },
+  dealDocumentUrl: (docId: number) => `${API}/api/deals/documents/${docId}`,
+  deleteDealDocument: (docId: number) => req<{ ok: boolean }>(`/api/deals/documents/${docId}`, { method: "DELETE" }),
+
   // Purchase orders (stock in when received) and sales orders (stock out when delivered)
   getPoTracker: () => req<PoTracker>("/api/po-tracker"),
   setPoMolecule: (ref: string, molecule: string | null) =>
@@ -744,4 +769,61 @@ export interface FieldDashboard {
   samples_by_sku: { sku: string; quantity: number }[];
   orders_by_sku: { sku: string; quantity: number }[];
   overdue: { name: string; type: string; area: string | null; last_visited_at: string | null }[];
+}
+
+// ─── Deal Tracker ─────────────────────────────────────────────────────────────
+/** text | longtext | date | dirac (filled from Dirac's data) | "choice:A|B|C" */
+export interface DealField { key: string; label: string; type: string }
+
+export interface DealStage {
+  key: string;
+  name: string;
+  phase: string;
+  /** The event that moves a deal on; null for the last stage. */
+  trigger: string | null;
+  /** Typical document for this stage (all documents are optional). */
+  doc?: string;
+  fields: DealField[];
+}
+
+export type DealStatus = "active" | "on_hold" | "dropped";
+/** "" (not decided), "comix" or "partner_agent". */
+export type DealMah = "" | "comix" | "partner_agent";
+
+export interface Deal {
+  id: number;
+  molecule: string;
+  partner: string;
+  mah: DealMah;
+  stage: string;
+  stage_entered_at: string;
+  status: DealStatus;
+  status_reason: string;
+  area: string | null;
+  /** Filled field count per stage key. */
+  filled: Record<string, number>;
+  documents: number;
+  updated_at: string;
+}
+
+export interface DealDocument { id: number; stage: string; file_name: string; size_bytes: number; uploaded_at: string }
+export interface DealEvent { kind: "stage" | "status"; from_value: string | null; to_value: string | null; at: string }
+
+export interface DealDetail extends Deal {
+  info: Record<string, string>;
+  dirac: Record<string, string | null>;
+  notes: string;
+  document_list: DealDocument[];
+  events: DealEvent[];
+}
+
+export interface DealBoard { stages: DealStage[]; reasons: string[]; deals: Deal[] }
+
+export interface DealUpdate {
+  partner?: string;
+  mah?: DealMah;
+  status?: DealStatus;
+  status_reason?: string;
+  notes?: string;
+  info?: Record<string, string>;
 }

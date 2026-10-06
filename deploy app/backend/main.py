@@ -836,6 +836,119 @@ def remove_pipeline_decision(molecule: str):
     return {"ok": True}
 
 
+# ─── Deal Tracker ─────────────────────────────────────────────────────────────
+class DealCreateRequest(BaseModel):
+    molecule: str
+    partner:  str = ""
+    stage:    str = "sourced"
+
+
+class DealUpdateRequest(BaseModel):
+    partner:       Optional[str] = None
+    mah:           Optional[str] = None
+    status:        Optional[str] = None
+    status_reason: Optional[str] = None
+    notes:         Optional[str] = None
+    info:          Optional[dict[str, Optional[str]]] = None
+
+
+class DealMoveRequest(BaseModel):
+    stage: str
+
+
+def _deal_or_404(deal_id: int) -> dict:
+    from deals import get_deal
+    deal = get_deal(deal_id, _state["dfs"])
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    return deal
+
+
+@app.get("/api/deals")
+def list_deals():
+    from deals import list_deals as _list
+    return _list(_state["dfs"])
+
+
+@app.post("/api/deals")
+def create_deal(body: DealCreateRequest):
+    from deals import create_deal as _create
+    try:
+        row = _create(body.molecule, body.partner, body.stage)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _deal_or_404(row["id"])
+
+
+@app.get("/api/deals/{deal_id}")
+def get_deal(deal_id: int):
+    return _deal_or_404(deal_id)
+
+
+@app.patch("/api/deals/{deal_id}")
+def update_deal(deal_id: int, body: DealUpdateRequest):
+    from deals import update_deal as _update
+    try:
+        if _update(deal_id, body.model_dump(exclude_unset=True)) is None:
+            raise HTTPException(status_code=404, detail="Deal not found")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _deal_or_404(deal_id)
+
+
+@app.post("/api/deals/{deal_id}/move")
+def move_deal(deal_id: int, body: DealMoveRequest):
+    from deals import move_deal as _move
+    try:
+        if _move(deal_id, body.stage) is None:
+            raise HTTPException(status_code=404, detail="Deal not found")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _deal_or_404(deal_id)
+
+
+@app.delete("/api/deals/{deal_id}")
+def delete_deal(deal_id: int):
+    from deals import delete_deal as _delete
+    if not _delete(deal_id):
+        raise HTTPException(status_code=404, detail="Deal not found")
+    return {"ok": True}
+
+
+@app.post("/api/deals/{deal_id}/documents")
+async def upload_deal_document(deal_id: int, stage: str = Form(...), file: UploadFile = File(...)):
+    from deals import add_document
+    data = await file.read()
+    try:
+        add_document(deal_id, stage, file.filename or "file", file.content_type or "", data)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _deal_or_404(deal_id)
+
+
+@app.get("/api/deals/documents/{doc_id}")
+def download_deal_document(doc_id: int):
+    from urllib.parse import quote
+    from deals import read_document
+    found = read_document(doc_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc, data = found
+    return Response(content=data, media_type=doc["content_type"], headers={
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc['file_name'])}",
+    })
+
+
+@app.delete("/api/deals/documents/{doc_id}")
+def delete_deal_document(doc_id: int):
+    from deals import delete_document
+    if not delete_document(doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"ok": True}
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 @app.get("/")
 def health():
