@@ -6,7 +6,6 @@ import {
   BookOpenText,
   BriefcaseBusiness,
   ChartNoAxesCombined,
-  GitCompareArrows,
   Handshake,
   Layers3,
   Radar,
@@ -22,7 +21,6 @@ const groups = [
     pages: [
       { name: "Just Search", href: "/search", icon: Search },
       { name: "Catalogues", href: "/analysis", icon: BookOpenText },
-      { name: "Pipeline", href: "/pipeline", icon: GitCompareArrows },
       { name: "Deal Tracker", href: "/deal-tracker", icon: Handshake },
       { name: "Forecast", href: "/forecast", icon: ChartNoAxesCombined },
       { name: "Market Discovery", href: "/market-discovery", icon: Layers3 },

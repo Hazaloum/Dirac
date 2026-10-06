@@ -240,7 +240,7 @@ A kanban board for in-licensing deals: **one card per molecule** (unique), **col
 - Per deal: partner, marketing authorisation holder (COMIX / partner's local agent / not decided — varies per deal), status active / on hold / dropped + reason, notes. Stage and status changes are logged in `deal_events`.
 - **Documents are optional**, any stage: uploaded through the backend into the private Supabase Storage bucket `deal-documents`; listed in `deal_documents`; downloaded via `GET /api/deals/documents/{id}`. Max 20 MB.
 - Endpoints: `GET/POST /api/deals`, `GET/PATCH/DELETE /api/deals/{id}`, `POST /api/deals/{id}/move` `{stage}`, `POST /api/deals/{id}/documents` (form: stage, file), `GET/DELETE /api/deals/documents/{doc_id}`.
-- **✓ on a catalogue → deal:** shortlisting a molecule (Catalogues ✓ / Pipeline "Yes", `PUT /api/pipeline`) opens its deal in Sourced via `deals.ensure_deal`, with the catalogue's company as partner. An existing deal is left where it is; un-ticking never removes a deal. `scripts/backfill_deals.py` opens deals for molecules ticked before this existed.
+- **✓ on a catalogue → deal:** shortlisting a molecule (Catalogues ✓, saved as a `pipeline_decisions` "yes" via `PUT /api/pipeline`) opens its deal in Sourced via `deals.ensure_deal`, with the catalogue's company as partner. An existing deal is left where it is; un-ticking never removes a deal. `scripts/backfill_deals.py` opens deals for molecules ticked before this existed.
 - **Launched → My Portfolio:** moving a deal to Launched (`deals.add_to_portfolio`) re-saves My Portfolio with the molecule added (via `enrich_molecules`, which also clears the portfolio's AI report, like any portfolio edit). Molecules not in IQVIA can't be added; already-present ones are left alone; moving back out of Launched does not remove it. The page shows the outcome.
 
 ### PO Tracker (`/po-tracker`, Operations)
@@ -274,7 +274,7 @@ Everything lives in the Supabase project **COMIX OS**, `public` schema. All tabl
 | `my_portfolio` | Single row (id=1) — company name, result JSON, report text. Upserted on save. |
 | `outreach_runs` | One row per outreach run — country, model, date, company/contact counts. |
 | `outreach_companies` | One row per company per run — overview, UAE MOHAP/UPP status, agents, contacts JSON. |
-| `pipeline_decisions` | Yes/Maybe/No per molecule across catalogues. |
+| `pipeline_decisions` | Yes/Maybe/No (✓ / ? / ✗) per molecule across catalogues — restores ticks on Catalogues and feeds the Deal Tracker. There is no Pipeline page any more (the Deal Tracker replaced it). |
 | `inventory_stock` | One row per carried SKU — pack key, molecule, strength, form, pack size, stock quantity. |
 | `purchase_orders` / `purchase_order_lines` | POs to suppliers; open → received (adds stock) or cancelled. Shown as PO-0001. |
 | `supplier_order_lines` | Order lines scraped from supplier portals (Tecnimede): COMIX PO ref, item, ordered/pending qty, status, factory confirmation date, `open` flag. |

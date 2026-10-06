@@ -9,7 +9,7 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   FlaskConical,
-  GitCompareArrows,
+  Handshake,
   Loader2,
   Radar,
   Search as SearchIcon,
@@ -23,7 +23,7 @@ import { api, type MoleculeCard } from "@/lib/api";
 
 const shortcuts = [
   { href: "/analysis", icon: BookOpenText, title: "Evaluate a Catalogue", blurb: "Upload a supplier list and score every molecule" },
-  { href: "/pipeline", icon: GitCompareArrows, title: "Compare a Pipeline", blurb: "Stack shortlisted molecules side by side" },
+  { href: "/deal-tracker", icon: Handshake, title: "Track Deals", blurb: "Every shortlisted molecule, stage by stage" },
   { href: "/forecast", icon: ChartNoAxesCombined, title: "Build a Forecast", blurb: "Y1–Y3 units and revenue per pack" },
   { href: "/portfolio", icon: BriefcaseBusiness, title: "Evaluate a Portfolio", blurb: "Open and manage your saved portfolio" },
   { href: "/outreach", icon: Radar, title: "Find Manufacturers", blurb: "Source partners and BD contacts by country" },
