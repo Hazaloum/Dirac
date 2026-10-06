@@ -1,5 +1,8 @@
 import json
 import unittest
+from unittest import mock
+
+import pandas as pd
 
 import deals
 
@@ -60,6 +63,39 @@ class DealsTest(unittest.TestCase):
         self.assertEqual(filled["due_diligence"], 2)   # ctd + forecast
         self.assertEqual(filled["launch_prep"], 1)     # first PO, no stock yet
         self.assertEqual(filled["launched"], 0)
+
+
+class AddToPortfolioTest(unittest.TestCase):
+    DFS = {"iqvia": pd.DataFrame({"Molecule Combination": ["LACOSAMIDE", "PREGABALIN"]})}
+    PORTFOLIO = {"company_name": "COMIX", "result": {"molecules": [{"molecule": "PREGABALIN"}]}}
+
+    def run_add(self, molecule, portfolio):
+        with mock.patch("store.get_my_portfolio", return_value=portfolio), \
+             mock.patch("store.save_my_portfolio") as save, \
+             mock.patch("agent_runner.enrich_molecules", side_effect=lambda mols, co, dfs: {"molecules": mols}) as enrich, \
+             mock.patch("deals.get_client"):
+            return deals.add_to_portfolio(1, molecule, self.DFS), save, enrich
+
+    def test_adds_to_existing_portfolio(self):
+        result, save, enrich = self.run_add("Lacosamide", self.PORTFOLIO)
+        self.assertEqual(result, "added")
+        enrich.assert_called_once_with(["PREGABALIN", "Lacosamide"], "COMIX", self.DFS)
+        save.assert_called_once_with("COMIX", {"molecules": ["PREGABALIN", "Lacosamide"]})
+
+    def test_starts_portfolio_when_empty(self):
+        result, save, _ = self.run_add("LACOSAMIDE", None)
+        self.assertEqual(result, "added")
+        save.assert_called_once_with("My Portfolio", {"molecules": ["LACOSAMIDE"]})
+
+    def test_already_in_portfolio(self):
+        result, save, _ = self.run_add("pregabalin", self.PORTFOLIO)
+        self.assertEqual(result, "already")
+        save.assert_not_called()
+
+    def test_not_in_iqvia(self):
+        result, save, _ = self.run_add("NEWMOL", self.PORTFOLIO)
+        self.assertEqual(result, "not_in_iqvia")
+        save.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -325,6 +325,27 @@ def move_deal(deal_id: int, stage: str) -> dict | None:
     return updated
 
 
+def add_to_portfolio(deal_id: int, molecule: str, dfs: dict) -> str:
+    """Add a launched molecule to My Portfolio: 'added', 'already' or 'not_in_iqvia'.
+
+    My Portfolio is built from IQVIA (enrich_molecules drops molecules it can't
+    match), so a molecule outside IQVIA can't be added. Re-saving the portfolio
+    clears its AI report, as any portfolio edit does.
+    """
+    from agent_runner import enrich_molecules
+    from store import get_my_portfolio, save_my_portfolio
+    portfolio = get_my_portfolio()
+    existing = [c["molecule"] for c in (portfolio or {}).get("result", {}).get("molecules", []) if c.get("molecule")]
+    if molecule.upper() in {m.upper() for m in existing}:
+        return "already"
+    if molecule.upper() not in set(dfs["iqvia"]["Molecule Combination"].str.upper()):
+        return "not_in_iqvia"
+    company = (portfolio or {}).get("company_name") or "My Portfolio"
+    save_my_portfolio(company, enrich_molecules(existing + [molecule], company, dfs))
+    get_client().table("deal_events").insert({"deal_id": deal_id, "kind": "portfolio", "to_value": "added"}).execute()
+    return "added"
+
+
 def delete_deal(deal_id: int) -> bool:
     client = get_client()
     paths = [d["storage_path"] for d in

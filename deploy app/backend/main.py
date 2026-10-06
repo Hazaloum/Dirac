@@ -898,13 +898,21 @@ def update_deal(deal_id: int, body: DealUpdateRequest):
 
 @app.post("/api/deals/{deal_id}/move")
 def move_deal(deal_id: int, body: DealMoveRequest):
-    from deals import move_deal as _move
+    """Move a deal; reaching Launched also adds the molecule to My Portfolio."""
+    from deals import add_to_portfolio, move_deal as _move
     try:
-        if _move(deal_id, body.stage) is None:
+        row = _move(deal_id, body.stage)
+        if row is None:
             raise HTTPException(status_code=404, detail="Deal not found")
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    return _deal_or_404(deal_id)
+    portfolio = None
+    if body.stage == "launched":
+        try:
+            portfolio = add_to_portfolio(deal_id, row["molecule"], _state["dfs"])
+        except Exception as e:
+            portfolio = f"failed: {e}"
+    return {**_deal_or_404(deal_id), "portfolio": portfolio}
 
 
 @app.delete("/api/deals/{deal_id}")

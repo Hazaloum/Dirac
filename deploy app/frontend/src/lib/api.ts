@@ -180,7 +180,7 @@ export const api = {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     }),
   moveDeal: (id: number, stage: string) =>
-    req<DealDetail>(`/api/deals/${id}/move`, {
+    req<DealDetail & { portfolio: DealPortfolioResult }>(`/api/deals/${id}/move`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }),
     }),
   deleteDeal: (id: number) => req<{ ok: boolean }>(`/api/deals/${id}`, { method: "DELETE" }),
@@ -807,7 +807,9 @@ export interface Deal {
 }
 
 export interface DealDocument { id: number; stage: string; file_name: string; size_bytes: number; uploaded_at: string }
-export interface DealEvent { kind: "stage" | "status"; from_value: string | null; to_value: string | null; at: string }
+/** Moving to Launched adds the molecule to My Portfolio: "added" | "already" | "not_in_iqvia" | "failed: …"; null otherwise. */
+export type DealPortfolioResult = string | null;
+export interface DealEvent { kind: "stage" | "status" | "portfolio"; from_value: string | null; to_value: string | null; at: string }
 
 export interface DealDetail extends Deal {
   info: Record<string, string>;

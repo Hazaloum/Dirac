@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Download, Handshake, Loader2, Paperclip, Plus, Trash2, X } from "lucide-react";
 import {
-  api, type Deal, type DealBoard, type DealDetail, type DealField, type DealMah, type DealStage, type DealStatus,
+  api, type Deal, type DealBoard, type DealDetail, type DealField, type DealMah, type DealPortfolioResult, type DealStage, type DealStatus,
 } from "@/lib/api";
 import { ddmmyy } from "@/lib/dates";
 
@@ -296,7 +296,7 @@ function DealDrawer({ deal, stages, reasons, onChange, onClose, onDeleted }: {
           {[...deal.events].reverse().map((e, i) => (
             <span key={i}>
               <span className="tabular-nums text-surface-400">{ddmmyy(e.at)}</span>{" "}
-              {e.kind === "stage"
+              {e.kind === "portfolio" ? "Added to My Portfolio" : e.kind === "stage"
                 ? e.from_value ? `Moved from ${stageName(e.from_value)} to ${stageName(e.to_value)}` : `Created in ${stageName(e.to_value)}`
                 : `Status: ${STATUS_LABEL[e.to_value as DealStatus] ?? e.to_value}`}
             </span>
@@ -367,6 +367,14 @@ function NewDeal({ molecules, stages, onCreated, onCancel }: {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+function portfolioNotice(molecule: string, result: string) {
+  if (result === "added") return { ok: true, text: `${molecule} is launched and has been added to My Portfolio.` };
+  if (result === "already") return { ok: true, text: `${molecule} is launched. It was already in My Portfolio.` };
+  if (result === "not_in_iqvia")
+    return { ok: false, text: `${molecule} is launched, but My Portfolio only holds IQVIA molecules, so it wasn't added.` };
+  return { ok: false, text: `${molecule} is launched, but it couldn't be added to My Portfolio (${result.replace(/^failed: /, "")}).` };
+}
+
 type Filter = "all" | DealStatus;
 
 export default function DealTrackerPage() {
@@ -377,6 +385,7 @@ export default function DealTrackerPage() {
   const [molecules, setMolecules] = useState<string[]>([]);
   const [detail, setDetail] = useState<DealDetail | null>(null);
   const [dropOn, setDropOn] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     api.getDeals().then(setBoard).catch((e) => setError(errorText(e)));
@@ -389,7 +398,8 @@ export default function DealTrackerPage() {
   }, []);
 
   /** Put a deal's latest state on the board (and in the drawer if it's open). */
-  function apply(d: DealDetail) {
+  function apply(d: DealDetail & { portfolio?: DealPortfolioResult }) {
+    if (d.portfolio) setNotice(portfolioNotice(title(d.molecule), d.portfolio));
     setBoard((b) => b && {
       ...b,
       deals: b.deals.some((x) => x.id === d.id) ? b.deals.map((x) => (x.id === d.id ? d : x)) : [...b.deals, d],
@@ -441,6 +451,12 @@ export default function DealTrackerPage() {
       </div>
 
       {error && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {notice && (
+        <div role="status" className={`mb-5 flex items-start justify-between gap-3 rounded-lg p-3 text-sm ${notice.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+          <span>{notice.text}</span>
+          <button onClick={() => setNotice(null)} aria-label="Dismiss"><X className="h-4 w-4" /></button>
+        </div>
+      )}
       {adding && board && (
         <NewDeal molecules={molecules} stages={stages} onCancel={() => setAdding(false)}
           onCreated={(d) => { apply(d); setAdding(false); setDetail(d); }} />
