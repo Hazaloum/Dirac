@@ -72,8 +72,9 @@ export function PortfolioView({
   scoringModel: string;
   onScoringModelChange: (model: string) => void;
   onGenerateReport: () => void;
-  decisionFor: (molecule: string) => Decision | null;
-  onDecision: (molecule: string, decision: Decision) => void;
+  /** Omit both to hide the shortlist / disqualify buttons (My Portfolio). */
+  decisionFor?: (molecule: string) => Decision | null;
+  onDecision?: (molecule: string, decision: Decision) => void;
   /** Show a third "Maybe" decision button (Catalogues pipeline). */
   allowMaybe?: boolean;
   onMoleculeOpen: (molecule: MoleculeCard) => void;
@@ -85,9 +86,9 @@ export function PortfolioView({
   const [viewMode,  setViewMode]  = useState<ViewMode>("grid");
   const [reportTab, setReportTab] = useState<ReportTab>("report");
 
-  const isShortlisted  = (mol: string) => decisionFor(mol) === "shortlisted";
-  const isMaybe        = (mol: string) => decisionFor(mol) === "maybe";
-  const isDisqualified = (mol: string) => decisionFor(mol) === "disqualified";
+  const isShortlisted  = (mol: string) => decisionFor?.(mol) === "shortlisted";
+  const isMaybe        = (mol: string) => decisionFor?.(mol) === "maybe";
+  const isDisqualified = (mol: string) => decisionFor?.(mol) === "disqualified";
   const top5Molecules  = topFiveMolecules(cards, reportDone);
 
   return (
@@ -221,6 +222,7 @@ export function PortfolioView({
                             className="flex items-stretch gap-2 opacity-0 animate-slide-up"
                             style={{ animationDelay: `${(groupIndex * 5 + idx) * 0.02}s` }}
                           >
+                            {onDecision && (
                             <div className="flex flex-col gap-1 justify-center">
                               <button
                                 onClick={() => onDecision(mol.molecule, "shortlisted")}
@@ -246,6 +248,7 @@ export function PortfolioView({
                                 <XCircle className={`w-5 h-5 ${disqualified ? "fill-rose-700/10" : ""}`} />
                               </button>
                             </div>
+                            )}
                             <button
                               onClick={() => onMoleculeOpen(cards.find(s => s.molecule === mol.molecule) ?? mol)}
                               className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
@@ -350,6 +353,7 @@ export function PortfolioView({
                         const cardBorder   = shortlisted ? "border-emerald-800 bg-emerald-50" : maybe ? "border-amber-300 bg-amber-50/60" : disqualified ? "border-surface-300 bg-surface-50 opacity-60" : "border-surface-200 bg-white shadow-sm hover:bg-white hover:border-pharma-200";
                         return (
                           <div key={mol.molecule} className="flex items-stretch gap-2 opacity-0 animate-slide-up" style={{ animationDelay: `${(groupOffset * 5 + idx) * 0.02}s` }}>
+                            {onDecision && (
                             <div className="flex flex-col gap-1 justify-center">
                               <button onClick={() => onDecision(mol.molecule, "shortlisted")} className={`p-1.5 rounded-lg transition-all ${shortlisted ? "text-emerald-700 bg-emerald-50" : "text-surface-500 hover:text-emerald-700 hover:bg-emerald-50"}`}>
                                 <CheckCircle2 className="w-5 h-5" />
@@ -367,6 +371,7 @@ export function PortfolioView({
                                 <XCircle className="w-5 h-5" />
                               </button>
                             </div>
+                            )}
                             <button
                               onClick={() => onMoleculeOpen(cards.find(s => s.molecule === mol.molecule) ?? mol)}
                               className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}

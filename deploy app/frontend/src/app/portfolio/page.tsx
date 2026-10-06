@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Briefcase, Plus, Loader2, Trash2, Pencil } from "lucide-react";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type MyPortfolio } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { PortfolioView, topFiveMolecules, type Decision } from "@/components/PortfolioView";
+import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 import { PortfolioBuilder } from "@/components/PortfolioBuilder";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,15 +57,9 @@ export default function MyPortfolioPage() {
   const [reportDone,      setReportDone]      = useState(false);
   const [scoredMolecules, setScoredMolecules] = useState<Record<string, { score: number; reasoning: string }>>({});
   const [drawerMolecule,  setDrawerMolecule]  = useState<MolCardType | null>(null);
-  const [shortlistStatus, setShortlistStatus] = useState<Record<string, Decision | null>>({});
 
   const abortRef         = useRef<AbortController | null>(null);
   const reportSavedRef   = useRef(false);
-
-  const toggleShortlist = (mol: string, status: Decision) => {
-    const key = mol.toUpperCase();
-    setShortlistStatus(prev => ({ ...prev, [key]: prev[key] === status ? null : status }));
-  };
 
   // ── Load molecule list and saved portfolio on mount ──
   useEffect(() => {
@@ -102,7 +96,6 @@ export default function MyPortfolioPage() {
       setReportText("");
       setReportDone(false);
       setScoredMolecules({});
-      setShortlistStatus({});
       reportSavedRef.current = false;
       setSavedAt(new Date().toISOString().slice(0, 16).replace("T", " "));
       setPhase("portfolio");
@@ -152,7 +145,6 @@ export default function MyPortfolioPage() {
     setReportText("");
     setReportDone(false);
     setScoredMolecules({});
-    setShortlistStatus({});
     setSaveError("");
     setPhase("empty");
     reportSavedRef.current = false;
@@ -264,8 +256,6 @@ export default function MyPortfolioPage() {
           scoringModel={scoringModel}
           onScoringModelChange={setScoringModel}
           onGenerateReport={runReport}
-          decisionFor={(mol) => shortlistStatus[mol.toUpperCase()] ?? null}
-          onDecision={toggleShortlist}
           onMoleculeOpen={setDrawerMolecule}
         />
       )}
