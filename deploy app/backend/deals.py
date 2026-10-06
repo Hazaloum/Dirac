@@ -24,19 +24,21 @@ MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 
 # (key, label, type, source). type: text | longtext | date | choice:<a>|<b>… | dirac
 STAGES: list[dict] = [
-    {"key": "sourced", "name": "Sourced", "phase": "Find", "trigger": "Passes the market screen", "fields": [
+    {"key": "shortlisted", "name": "Shortlisted", "phase": "Find", "trigger": "Forecast sent to the company", "doc": "Forecast", "fields": [
         ("market_value", "IQVIA market value", "dirac"),
         ("cagr", "Value / unit CAGR", "dirac"),
         ("competitors", "Competitor count", "dirac"),
         ("private_lpo", "Private / LPO split", "dirac"),
         ("registrations", "MOHAP / UPP registrations", "dirac"),
         ("ai_score", "AI score", "dirac"),
-        ("pipeline_decision", "Pipeline decision", "dirac"),
+        ("forecast", "Y1–Y3 forecast", "dirac"),
+        ("forecast_sent_date", "Forecast sent on", "date"),
+        ("bd_contact", "Sent to (BD contact)", "text"),
     ]},
-    {"key": "shortlisted", "name": "Shortlisted", "phase": "Find", "trigger": "A manufacturer replies with interest", "fields": [
-        ("partner_country", "Manufacturer country", "text"),
-        ("bd_contact", "BD contact", "text"),
-        ("first_reply_date", "Date of first reply", "date"),
+    {"key": "awaiting_response", "name": "Awaiting response", "phase": "Find", "trigger": "The company replies", "fields": [
+        ("first_reply_date", "Reply date", "date"),
+        ("response", "Their answer", "choice:Interested|Wants changes|Declined"),
+        ("response_notes", "What they came back with", "longtext"),
         ("reference_markets", "Registered in reference markets", "text"),
         ("existing_uae_partner", "Existing UAE partner?", "text"),
     ]},
@@ -51,7 +53,6 @@ STAGES: list[dict] = [
         ("stability_ivb", "Zone IVb stability (30°C / 75% RH)", "choice:Yes|Partial|No"),
         ("bioequivalence", "Bioequivalence study vs reference", "text"),
         ("api_source", "API source / DMF", "text"),
-        ("forecast", "Y1–Y3 forecast", "dirac"),
     ]},
     {"key": "terms", "name": "Negotiating terms", "phase": "Agree", "trigger": "Licence & supply agreement signed", "doc": "Agreement", "fields": [
         ("transfer_price", "Transfer price per pack", "text"),
@@ -86,6 +87,8 @@ STAGES: list[dict] = [
     {"key": "launched", "name": "Launched", "phase": "Sell", "trigger": None, "fields": []},
 ]
 STAGE_KEYS = [s["key"] for s in STAGES]
+# Stages that were removed, and where their deals now sit.
+LEGACY_STAGES = {"sourced": "shortlisted"}
 ENTERED_KEYS = {f[0] for s in STAGES for f in s["fields"] if f[2] != "dirac"}
 STATUSES = {"active", "on_hold", "dropped"}
 MAH_OPTIONS = {"", "comix", "partner_agent"}
@@ -179,8 +182,7 @@ def dirac_values(molecule: str, dfs: dict, live: dict) -> dict:
         "private_lpo": private_lpo,
         "registrations": f"{f.get('mohap_manufacturers', 0)} MOHAP / {f.get('upp_manufacturers', 0)} UPP",
         "ai_score": f"{snapshot['ai_score']}/10" if snapshot.get("ai_score") is not None else None,
-        "pipeline_decision": pipe["decision"].capitalize() if pipe else None,
-        "forecast": (" · ".join(_aed(forecast["summary"][f"total_y{y}_revenue"]) for y in (1, 2, 3)) + " (15% growth)")
+                "forecast": (" · ".join(_aed(forecast["summary"][f"total_y{y}_revenue"]) for y in (1, 2, 3)) + " (15% growth)")
                     if forecast else None,
         "forecast_retail": retail,
         "first_po": ", ".join(sorted(refs)) if refs else None,
@@ -216,17 +218,23 @@ def _doc_counts() -> dict[int, int]:
     return counts
 
 
+def _normalise(row: dict) -> dict:
+    """Deals left in a removed stage show in its replacement (until they're next moved)."""
+    row["stage"] = LEGACY_STAGES.get(row["stage"], row["stage"])
+    return row
+
+
 def list_deals(dfs: dict) -> dict:
     live = _live_facts()
     counts = _doc_counts()
-    rows = fetch_all("deals")
+    rows = [_normalise(r) for r in fetch_all("deals")]
     return {"stages": stages_config(), "reasons": REASONS,
             "deals": [_summary(r, dfs, live, counts) for r in rows]}
 
 
 def _row(deal_id: int) -> dict | None:
     rows = get_client().table("deals").select("*").eq("id", deal_id).execute().data
-    return rows[0] if rows else None
+    return _normalise(rows[0]) if rows else None
 
 
 def get_deal(deal_id: int, dfs: dict) -> dict | None:
@@ -239,6 +247,10 @@ def get_deal(deal_id: int, dfs: dict) -> dict | None:
             .eq("deal_id", deal_id).order("uploaded_at").execute().data)
     events = (client.table("deal_events").select("kind, from_value, to_value, at")
               .eq("deal_id", deal_id).order("at").execute().data)
+    for e in events:
+        if e["kind"] == "stage":
+            e["from_value"] = LEGACY_STAGES.get(e["from_value"], e["from_value"])
+            e["to_value"] = LEGACY_STAGES.get(e["to_value"], e["to_value"])
     deal = _summary(row, dfs, live, {deal_id: len(docs)})
     dirac = dirac_values(row["molecule"], dfs, live)
     dirac.pop("_area")

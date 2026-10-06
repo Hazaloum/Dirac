@@ -33,7 +33,12 @@ class DealsTest(unittest.TestCase):
         self.assertEqual(len(deals.STAGE_KEYS), len(set(deals.STAGE_KEYS)))
         keys = [f[0] for s in deals.STAGES for f in s["fields"]]
         self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(deals.STAGE_KEYS[0], "shortlisted")
         self.assertEqual(deals.STAGE_KEYS[-1], "launched")
+
+    def test_removed_sourced_stage_shows_as_shortlisted(self):
+        self.assertEqual(deals._normalise({"stage": "sourced"})["stage"], "shortlisted")
+        self.assertEqual(deals._normalise({"stage": "terms"})["stage"], "terms")
 
     def test_dirac_values_from_market_data(self):
         v = deals.dirac_values("Lacosamide", {}, LIVE)
@@ -42,7 +47,6 @@ class DealsTest(unittest.TestCase):
         self.assertEqual(v["private_lpo"], "71% private / 29% LPO")
         self.assertEqual(v["registrations"], "3 MOHAP / 2 UPP")
         self.assertEqual(v["ai_score"], "8/10")
-        self.assertEqual(v["pipeline_decision"], "Yes")
         self.assertEqual(v["forecast_retail"], "AED 210.50 (100MG 56)")  # top pack by units
         self.assertTrue(v["forecast"].startswith("AED 450.0K · AED 517.5K · AED 595.1K"))
         self.assertEqual(v["first_po"], "P-036/2026")
@@ -58,9 +62,10 @@ class DealsTest(unittest.TestCase):
     def test_filled_counts_entered_and_dirac_fields(self):
         dirac = deals.dirac_values("LACOSAMIDE", {}, LIVE)
         filled = deals._filled({"cda_signed": "2026-09-01", "ctd_modules": "1–5"}, dirac)
-        self.assertEqual(filled["sourced"], 7)
+        self.assertEqual(filled["shortlisted"], 7)    # market facts, AI score, forecast
+        self.assertEqual(filled["awaiting_response"], 0)
         self.assertEqual(filled["engaged"], 1)
-        self.assertEqual(filled["due_diligence"], 2)   # ctd + forecast
+        self.assertEqual(filled["due_diligence"], 1)
         self.assertEqual(filled["launch_prep"], 1)     # first PO, no stock yet
         self.assertEqual(filled["launched"], 0)
 
@@ -104,11 +109,11 @@ class EnsureDealTest(unittest.TestCase):
         client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = existing
         return client
 
-    def test_creates_deal_in_sourced(self):
+    def test_creates_deal_in_shortlisted(self):
         with mock.patch("deals.get_client", return_value=self.client_with([])), \
              mock.patch("deals.create_deal") as create:
             self.assertTrue(deals.ensure_deal(" lacosamide ", "Tecnimede"))
-        create.assert_called_once_with("LACOSAMIDE", "Tecnimede", "sourced")
+        create.assert_called_once_with("LACOSAMIDE", "Tecnimede", "shortlisted")
 
     def test_leaves_existing_deal_alone(self):
         with mock.patch("deals.get_client", return_value=self.client_with([{"id": 4}])), \

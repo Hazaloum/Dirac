@@ -850,7 +850,7 @@ def remove_pipeline_decision(molecule: str):
 class DealCreateRequest(BaseModel):
     molecule: str
     partner:  str = ""
-    stage:    str = "sourced"
+    stage:    str = "shortlisted"
 
 
 class DealUpdateRequest(BaseModel):
