@@ -260,6 +260,29 @@ def create_deal(molecule: str, partner: str, stage: str) -> dict:
     return row
 
 
+def ensure_deal(molecule: str, partner: str = "") -> bool:
+    """Shortlisting (✓) a molecule opens its deal in Sourced. True if a deal was created.
+
+    An existing deal is left as it is, wherever it is on the board; un-ticking
+    never removes a deal.
+    """
+    molecule = molecule.strip().upper()
+    if not molecule or get_client().table("deals").select("id").eq("molecule", molecule).execute().data:
+        return False
+    try:
+        create_deal(molecule, partner, STAGE_KEYS[0])
+    except ValueError:   # created by a concurrent request
+        return False
+    return True
+
+
+def backfill_from_pipeline() -> list[str]:
+    """Open deals for molecules ticked (Pipeline "yes") before ticking created deals."""
+    rows = get_client().table("pipeline_decisions").select("molecule, source_name").eq("decision", "yes").execute().data
+    return [r["molecule"] for r in rows
+            if ensure_deal(r["molecule"], "" if (r["source_name"] or "") in {"Catalogue", "Portfolio"} else r["source_name"] or "")]
+
+
 def update_deal(deal_id: int, changes: dict) -> dict | None:
     """Apply partner / mah / status / reason / notes / info changes. Info values merge; '' clears one."""
     row = _row(deal_id)

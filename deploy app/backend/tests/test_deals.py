@@ -98,5 +98,24 @@ class AddToPortfolioTest(unittest.TestCase):
         save.assert_not_called()
 
 
+class EnsureDealTest(unittest.TestCase):
+    def client_with(self, existing):
+        client = mock.MagicMock()
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = existing
+        return client
+
+    def test_creates_deal_in_sourced(self):
+        with mock.patch("deals.get_client", return_value=self.client_with([])), \
+             mock.patch("deals.create_deal") as create:
+            self.assertTrue(deals.ensure_deal(" lacosamide ", "Tecnimede"))
+        create.assert_called_once_with("LACOSAMIDE", "Tecnimede", "sourced")
+
+    def test_leaves_existing_deal_alone(self):
+        with mock.patch("deals.get_client", return_value=self.client_with([{"id": 4}])), \
+             mock.patch("deals.create_deal") as create:
+            self.assertFalse(deals.ensure_deal("LACOSAMIDE"))
+        create.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

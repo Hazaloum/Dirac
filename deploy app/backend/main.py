@@ -821,12 +821,22 @@ def set_pipeline_decision(body: PipelineDecisionRequest):
     if not body.molecule.strip():
         raise HTTPException(status_code=422, detail="Molecule is required")
     from store import save_pipeline_decision
-    return save_pipeline_decision(
+    saved = save_pipeline_decision(
         molecule=body.molecule.strip(),
         decision=body.decision,
         source_name=body.source_name.strip(),
         snapshot=body.snapshot,
     )
+    # A shortlisted (✓) molecule gets a Deal Tracker card; the catalogue's company is the partner.
+    saved["deal_created"] = False
+    if body.decision == "yes":
+        from deals import ensure_deal
+        try:
+            partner = body.source_name.strip()
+            saved["deal_created"] = ensure_deal(body.molecule, "" if partner in {"Catalogue", "Portfolio"} else partner)
+        except Exception as e:
+            print(f"Deal Tracker: couldn't open a deal for {body.molecule}: {e}")
+    return saved
 
 
 @app.delete("/api/pipeline/{molecule}")

@@ -240,6 +240,7 @@ A kanban board for in-licensing deals: **one card per molecule** (unique), **col
 - Per deal: partner, marketing authorisation holder (COMIX / partner's local agent / not decided — varies per deal), status active / on hold / dropped + reason, notes. Stage and status changes are logged in `deal_events`.
 - **Documents are optional**, any stage: uploaded through the backend into the private Supabase Storage bucket `deal-documents`; listed in `deal_documents`; downloaded via `GET /api/deals/documents/{id}`. Max 20 MB.
 - Endpoints: `GET/POST /api/deals`, `GET/PATCH/DELETE /api/deals/{id}`, `POST /api/deals/{id}/move` `{stage}`, `POST /api/deals/{id}/documents` (form: stage, file), `GET/DELETE /api/deals/documents/{doc_id}`.
+- **✓ on a catalogue → deal:** shortlisting a molecule (Catalogues ✓ / Pipeline "Yes", `PUT /api/pipeline`) opens its deal in Sourced via `deals.ensure_deal`, with the catalogue's company as partner. An existing deal is left where it is; un-ticking never removes a deal. `scripts/backfill_deals.py` opens deals for molecules ticked before this existed.
 - **Launched → My Portfolio:** moving a deal to Launched (`deals.add_to_portfolio`) re-saves My Portfolio with the molecule added (via `enrich_molecules`, which also clears the portfolio's AI report, like any portfolio edit). Molecules not in IQVIA can't be added; already-present ones are left alone; moving back out of Launched does not remove it. The page shows the outcome.
 
 ### PO Tracker (`/po-tracker`, Operations)
