@@ -168,6 +168,10 @@ export const api = {
     body: JSON.stringify({ stock_quantity: stockQuantity }),
   }),
 
+  // Events (CPHI exhibitor lists)
+  getEvents: () => req<{ events: EventSummary[] }>("/api/events"),
+  getEvent: (key: string) => req<EventDetail>(`/api/events/${encodeURIComponent(key)}`),
+
   // Deal Tracker
   getDeals: () => req<DealBoard>("/api/deals"),
   getDeal: (id: number) => req<DealDetail>(`/api/deals/${id}`),
@@ -828,4 +832,43 @@ export interface DealUpdate {
   status_reason?: string;
   notes?: string;
   info?: Record<string, string>;
+}
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+export interface EventSummary {
+  key: string;
+  name: string;
+  city: string;
+  venue: string;
+  starts_on: string | null;
+  ends_on: string | null;
+  source_url: string;
+  exhibitor_count: number;
+  synced_at: string | null;
+}
+
+export interface EventExhibitor {
+  id: number;
+  external_id: string;
+  name: string;
+  country: string;
+  booth: string;
+  /** The organiser's zone, e.g. "Finished Dosage & Formulation". */
+  zone: string;
+  org_types: string[];
+  business_activities: string[];
+  /** e.g. "Middle East Region (e.g. UAE)" */
+  markets: string[];
+  certifications: string[];
+  categories: string[];
+  description: string;
+  profile_url: string;
+  logo_url: string;
+  is_new: boolean;
+  years_exhibiting: number | null;
+  employees: string;
+}
+
+export interface EventDetail extends EventSummary {
+  zones: { zone: string; exhibitors: EventExhibitor[] }[];
 }

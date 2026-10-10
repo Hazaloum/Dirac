@@ -967,6 +967,22 @@ def delete_deal_document(doc_id: int):
     return {"ok": True}
 
 
+# ─── Events (CPHI exhibitor lists) ────────────────────────────────────────────
+@app.get("/api/events")
+def get_events():
+    from events import list_events
+    return {"events": list_events()}
+
+
+@app.get("/api/events/{key}")
+def get_event(key: str):
+    from events import get_event as _get
+    event = _get(key)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 @app.get("/")
 def health():

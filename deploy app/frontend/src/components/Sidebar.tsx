@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpenText,
   BriefcaseBusiness,
+  CalendarDays,
   ChartNoAxesCombined,
   Handshake,
   Layers3,
@@ -26,6 +27,7 @@ const groups = [
       { name: "Market Discovery", href: "/market-discovery", icon: Layers3 },
       { name: "My Portfolio", href: "/portfolio", icon: BriefcaseBusiness },
       { name: "Outreach", href: "/outreach", icon: Radar },
+      { name: "Events", href: "/events", icon: CalendarDays },
     ],
   },
   {
