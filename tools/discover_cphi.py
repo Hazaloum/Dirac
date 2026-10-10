@@ -1,23 +1,26 @@
-"""Probe 5: open the Milan directory in a browser, then fetch the exhibitor-list JSON from inside the page."""
+"""Probe 6: fetch every Milan exhibitor's detail record (booth, description, ...) from inside the page."""
 import json, os
 from playwright.sync_api import sync_playwright
 
-LIST = ("/live/search/search_exhibition46json.jsp?site=46&type=company&eventid=626"
-        "&facets=newexhibitor,companytype,country,zone,businesstype,distributionarea,certification,category")
-os.makedirs("tools/data", exist_ok=True)
+ids = [r["id"] for r in json.load(open("tools/data/cphi_milan_2026_list.json"))["results"]]
+JS = """async (ids) => {
+  const path = id => { const s = String(id).padStart(6, '0'); return `/46/company/${s.slice(0,2)}/${s.slice(2,4)}/${s.slice(4,6)}/search${id}-626_46.json?v=21`; };
+  const out = {}; let i = 0;
+  async function worker() { while (i < ids.length) { const id = ids[i++];
+    try { const r = await fetch(path(id)); out[id] = r.ok ? (await r.json()).result : {error: r.status}; } catch (e) { out[id] = {error: String(e)}; } } }
+  await Promise.all(Array.from({length: 16}, worker));
+  return out;
+}"""
+KEEP = ["title", "country", "isocode", "standno", "zone", "companyTypes", "categories", "desc", "fulldesc", "url",
+        "logo", "newexhibitor", "noOfYears", "noOfEmployees", "noOfCertificates", "phone", "featured", "verified", "founded"]
 with sync_playwright() as p:
     b = p.chromium.launch()
     page = b.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36")
     page.goto("https://exhibitors.cphi.com/cpww26/", wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(6000)
-    body = page.evaluate("async (u) => (await fetch(u, {credentials: 'include'})).text()", LIST)
-    print("list bytes", len(body))
-    data = json.loads(body.strip())
-    print("top-level keys:", list(data.keys()))
-    for k, v in data.items():
-        if isinstance(v, list):
-            print(k, "len", len(v), "first:", json.dumps(v[0])[:1500] if v else None)
-    json.dump(data, open("tools/data/cphi_milan_2026_list.json", "w"))
-    sample = page.evaluate("async (u) => (await fetch(u)).text()", "/46/company/47/68/61/search476861-626_46.json?v=21")
-    open("tools/data/cphi_milan_2026_company_sample.json", "w").write(sample)
+    page.set_default_timeout(600000)
+    raw = page.evaluate(JS, ids)
     b.close()
+details = {k: ({f: v.get(f) for f in KEEP} if "error" not in v else v) for k, v in raw.items()}
+print("fetched", len(details), "errors", sum(1 for v in details.values() if "error" in v))
+json.dump(details, open("tools/data/cphi_milan_2026_details.json", "w"))
