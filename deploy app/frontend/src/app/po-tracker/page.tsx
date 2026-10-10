@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, RefreshCw, Ship } from "lucide-react";
 import { api, type PoTracker, type SupplierOrder, type SupplierOrderLine } from "@/lib/api";
 import { ddmmyy, ddmmyyTime } from "@/lib/dates";
+import DeliveryStrip from "@/components/DeliveryStrip";
 
 /** Short names for the portal's four statuses, in order (PoTracker.stages holds the portal's names). */
 const STOP_NAMES = ["Registered", "At factory", "Batch release", "Ready for pickup"];
@@ -246,6 +247,7 @@ export default function PoTrackerPage() {
           No orders yet — run <code className="rounded bg-surface-100 px-1">python scripts/sync_tecnimede.py</code> from the backend folder.
         </div>
       )}
+      {data && <DeliveryStrip orders={data.orders} />}
       <div className="space-y-8">
         {groups.map(([molecule, orders]) => (
           <section key={molecule || "unlinked"}>
