@@ -10,13 +10,15 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      ONLY: cz_sukl
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install pandas==2.2.3 openpyxl==3.1.5 xlrd==2.0.1 requests==2.32.3
       - name: Download and normalise registries
-        run: python tools/registries/run.py
+        run: python tools/registries/run.py $ONLY
       - name: Commit outputs
         run: |
           git config user.name "github-actions"
@@ -31,4 +33,4 @@ jobs:
         run: |
           export SHA=$(git rev-parse HEAD)
           sleep 15
-          python tools/registries/load.py
+          python tools/registries/load.py $ONLY

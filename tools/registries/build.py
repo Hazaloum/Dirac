@@ -163,9 +163,8 @@ def cz():
         for foreign in (s(r.NAZEV_INN), s(r.NAZEV)):
             if foreign and s(r.NAZEV_EN) and foreign.lower() != s(r.NAZEV_EN).lower():
                 CZ_TRANSLATIONS.append({"alias": foreign, "english": s(r.NAZEV_EN)})
-    # active substances per product code (S = active substance flag in SOD composition)
-    flag = "S" if "S" in slozeni.columns else None
-    act = slozeni if flag is None else slozeni[slozeni[flag].fillna("").isin(["W", "A", ""])]
+    # active substances per product code (S = "L" active substance, "X" excipient)
+    act = slozeni[slozeni["S"].fillna("") == "L"]
     ing = act.groupby("KOD_SUKL")["KOD_LATKY"].apply(lambda xs: [en.get(s(x), "") for x in xs]).to_dict()
     orgs = {(s(r.ZKR_ORG), s(r.ZEM)): s(r.NAZEV) for r in org.itertuples()}
     rows = []
