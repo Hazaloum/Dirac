@@ -1,0 +1,321 @@
+
+######## nl
+GET https://www.geneesmiddeleninformatiebank.nl/metadata.csv -> 200 16,361,495 bytes application/octet-stream
+== nl: 19,502 rows x 27 cols
+columns: REGISTRATIENUMMER | SOORT | PRODUCTNAAM | INSCHRIJVINGSDATUM | HANDELSVERGUNNINGHOUDER | AFLEVERSTATUS | FARMACEUTISCHEVORM | POTENTIE | PROCEDURENUMMER | TOEDIENINGSWEG | AANVULLENDEMONITORING | SMPC_FILENAAM | BIJSLUITER_FILENAAM | PAR_FILENAAM | SPAR_FILENAAM | ARMM_FILENAAM | SMPC_WIJZIG_DATUM | BIJSLUITER_WIJZIG_DATUM | ATC | WERKZAMESTOFFEN | HULPSTOFFEN | PRODUCTDETAIL_LINK | NIEUWS_LINKS | NIEUWS_LINK_DATUMS | REFERENTIE | SMPC_VORIGE_VERSIE | SMPC_VORIGE_VORIGE_VERSIE
+  126327//01364 | RVG  | Digoxine Eureco-Pharma, oplossing voor injectie 0,5 mg/2 ml | 2020/04/20 | Eureco-Pharma B.V. | Uitsluitend recept | Oplossing voor injectie | nan | nan | Intraveneus gebruik | N | https://www.geneesmiddeleninformatiebank.nl/smpc/h01364_smpc.pdf | https://www.geneesmiddeleninformatiebank.nl/bijsluiters/h126327.pdf | nan | nan | nan | 14-OCT-24 | 01-APR-25 | C01AA05 - Digoxin | DIGOXINE | CITROENZUUR 1-WATER (E 330)#DINATRIUMWATERSTOFFOSFAAT 0-WATER (E 339) #ETHANOL 9 | https://www.geneesmiddeleninformatiebank.nl/nl/rvg126327 | nan | nan | Eureco-Pharma B.V., Digoxine Eureco-Pharma, oplossing voor injectie 0,5 mg/2 ml  | nan | nan
+  122571//01553 | RVG  | Xylocaine 50 mg/g Zalf, hydrofiele zalf | 2019/02/06 | Medcor Pharmaceuticals B.V. | Uitsluitend apotheek of drogist | Zalf | nan | nan | Cutaan gebruik | N | https://www.geneesmiddeleninformatiebank.nl/smpc/h01553_smpc.pdf | https://www.geneesmiddeleninformatiebank.nl/bijsluiters/h122571.pdf | nan | nan | nan | 18-AUG-22 | 30-NOV-22 | D04AB01 - Lidocaine | LIDOCAÏNE | MACROGOL 1500 #MACROGOL 3350#PROPYLEENGLYCOL (E 1520)#WATER, GEZUIVERD | https://www.geneesmiddeleninformatiebank.nl/nl/rvg122571 | nan | nan | Medcor Pharmaceuticals B.V., Xylocaine 50 mg/g Zalf, hydrofiele zalf (122571//01 | nan | nan
+  126741//01800 | RVG  | Erytromycine Eureco-Pharma i.v. 1 g poeder voor oplossing voor infusie | 2020/07/01 | Eureco-Pharma B.V. | Uitsluitend recept | Poeder voor oplossing voor infusie | nan | nan | Intraveneus gebruik | N | https://www.geneesmiddeleninformatiebank.nl/smpc/h01800_smpc.pdf | https://www.geneesmiddeleninformatiebank.nl/bijsluiters/h126741.pdf | nan | nan | nan | 13-FEB-26 | 21-NOV-23 | J01FA01 - Erythromycin | ERYTROMYCINELACTOBIONAAT | GEEN HULPSTOFFEN | https://www.geneesmiddeleninformatiebank.nl/nl/rvg126741 | nan | nan | Eureco-Pharma B.V., Erytromycine Eureco-Pharma i.v. 1 g poeder voor oplossing vo | nan | nan
+SOORT values: {'RVG ': 14277, 'RVH ': 1410}
+AFLEVERSTATUS values: {'Uitsluitend recept': 16709, 'Uitsluitend apotheek of drogist': 2016, 'Uitsluitend apotheek$SEMICOLON$ Uitsluitend apotheek of drogist$SEMICOLON$ Algemene verkoop - UA meer dan 50 eenheden - UAD maximaal 50 eenheden - AV maximaal 20 eenheden': 126, 'Uitsluitend apotheek$SEMICOLON$ Uitsluitend apotheek of drogist - UA meer dan 24 eenheden - UAD maximaal 24 eenheden': 108, 'Algemene verkoop [conform voorwaarden CBG AV-lijst d.d. 6 september 2007]': 93, 'Uitsluitend apotheek$SEMICOLON$ Uitsluitend apotheek of drogist$SEMICOLON$ Algemene verkoop - UA meer dan 20 eenheden - UAD maximaal 20 eenheden - AV maximaal 10 eenheden': 66, 'Uitsluitend apotheek$SEMICOLON$ Uitsluitend apotheek of drogist$SEMICOLON$ Algemene verkoop - UA meer dan 48 eenheden - UAD maximaal 48 eenheden - AV maximaal 12 eenheden': 48, 'Uitsluitend apotheek': 35, 'Uitsluitend apotheek of drogist$SEMICOLON$ Algemene verkoop [conform voorwaarden CBG AV-lijst d.d. 6 september 2007]': 28, 'Algemene verkoop Naar aanleiding van een additionele beoordeling': 27}
+
+######## pl
+GET https://rejestry.ezdrowie.gov.pl/api/rpl/medicinal-products/public-pl-report/get-xlsx -> 200 6,025,831 bytes application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+== pl: 22,950 rows x 34 cols
+columns: Identyfikator Produktu Leczniczego | Nazwa Produktu Leczniczego | Nazwa powszechnie stosowana | Rodzaj preparatu | Zakaz stosowania u zwierząt | Nazwa poprzednia produktu | Droga podania - Gatunek - Tkanka - Okres karencji | Moc | Postać farmaceutyczna | Typ procedury | Numer pozwolenia | Ważność pozwolenia | Kod ATC | Podmiot odpowiedzialny | Opakowanie | Substancja czynna | Nazwa wytwórcy | Kraj wytwórcy | Nazwa importera | Kraj importera | Nazwa wytwórcy/importera | Kraj wytwórcy/importera | Podmiot odpowiedzialny w kraju eksportu | Kraj eksportu | Podstawa prawna wniosku | Ulotka | Charakterystyka | Etykieto-ulotka | Ulotka importu równoległego | Etykieto-ulotka importu równoległego | Oznakowanie opakowań importu równoległego | Narzędzia edukacyjne dla osoby wykonującej zawód medyczny | Narzędzia edukacyjne dla pacjenta | Komunikaty bezpieczeństwa
+  100000014 | Zoledronic acid Fresenius Kabi | Acidum zoledronicum | Ludzki | nan | nan | dożylna | 4 mg/5 ml | Koncentrat do sporządzania roztworu do infuzji | DCP | 20708 | Bezterminowe | M05BA08 | Fresenius Kabi Polska Sp. z o.o. | 05909991023652 ¦ Rpz ¦ 2
+1 fiol. 5 ml
+05909991023669 ¦ Rpz ¦ 3
+4 fiol. 5 ml
+0590 | Acidum zoledronicum 4 mg/5 ml | Fresenius Kabi Austria GmbH | Austria | nan | nan | Fresenius Kabi Austria GmbH | Austria | nan | nan | art. 15 ust. 1 pkt 2 | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/1/leaflet | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/1/characteri | nan | nan | nan | nan | nan | nan | nan
+  100000020 | Edelan | Mometasoni furoas | Ludzki | nan | nan | na skórę | 1 mg/g | Krem | NAR | 20899 | Bezterminowe | D07AC13 | Zakłady Farmaceutyczne POLPHARMA S.A. | 05909991023683 ¦ Rp ¦ 5
+1 tuba 15 g
+05909991023690 ¦ Rp ¦ 6
+1 tuba 30 g | Mometasoni furoas 1 mg/g | Glenmark Pharmaceuticals s.r.o. | Czechy | Glenmark Pharmaceuticals s.r.o. | Czechy | Glenmark Pharmaceuticals s.r.o. | Czechy | nan | nan | art. 15 ust. 12 | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/2/leaflet | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/2/characteri | nan | nan | nan | nan | nan | nan | nan
+  100000037 | Nalgesin | Naproxenum natricum | Ludzki | nan | nan | doustna | 275 mg | Tabletki powlekane | DCP | 20696 | Bezterminowe | M01AE02 | Krka, d.d., Novo mesto | 05909991023744 ¦ Rp ¦ 8
+10 tabl.
+05909991023751 ¦ Rp ¦ 9
+20 tabl.
+05909991023768 | Naproxenum natricum 275 mg | Krka, d.d., Novo mesto | Słowenia | nan | nan | Krka, d.d., Novo mesto | Słowenia | nan | nan | art. 16 ust. 1 | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/3/leaflet | https://rejestrymedyczne.ezdrowie.gov.pl/api/rpl/medicinal-products/3/characteri | nan | nan | nan | nan | nan | nan | nan
+Rodzaj preparatu values: {'Ludzki': 20303, 'Weterynaryjny': 2647}
+Typ procedury values: {'DCP': 6421, 'NAR': 5730, 'CEN': 4437, 'IR': 4344, 'MRP': 2004, 'SRP': 10, 'MRPh': 4}
+
+######## se
+GET https://www.lakemedelsverket.se/sv/om-webbplatsen/oppna-data -> 200 357,643 bytes text/html; charset=utf-8
+links matching [^"\']*Lakemedelsprodukter-\d{4}-\d{2}-\d{2}\.xlsx: ['{&quot;contentLink&quot;:{&quot;id&quot;:4840,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;1f72095a-2d4d-4e47-99b4-038e30ed0e68&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;expanded&quot;:null},&quot;name&quot;:&quot;&#xD6;ppna data&quot;,&quot;language&quot;:{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Page&quot;,&quot;ArticlePage&quot;],&quot;parentLink&quot;:{&quot;id&quot;:2560,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;2a2f5ee7-c627-41f0-8898-7c0289ab7759&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/om-webbplatsen/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:&quot;oppna-data&quot;,&quot;url&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;changed&quot;:&quot;2026-03-31T14:26:00Z&quot;,&quot;created&quot;:&quot;2019-11-13T13:02:58Z&quot;,&quot;startPublish&quot;:&quot;2020-02-03T23:00:00Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-03-31T14:26:00Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;hideAnchorNavigationLinks&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;socialMedia&quot;:{&quot;name&quot;:&quot;SocialMedia&quot;,&quot;propertyDataType&quot;:&quot;PropertyBlock&quot;,&quot;propertyItemType&quot;:&quot;SocialMediaImageBlock&quot;,&quot;socialMediaTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;preambleText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;mainImage&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyContentReference&quot;},&quot;imgeAltText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;searchIndex&quot;:{&quot;name&quot;:&quot;SearchIndex&quot;,&quot;propertyDataType&quot;:&quot;PropertyBlock&quot;,&quot;propertyItemType&quot;:&quot;IndexBlock&quot;,&quot;robotsIndex&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;robotsFollow&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;}},&quot;heading&quot;:{&quot;value&quot;:&quot;&#xD6;ppna data - information tillg&#xE4;nglig f&#xF6;r vidareutnyttjande&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;showPublishedDateForLastUpdated&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;htmlHeading&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;preamble&quot;:{&quot;value&quot;:&quot;&lt;p&gt;L&amp;auml;kemedelsverket f&amp;aring;r genom sin tillst&amp;aring;nds- och tillsynsverksamhet in omfattande information om b&amp;aring;de produkter och akt&amp;ouml;rer. M&amp;ouml;jligheten att tillg&amp;auml;ngligg&amp;ouml;ra delar av informationen &amp;auml;r stor och de t&amp;auml;nkbara m&amp;ouml;jligheterna f&amp;ouml;r vidareutnyttjande av den &amp;auml;r betydande f&amp;ouml;r akt&amp;ouml;rer inom v&amp;aring;rd- och omsorgssektorn.&lt;/p&gt;&quot;,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;deviatingModificationDate&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyDate&quot;},&quot;mainBody&quot;:{&quot;value&quot;:[{&quot;content&quot;:null,&quot;html&quot;:&quot;&lt;h2 class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;sv\\&quot;&gt;Om L&amp;auml;kemedelsverkets &amp;ouml;ppna data&lt;/span&gt;&lt;/h2&gt;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;sv\\&quot;&gt;L&amp;auml;kemedelsverket ska f&amp;ouml;lja lag 2022:818 om den offentliga sektorns tillg&amp;auml;ngligg&amp;ouml;rande av data (&amp;Ouml;ppna datalagen). L&amp;auml;kemedelsverkets &amp;ouml;ppna data redovisas p&amp;aring; Sveriges dataportal och portalen f&amp;ouml;r europeiska data.&lt;/span&gt;&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:50137,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;9089894a-055f-4625-97a2-9556d487dfee&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Dataportaler&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2025-03-26T07:19:39Z&quot;,&quot;created&quot;:&quot;2025-03-26T07:17:39Z&quot;,&quot;startPublish&quot;:&quot;2025-03-26T07:19:39Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2025-09-03T12:27:22Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;https://www.dataportal.se/datasets?p=1&amp;q=&amp;s=2&amp;t=20&amp;f=http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2Fpublisher%7C%7Chttp%3A%2F%2Fdataportal.se%2Forganisation%2FSE2021004078%7C%7Cfalse%7C%7Curi%7C%7COrganisation%7C%7CL%C3%A4kemedelsverket%7C%7Cundefined%7C%7Cundefined%7C%7Cundefined&amp;rt=dataset%24data_service%24dataset_series&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;S&#xF6;k data &amp; API:er - Sveriges dataportal&quot;,&quot;contentLink&quot;:null},{&quot;componentType&quot;:[],&quot;href&quot;:&quot;https://data.europa.eu/data/catalogues/oppnadata?locale=en&amp;publisher=L%C3%A4kemedelsverket&amp;page=1&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;The official portal for European data &#x2013; data.europa.eu&quot;,&quot;contentLink&quot;:null}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;EN-US\\&quot;&gt;Data publiceras under licensen Creative Commons Erk&amp;auml;nnande 4.0.&lt;/span&gt;&lt;/p&gt;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span&gt;Det inneb&amp;auml;r&amp;nbsp;att du har tillst&amp;aring;nd att anv&amp;auml;nda och distribuera v&amp;aring;ra &amp;ouml;ppna data samt skapa bearbetningar. L&amp;auml;kemedelsverket ska anges som k&amp;auml;lla.&lt;/span&gt;&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:27724,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;40437398-8c1f-48a5-9837-2f698b9c97f6&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Creative Commons (engelska)&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2022-03-04T14:29:10Z&quot;,&quot;created&quot;:&quot;2022-03-04T14:28:05Z&quot;,&quot;startPublish&quot;:&quot;2022-03-04T14:29:10Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-02-03T08:20:40Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;Creative Commons (engelska)&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;/contentassets/67596daa863c4fd3a5a55b398771ef2b/creativecommons-erkannande-4.0.pdf&quot;,&quot;title&quot;:null,&quot;target&quot;:&quot;_blank&quot;,&quot;text&quot;:&quot;Creative Commons (engelska)&quot;,&quot;contentLink&quot;:{&quot;id&quot;:27728,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;d549d8e5-5b4e-499c-813b-a1cf7217f8d5&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67596daa863c4fd3a5a55b398771ef2b/creativecommons-erkannande-4.0.pdf&quot;,&quot;expanded&quot;:null}}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&lt;p&gt;Nedan beskrivs de mest centrala informationsk&amp;auml;llorna med strukturerad data som L&amp;auml;kemedelsverket tillhandah&amp;aring;ller.&lt;/p&gt;\\n&lt;h2 id=\\&quot;hmainbody1\\&quot;&gt;Godk&amp;auml;nda och registrerade l&amp;auml;kemedel i Sverige&lt;/h2&gt;\\n&lt;p&gt;I s&amp;ouml;kfunktionen \\&quot;S&amp;ouml;k l&amp;auml;kemedelsfakta\\&quot; finns en lista med alla godk&amp;auml;nda, registrerade, tillf&amp;auml;lligt &amp;aring;terkallade och avregistrerade l&amp;auml;kemedel. Listan uppdateras varje natt.&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:185,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;8afc90d7-4600-44b5-8c88-3d0af299bb5f&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:21255,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;5e23346c-ed4f-4ce1-b164-a9d99ae4204a&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/globalassets/lanklistor/lakemedelsfakta/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2019-08-14T13:05:45Z&quot;,&quot;created&quot;:&quot;2019-08-14T13:04:47Z&quot;,&quot;startPublish&quot;:&quot;2019-08-14T13:05:45Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2021-06-14T08:53:26Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;Till s&#xF6;ktj&#xE4;nsten&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[&quot;LmfSearchPage&quot;],&quot;href&quot;:&quot;/sv/sok-lakemedelsfakta&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;contentLink&quot;:{&quot;id&quot;:8378,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;c5fc964f-586f-46d1-b6b1-4c5a79f2cf80&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/sok-lakemedelsfakta/&quot;,&quot;expanded&quot;:null}}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:50138,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;207af336-5eae-47cd-8557-7db10d5a536f&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Excellista alla l&#xE4;kemedel&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2026-10-11T04:04:00Z&quot;,&quot;created&quot;:&quot;2025-03-26T07:34:13Z&quot;,&quot;startPublish&quot;:&quot;2025-03-26T07:35:21Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-10-11T04:04:00Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;/globalassets/excel/Lakemedelsprodukter-2026-10-11.xlsx&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;F&#xE4;rdig s&#xF6;kning med alla l&#xE4;kemedel i S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;contentLink&quot;:{&quot;id&quot;:41131,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;9627c903-4632-4d20-8f86-58e14342304d&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/globalassets/excel/Lakemedelsprodukter-2026-10-11.xlsx']
+FAILED se: InvalidSchema: No connection adapters were found for '{&quot;contentLink&quot;:{&quot;id&quot;:4840,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;1f72095a-2d4d-4e47-99b4-038e30ed0e68&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;expanded&quot;:null},&quot;name&quot;:&quot;&#xD6;ppna data&quot;,&quot;language&quot;:{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Page&quot;,&quot;ArticlePage&quot;],&quot;parentLink&quot;:{&quot;id&quot;:2560,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;2a2f5ee7-c627-41f0-8898-7c0289ab7759&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/om-webbplatsen/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:&quot;oppna-data&quot;,&quot;url&quot;:&quot;/sv/om-webbplatsen/oppna-data/&quot;,&quot;changed&quot;:&quot;2026-03-31T14:26:00Z&quot;,&quot;created&quot;:&quot;2019-11-13T13:02:58Z&quot;,&quot;startPublish&quot;:&quot;2020-02-03T23:00:00Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-03-31T14:26:00Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;hideAnchorNavigationLinks&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;socialMedia&quot;:{&quot;name&quot;:&quot;SocialMedia&quot;,&quot;propertyDataType&quot;:&quot;PropertyBlock&quot;,&quot;propertyItemType&quot;:&quot;SocialMediaImageBlock&quot;,&quot;socialMediaTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;preambleText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;mainImage&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyContentReference&quot;},&quot;imgeAltText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;searchIndex&quot;:{&quot;name&quot;:&quot;SearchIndex&quot;,&quot;propertyDataType&quot;:&quot;PropertyBlock&quot;,&quot;propertyItemType&quot;:&quot;IndexBlock&quot;,&quot;robotsIndex&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;robotsFollow&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;}},&quot;heading&quot;:{&quot;value&quot;:&quot;&#xD6;ppna data - information tillg&#xE4;nglig f&#xF6;r vidareutnyttjande&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;showPublishedDateForLastUpdated&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;htmlHeading&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;preamble&quot;:{&quot;value&quot;:&quot;&lt;p&gt;L&amp;auml;kemedelsverket f&amp;aring;r genom sin tillst&amp;aring;nds- och tillsynsverksamhet in omfattande information om b&amp;aring;de produkter och akt&amp;ouml;rer. M&amp;ouml;jligheten att tillg&amp;auml;ngligg&amp;ouml;ra delar av informationen &amp;auml;r stor och de t&amp;auml;nkbara m&amp;ouml;jligheterna f&amp;ouml;r vidareutnyttjande av den &amp;auml;r betydande f&amp;ouml;r akt&amp;ouml;rer inom v&amp;aring;rd- och omsorgssektorn.&lt;/p&gt;&quot;,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;deviatingModificationDate&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyDate&quot;},&quot;mainBody&quot;:{&quot;value&quot;:[{&quot;content&quot;:null,&quot;html&quot;:&quot;&lt;h2 class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;sv\\&quot;&gt;Om L&amp;auml;kemedelsverkets &amp;ouml;ppna data&lt;/span&gt;&lt;/h2&gt;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;sv\\&quot;&gt;L&amp;auml;kemedelsverket ska f&amp;ouml;lja lag 2022:818 om den offentliga sektorns tillg&amp;auml;ngligg&amp;ouml;rande av data (&amp;Ouml;ppna datalagen). L&amp;auml;kemedelsverkets &amp;ouml;ppna data redovisas p&amp;aring; Sveriges dataportal och portalen f&amp;ouml;r europeiska data.&lt;/span&gt;&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:50137,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;9089894a-055f-4625-97a2-9556d487dfee&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Dataportaler&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2025-03-26T07:19:39Z&quot;,&quot;created&quot;:&quot;2025-03-26T07:17:39Z&quot;,&quot;startPublish&quot;:&quot;2025-03-26T07:19:39Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2025-09-03T12:27:22Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;https://www.dataportal.se/datasets?p=1&amp;q=&amp;s=2&amp;t=20&amp;f=http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2Fpublisher%7C%7Chttp%3A%2F%2Fdataportal.se%2Forganisation%2FSE2021004078%7C%7Cfalse%7C%7Curi%7C%7COrganisation%7C%7CL%C3%A4kemedelsverket%7C%7Cundefined%7C%7Cundefined%7C%7Cundefined&amp;rt=dataset%24data_service%24dataset_series&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;S&#xF6;k data &amp; API:er - Sveriges dataportal&quot;,&quot;contentLink&quot;:null},{&quot;componentType&quot;:[],&quot;href&quot;:&quot;https://data.europa.eu/data/catalogues/oppnadata?locale=en&amp;publisher=L%C3%A4kemedelsverket&amp;page=1&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;The official portal for European data &#x2013; data.europa.eu&quot;,&quot;contentLink&quot;:null}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span lang=\\&quot;EN-US\\&quot;&gt;Data publiceras under licensen Creative Commons Erk&amp;auml;nnande 4.0.&lt;/span&gt;&lt;/p&gt;\\n&lt;p class=\\&quot;MsoNormal\\&quot;&gt;&lt;span&gt;Det inneb&amp;auml;r&amp;nbsp;att du har tillst&amp;aring;nd att anv&amp;auml;nda och distribuera v&amp;aring;ra &amp;ouml;ppna data samt skapa bearbetningar. L&amp;auml;kemedelsverket ska anges som k&amp;auml;lla.&lt;/span&gt;&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:27724,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;40437398-8c1f-48a5-9837-2f698b9c97f6&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Creative Commons (engelska)&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2022-03-04T14:29:10Z&quot;,&quot;created&quot;:&quot;2022-03-04T14:28:05Z&quot;,&quot;startPublish&quot;:&quot;2022-03-04T14:29:10Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-02-03T08:20:40Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;Creative Commons (engelska)&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;/contentassets/67596daa863c4fd3a5a55b398771ef2b/creativecommons-erkannande-4.0.pdf&quot;,&quot;title&quot;:null,&quot;target&quot;:&quot;_blank&quot;,&quot;text&quot;:&quot;Creative Commons (engelska)&quot;,&quot;contentLink&quot;:{&quot;id&quot;:27728,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;d549d8e5-5b4e-499c-813b-a1cf7217f8d5&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67596daa863c4fd3a5a55b398771ef2b/creativecommons-erkannande-4.0.pdf&quot;,&quot;expanded&quot;:null}}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&lt;p&gt;Nedan beskrivs de mest centrala informationsk&amp;auml;llorna med strukturerad data som L&amp;auml;kemedelsverket tillhandah&amp;aring;ller.&lt;/p&gt;\\n&lt;h2 id=\\&quot;hmainbody1\\&quot;&gt;Godk&amp;auml;nda och registrerade l&amp;auml;kemedel i Sverige&lt;/h2&gt;\\n&lt;p&gt;I s&amp;ouml;kfunktionen \\&quot;S&amp;ouml;k l&amp;auml;kemedelsfakta\\&quot; finns en lista med alla godk&amp;auml;nda, registrerade, tillf&amp;auml;lligt &amp;aring;terkallade och avregistrerade l&amp;auml;kemedel. Listan uppdateras varje natt.&lt;/p&gt;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:185,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;8afc90d7-4600-44b5-8c88-3d0af299bb5f&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:21255,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;5e23346c-ed4f-4ce1-b164-a9d99ae4204a&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/globalassets/lanklistor/lakemedelsfakta/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2019-08-14T13:05:45Z&quot;,&quot;created&quot;:&quot;2019-08-14T13:04:47Z&quot;,&quot;startPublish&quot;:&quot;2019-08-14T13:05:45Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2021-06-14T08:53:26Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;Till s&#xF6;ktj&#xE4;nsten&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[&quot;LmfSearchPage&quot;],&quot;href&quot;:&quot;/sv/sok-lakemedelsfakta&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;contentLink&quot;:{&quot;id&quot;:8378,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;c5fc964f-586f-46d1-b6b1-4c5a79f2cf80&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/sv/sok-lakemedelsfakta/&quot;,&quot;expanded&quot;:null}}],&quot;propertyDataType&quot;:&quot;PropertyLinkCollection&quot;},&quot;rssLinkText&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssTitle&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;rssDescription&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;}},&quot;html&quot;:null},{&quot;content&quot;:null,&quot;html&quot;:&quot;\\n&quot;},{&quot;content&quot;:{&quot;contentLink&quot;:{&quot;id&quot;:50138,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;207af336-5eae-47cd-8557-7db10d5a536f&quot;,&quot;providerName&quot;:null,&quot;url&quot;:null,&quot;expanded&quot;:null},&quot;name&quot;:&quot;Excellista alla l&#xE4;kemedel&quot;,&quot;language&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;existingLanguages&quot;:[{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;}],&quot;masterLanguage&quot;:{&quot;link&quot;:null,&quot;displayName&quot;:&quot;svenska&quot;,&quot;name&quot;:&quot;sv&quot;},&quot;contentType&quot;:[&quot;Block&quot;,&quot;LinkListBlock&quot;],&quot;parentLink&quot;:{&quot;id&quot;:4844,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;67de6334-2eda-4f2b-a249-0606b3dd1730&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/contentassets/67de63342eda4f2ba2490606b3dd1730/&quot;,&quot;expanded&quot;:null},&quot;routeSegment&quot;:null,&quot;url&quot;:null,&quot;changed&quot;:&quot;2026-10-11T04:04:00Z&quot;,&quot;created&quot;:&quot;2025-03-26T07:34:13Z&quot;,&quot;startPublish&quot;:&quot;2025-03-26T07:35:21Z&quot;,&quot;stopPublish&quot;:null,&quot;saved&quot;:&quot;2026-10-11T04:04:00Z&quot;,&quot;status&quot;:&quot;Published&quot;,&quot;category&quot;:{&quot;value&quot;:[],&quot;propertyDataType&quot;:&quot;PropertyCategory&quot;},&quot;heading&quot;:{&quot;value&quot;:&quot;&quot;,&quot;propertyDataType&quot;:&quot;PropertyLongString&quot;},&quot;hideOnDesktop&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyBoolean&quot;},&quot;headingOnMobile&quot;:{&quot;value&quot;:null,&quot;propertyDataType&quot;:&quot;PropertyXhtmlString&quot;},&quot;links&quot;:{&quot;value&quot;:[{&quot;componentType&quot;:[],&quot;href&quot;:&quot;/globalassets/excel/Lakemedelsprodukter-2026-10-11.xlsx&quot;,&quot;title&quot;:null,&quot;target&quot;:null,&quot;text&quot;:&quot;F&#xE4;rdig s&#xF6;kning med alla l&#xE4;kemedel i S&#xF6;k l&#xE4;kemedelsfakta&quot;,&quot;contentLink&quot;:{&quot;id&quot;:41131,&quot;workId&quot;:0,&quot;guidValue&quot;:&quot;9627c903-4632-4d20-8f86-58e14342304d&quot;,&quot;providerName&quot;:null,&quot;url&quot;:&quot;/globalassets/excel/Lakemedelsprodukter-2026-10-11.xlsx'
+
+######## ro
+GET https://nomenclator.anm.ro/files/nomenclator.xlsx -> 200 2,233,357 bytes application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+== ro: 32,690 rows x 20 cols
+columns: Cod CIM | Denumire comerciala | DCI | Forma farmaceutica | Concentratie | Firma / tara producatoare APP | Firma / tara detinatoare APP | Cod ATC | Actiune terapeutica | Prescriptie | Nr / data ambalaj APP | Ambalaj | Volum ambalaj | Valabilitate ambalaj | Bulina | Diez | Stea | Triunghi | Dreptunghi | Data actualizare
+  W43451001 | 5 - FLUOROURACIL EBEWE 50mg/ml | FLUOROURACILUM | CONC. PT. SOL. INJ./PERF. | 50mg/ml | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | L01BC02 | ANTIMETABOLITI ANALOGI AI BAZELOR PIRIMIDINICE | PR | 7321/2015/01 | Cutie cu 1 flac. din sticla bruna x 5 ml conc. pt. sol. inj./perf. | 5 ml | 2 ani | nan | nan | nan | nan | nan | 08.10.26
+  W43451002 | 5 - FLUOROURACIL EBEWE 50mg/ml | FLUOROURACILUM | CONC. PT. SOL. INJ./PERF. | 50mg/ml | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | L01BC02 | ANTIMETABOLITI ANALOGI AI BAZELOR PIRIMIDINICE | PR | 7321/2015/02 | Cutie cu 5 flac. din sticla bruna x 5 ml conc. pt. sol. inj./perf. | 5 ml | 2 ani | nan | nan | nan | nan | nan | 08.10.26
+  W43451003 | 5 - FLUOROURACIL EBEWE 50mg/ml | FLUOROURACILUM | CONC. PT. SOL. INJ./PERF. | 50mg/ml | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | EBEWE PHARMA GES.M.B.H. NFG. KG - AUSTRIA | L01BC02 | ANTIMETABOLITI ANALOGI AI BAZELOR PIRIMIDINICE | PR | 7321/2015/03 | Cutie cu 1 flac. din sticla bruna x 10 ml conc. pt. sol. inj./perf. | 10 ml | 2 ani | nan | nan | nan | nan | nan | 08.10.26
+
+######## hu
+GET https://ogyei.gov.hu/generalt_listak/tk_lista.csv -> 200 9,092,209 bytes text/csv
+encoding utf-8 failed: 'utf-8' codec can't decode byte 0xe1 in position 5: invalid continuation byte
+encoding cp1250 ok
+== hu: 41,713 rows x 15 cols
+columns: TK-szám |  Név |  Kiszerelés |  Csomagolás részletezése |  INN |  ATC kód 1/ATC kód 2 |  Forg_Eng_Jog |  Kiadhatóság |  Kiad_alcsop |  Biztonsági elemek |  TK dátum | véglegminta | alaki hiba | termékhiánnyal érintett | Unnamed: 14
+  OGYI-T-09205/01 | 131I-MIBG 20 MBq/ml oldatos injekció | 1 X 20  MBq  | nan | m-Radioiodo-benzylguanidinium-[131I]-sulfuricum (MIBG) | V09IX02 | 'Izotóp Intézet Kft. | I |   | nem | 2004-02-02 00:00:00 | nem | nem | nem | nan
+  OGYI-T-09205/02 | 131I-MIBG 20 MBq/ml oldatos injekció | 1 X 40  MBq  | nan | m-Radioiodo-benzylguanidinium-[131I]-sulfuricum (MIBG) | V09IX02 | 'Izotóp Intézet Kft. | I |   | nem | 2004-02-02 00:00:00 | nem | nem | nem | nan
+  OGYI-T-09205/03 | 131I-MIBG 20 MBq/ml oldatos injekció | 1 X 80  MBq  | nan | m-Radioiodo-benzylguanidinium-[131I]-sulfuricum (MIBG) | V09IX02 | 'Izotóp Intézet Kft. | I |   | nem | 2004-02-02 00:00:00 | nem | nem | nem | nan
+
+######## bh
+GET https://www.nhra.bh/Departments/PPR/?page=102 -> 403 520 bytes text/html
+FAILED bh: HTTPError: 403 Client Error: Forbidden for url: https://www.nhra.bh/Departments/PPR/?page=102
+
+######## es
+GET https://listadomedicamentos.aemps.gob.es/prescripcion.zip -> 200 16,221,134 bytes application/zip
+es zip: DICCIONARIO_ATC.xml (1,005,980), DICCIONARIO_DCP.xml (1,276,923), DICCIONARIO_DCPF.xml (2,041,679), DICCIONARIO_DCSA.xml (288,192), DICCIONARIO_ENVASES.xml (7,045), DICCIONARIO_EXCIPIENTES_DECL_OBLIGATORIA.xml (63,212), DICCIONARIO_FORMA_FARMACEUTICA.xml (74,438), DICCIONARIO_FORMA_FARMACEUTICA_SIMPLIFICADAS.xml (18,470), DICCIONARIO_LABORATORIOS.xml (496,876), DICCIONARIO_PRINCIPIOS_ACTIVOS.xml (730,684), DICCIONARIO_SITUACION_REGISTRO.xml (923), DICCIONARIO_UNIDAD_CONTENIDO.xml (9,550), DICCIONARIO_VIAS_ADMINISTRACION.xml (10,596), Prescripcion.xml (194,065,838)
+Prescripcion.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion http://schemas.aemps.es/prescripcion/aemps_prescripcion.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <header>
+    <listprescriptiondate>2026-10-11</listprescriptiondate>
+  </header>
+  <prescription>
+    <cod_nacion>600000</cod_nacion>
+    <nro_definitivo>66337</nro_definitivo>
+    <des_nomco>AMOXICILINA /ACIDO CLAVULANICO SALA 500/50 mg POLVO PARA SOLUCION INYECTABLE Y PARA PERFUSION EFG</des_nomco>
+    <des_prese>AMOXICILINA /ACIDO CLAVULANICO SALA 500/50 mg POLVO PARA SOLUCION INYECTABLE Y PARA PERFUSION EFG, 100 viales</des_prese>
+    <cod_dcsa>734844004</cod_dcsa>
+    <cod_dcp>2431000140106</cod_dcp>
+    <cod_dcpf>2441000140100</cod_dcpf>
+    <des_dosific>500 mg/50 mg</des_dosific>
+    <cod_envase>45</cod_envase>
+    <contenido>100</contenido>
+    <unid_contenido>34</unid_contenido>
+    <nro_conte>100 viales</nro_conte>
+    <sw_psicotropo>0</sw_psicotropo>
+    <sw_estupefaciente>0</sw_estupefaciente>
+    <sw_afecta_conduccion>0</sw_afecta_conduccion>
+    <sw_triangulo_negro>0</sw_triangulo_negro>
+    <url_fictec>https://cima.aemps.es/cima/pdfs/es/ft/66337/66337_ft.pdf</url_fictec>
+    <url_prosp>https://cima.aemps.es/cima/pdfs/es/p/66337/66337_p.pdf</url_prosp>
+    <sw_receta>1</sw_receta>
+    <sw_generico>1</sw_generico>
+    <sw_sustituible>1</sw_sustituible>
+    <sw_envase_clinico>1</sw_envase_clinico>
+    <sw_uso_hospitalario>1</sw_uso_hospitalario>
+    <sw_diagnostico_hospitalario>0</sw_diagnostico_hospitalario>
+    <sw_tld>0</sw_tld>
+    <sw_especial_control_medico>0</sw_especial_control_medico>
+    <sw_huerfano>0</sw_huerfano>
+    <sw_base_a_plantas>0</sw_base_a_plantas>
+    <laboratorio_titular>2367</laboratorio_titular>
+    <laboratorio_comercializador>2367</laboratorio_comercializador>
+    <fecha_autorizacion>2004-09-16</fecha_autorizacion>
+    <sw_comercializado>0</sw_comercializado>
+    <fec_comer>2012-01-02</fec_comer>
+    <cod_sitreg>4</cod_sitreg>
+    <cod_sitreg_presen>4</cod_sitreg_presen>
+    <fecha_situacion_registro>2020-08-11</fecha_situacion_registro>
+    <fec_sitreg_presen>2020-08-11</fec_sitreg_presen>
+    <sw_tiene_excipientes_decl_obligatoria>0</sw_tiene_excipientes_decl_obligatoria>
+    <biosimilar>0</biosimilar>
+    <importacion_paralela>0</importacion_paralela>
+    <radiofarmaco>0</radiofarmaco>
+    <serializacion>1</serializacion>
+    <formasfarmaceuticas>
+      <cod_forfar>288</cod_forfar>
+      <cod_forfar_simplificada>34</cod_forfar_simplificada>
+      <nro_pactiv>2</nro_pactiv>
+      <composicion_pa>
+        <cod_principio_activo>160</cod_principio_activo>
+        <orden_colacion>1</orden_colacion>
+        <dosis_pa>500</dosis_pa>
+        <unidad_dosis_pa>mg</unidad_dosis_pa>
+        <dosis_composicion>1</dosis_composicion>
+        <unidad_composicion>vial para inyección</unidad_composicion>
+        <dosis_administracion>1</dosis_administracion>
+        <unidad_administracion>vial para inyección</unidad_administracion>
+        <dosis_prescripcion>500/50</dosis_prescripcion>
+        <unidad_prescripcion>mg/mg</unidad_prescripcion>
+      </composicion_pa>
+      <composicion_pa>
+        <cod_principio_activo>5418</cod_principio_activo>
+        <orden_colacion>2</orden_colacion>
+        <dosis_pa>50</dosis_pa>
+        <unidad_dosis_pa>mg</unidad_dosis_pa>
+        <dosis_composicion>1</dosis_composicion>
+        <unidad_composicion>vial para inyección</unidad_composicion>
+        <dosis_administracion>1</dosis_administracion>
+        <unidad_administracion>vial para inyección</unidad_administracion>
+        <dosis_prescripcion>500/50</dosis_prescripcion>
+        <unidad_prescripcion>mg/mg</unidad_prescripcion>
+      </composicion_pa>
+      <viasadministracion>
+        <cod_via_admin>49</cod_via_admin>
+      </viasadministracion>
+    </formasfarmaceuticas>
+    <atc>
+      <cod_atc>J01CR02</cod_atc>
+      <duplicidades>
+        <atc_duplicidad>J01C</atc_duplicidad>
+        <descripcion_atc_duplicidad>ANTIBACTERIANOS BETALACTÁMICOS, PENICILINAS</descripcion_atc_duplicidad>
+        <efecto_duplicidad>Prescripción de dos o más medicamentos con el mismo principio activo o la misma actividad farmacológica.</efecto_duplicidad>
+        <recomendacion_duplicidad>Suspender el principio(s) activo(s) con la misma actividad farmacológica.</recomendacion_duplicidad>
+      </duplicidades>
+      <duplicidades>
+        <atc_duplicidad>J01D</atc_duplicidad>
+        <descripcion_atc_duplicidad>OTROS ANTIBACTERIANOS BETALACTÁMICOS</descripcion_atc_duplicidad>
+        <efecto_duplicidad>Prescripción de dos o más medicamentos con el mismo principio activo o la misma actividad farmacológica.</efecto_duplicidad>
+        <recomendacion_duplicidad>Suspender el principio(s) activo(s) con la misma actividad farmacológica.</recomendacion_duplicidad>
+      </duplicidades>
+    </atc>
+    <problemassuministro>
+      <fecha_inicio>2017-06-01</fecha_inicio>
+      <observaciones>Existe/n otro/s medicamento/s con los mismos principios activos y para la misma vía de administración. </observaciones>
+    </problemassuministro>
+  </prescription>
+  <prescription>
+    <cod_nacion>600017</cod_nacion>
+    <nro_definitivo>66393</nro_definitivo>
+    <des_nomco>ONDANSETRON RATIOPHARM 4 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG</des_nomco>
+    <des_prese>ONDANSETRON RATIOPHARM 4 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG , 500 comprimidos</des_prese>
+    <cod_dcsa>108418007</cod_dcsa>
+    <cod_dcp>322173001</cod_dcp>
+    <cod_dcpf>20221000140100</cod_dcpf>
+    <des_dosific>4 mg</des_dosific>
+    <cod_envase>5</cod_envase>
+    <contenido>500</contenido>
+    <unid_contenido>10</unid_contenido>
+    <nro_conte>500 comprimidos</nro_conte>
+    <sw_psicotropo>0</sw_p
+DICCIONARIO_FORMA_FARMACEUTICA.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion_formas_farmaceuticas xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <formasfarmaceuticas>
+    <codigoformafarmaceutica>1</codigoformafarmaceutica>
+    <formafarmaceutica>GOTAS ORALES EN SOLUCIÓN</formafarmaceutica>
+    <codigoformafarmaceuticasimplificada>64</codigoformafarmaceuticasimplificada>
+  </formasfarmaceuticas>
+  <formasfarmaceuticas>
+    <codigoformafarmaceutica>2</codigoformafarmaceutica>
+    <formafarmaceutica>GOTAS ORALES EN SUSPENSIÓN</formafarmaceutica>
+    <codigoformafarmaceuticasimplificada>64</codigoformafarmaceuticasimplificada>
+  </formasfarmaceuticas>
+  <formasfarmaceuticas>
+    <codigoformafarmaceutica>3</codigoformafarmaceutica>
+    <formafarmaceutica>GOTAS ORALES EN EMULSIÓN</formafarmaceutica>
+    <codigoformafarmaceuticasimplificada>64</codigoformafarmaceuticasimplificada>
+  </formasfarmaceuticas>
+  <forma
+DICCIONARIO_FORMA_FARMACEUTICA_SIMPLIFICADAS.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion_formas_farmaceuticas_simplificadas xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas_simplificadas" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas_simplificadas http://schemas.aemps.es/prescripcion/aemps_prescripcion_formas_farmaceuticas_simplificadas.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <formasfarmaceuticassimplificadas>
+    <codigoformafarmaceuticasimplificada>1</codigoformafarmaceuticasimplificada>
+    <formafarmaceuticasimplificada>ADHESIVO TISULAR</formafarmaceuticasimplificada>
+  </formasfarmaceuticassimplificadas>
+  <formasfarmaceuticassimplificadas>
+    <codigoformafarmaceuticasimplificada>2</codigoformafarmaceuticasimplificada>
+    <formafarmaceuticasimplificada>APÓSITO</formafarmaceuticasimplificada>
+  </formasfarmaceuticassimplificadas>
+  <formasfarmaceuticassimplificadas>
+    <codigoformafarmaceuticasimplificada>3</codigoformafarmaceuticasimplificada>
+    <formafarmaceuticasimplificada>BARNIZ DE UÑAS</formafarmaceuticasimplificada>
+  </formasfarmaceuticassimplificadas>
+  <formasfarmaceu
+DICCIONARIO_LABORATORIOS.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion_laboratorios xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion_laboratorios" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion_laboratorios http://schemas.aemps.es/prescripcion/aemps_prescripcion_laboratorios.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <laboratorios>
+    <codigolaboratorio>137</codigolaboratorio>
+    <laboratorio>LABORATORIOS ALTER S.A.</laboratorio>
+    <direccion>Mateo Inurria, 30</direccion>
+    <codigopostal>28036</codigopostal>
+    <localidad>Madrid</localidad>
+    <cif>A80932338</cif>
+  </laboratorios>
+  <laboratorios>
+    <codigolaboratorio>238</codigolaboratorio>
+    <laboratorio>ASTRAZENECA FARMACEUTICA SPAIN S.A.</laboratorio>
+    <direccion>Serrano Galvache, 56 - Edificio Roble Parque Norte</direccion>
+    <codigopostal>28033</codigopostal>
+    <localidad>Madrid</localidad>
+    <cif>A36002129</cif>
+  </laboratorios>
+  <laboratorios>
+    <codigolaboratorio>445</codigolaboratorio>
+    <laboratorio>BIOMENDI S.A.</laboratorio>
+    <direccion>Poligono Industrial de Bernedo s/nº</direccion>
+    <codigopostal>01118</codig
+DICCIONARIO_PRINCIPIOS_ACTIVOS.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion_principios_activos xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion_principios_activos" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion_principios_activos http://schemas.aemps.es/prescripcion/aemps_prescripcion_principios_activos.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <principiosactivos>
+    <nroprincipioactivo>3219</nroprincipioactivo>
+    <codigoprincipioactivo>2A</codigoprincipioactivo>
+    <principioactivo>RANITIDINA</principioactivo>
+  </principiosactivos>
+  <principiosactivos>
+    <nroprincipioactivo>3220</nroprincipioactivo>
+    <codigoprincipioactivo>2CH</codigoprincipioactivo>
+    <principioactivo>RANITIDINA HIDROCLORURO</principioactivo>
+  </principiosactivos>
+  <principiosactivos>
+    <nroprincipioactivo>5600</nroprincipioactivo>
+    <codigoprincipioactivo>5A</codigoprincipioactivo>
+    <principioactivo>RIBES NIGRUM</principioactivo>
+  </principiosactivos>
+  <principiosactivos>
+    <nroprincipioactivo>6380</nroprincipioactivo>
+    <codigoprincipioactivo>9A</codigoprincipioactivo>
+    <principioactivo>RETINOL</principioactivo>
+DICCIONARIO_SITUACION_REGISTRO.xml head:
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<aemps_prescripcion_situacion_registro xmlns="http://schemas.aemps.es/prescripcion/aemps_prescripcion_situacion_registro" xsi:schemaLocation="http://schemas.aemps.es/prescripcion/aemps_prescripcion_situacion_registro http://schemas.aemps.es/prescripcion/aemps_prescripcion_situacion_registro.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <situacionesregistro>
+    <codigosituacionregistro>1</codigosituacionregistro>
+    <situacionregistro>Autorizado</situacionregistro>
+  </situacionesregistro>
+  <situacionesregistro>
+    <codigosituacionregistro>3</codigosituacionregistro>
+    <situacionregistro>Anulado</situacionregistro>
+  </situacionesregistro>
+  <situacionesregistro>
+    <codigosituacionregistro>4</codigosituacionregistro>
+    <situacionregistro>Suspenso</situacionregistro>
+  </situacionesregistro>
+</aemps_prescripcion_situacion_registro>
+
+######## cz
+GET https://opendata.sukl.cz/soubory/SOD20260827/DLP20260827.zip -> 200 9,523,269 bytes application/zip
+cz zip: dlp_atc.csv (353,071), dlp_cesty.csv (18,239), dlp_doping.csv (1,048), dlp_dopinglp.csv (111,600), dlp_formy.csv (76,182), dlp_indikacniskupiny.csv (2,315), dlp_jednotky.csv (2,246), dlp_latky.csv (1,391,452), dlp_lecivelatky.csv (219,462), dlp_lecivepripravky.csv (13,213,550), dlp_narvla.csv (217), dlp_nazvydokumentu.csv (9,076,933), dlp_obaly.csv (3,821), dlp_organizace.csv (162,108), dlp_pravnizakladreg.csv (1,712), dlp_regproc.csv (387), dlp_slozeni.csv (19,662,585), dlp_slozenipriznak.csv (666), dlp_soli.csv (34,777), dlp_splp.csv (202,833), dlp_stavyreg.csv (1,132), dlp_synonyma.csv (12,445,861), dlp_typlp.csv (3,472), dlp_vpois.csv (5,195,942), dlp_vydej.csv (338), dlp_zavislost.csv (1,271), dlp_zdroje.csv (18,984), dlp_zeme.csv (8,220), dlp_zruseneregistrace.csv (1,519,284), dlp_platnost.csv (48)
+== cz/dlp_lecivepripravky.csv: 69,759 rows x 44 cols
+columns: KOD_SUKL | H | NAZEV | SILA | FORMA | BALENI | CESTA | DOPLNEK | OBAL | DRZ | ZEMDRZ | AKT_DRZ | AKT_ZEM | REG | V_PLATDO | NEOMEZ | UVADENIDO | IS_ | ATC_WHO | RC | SDOV | SDOV_DOD | SDOV_ZEM | REG_PROC | DDDAMNT_WHO | DDDUN_WHO | DDDP_WHO | ZDROJ_WHO | LL | VYDEJ | ZAV | DOPING | NARVLA | DODAVKY | EAN | BRAILLOVO_PISMO | EXP | EXP_T | NAZEV_REG | MRP_CISLO | PRAVNI_ZAKLAD_REGISTRACE | OCHRANNY_PRVEK | OMEZENI_PRESKRIPCE_SMP | TYP_LP
+  0000009 | nan | ACYLCOFFIN | 450MG/50MG | TBL NOB | 10 | POR | 450MG/50MG TBL NOB 10 | BLI | ZNB | SK | nan | nan | R | nan | X | nan | 07 | N02BA51 | 07/049/69-S/C | nan | nan | nan | NAR | 6 | UD | 2,963 | NO26 | 12,223 | F | nan | nan | nan | 1 | nan | S | 36 | M | ACYLCOFFIN | nan | L | nan | nan | CH
+  0000113 | nan | DILURAN | 250MG | TBL NOB | 20 | POR | 250MG TBL NOB 20 | BLI | ZNP | CZ | nan | nan | R | nan | X | nan | 64 | S01EC01 | 64/405/69-C | nan | nan | nan | NAR | 0,75 | G | 6,6666 | NO26 | 1631 | R | nan | nan | nan | 1 | nan | S | 36 | M | DILURAN | nan | L | A | nan | CH
+  0000168 | nan | HYDROCHLOROTHIAZID LÉČIVA | 25MG | TBL NOB | 20 | POR | 25MG TBL NOB 20 | BLI | ZNP | CZ | nan | nan | R | nan | X | nan | 50 | C03AA03 | 50/408/69-C | nan | nan | nan | NAR | 25 | MG | 20 | NO26 | 728 | R | nan | nan | nan | 1 | nan | S | 36 | M | HYDROCHLOROTHIAZID LÉČIVA | nan | L | A | nan | CH
+== cz/dlp_organizace.csv: 3,585 rows x 5 cols
+columns: ZKR_ORG | ZEM | NAZEV | VYROBCE | DRZITEL
+  AAA | S | Albireo AB, Göteborg | nan | D
+  AAB | DK | Aastrom Biosciences DK ApS, Kastrup | nan | D
+  AAE | A | ALK-ABELLÓ ALLERGIE-SERVICE GMBH, LEONDING | nan | D
+== cz/dlp_stavyreg.csv: 16 rows x 2 cols
+columns: REG | NAZEV
+  B | přípravek po provedené změně může být uváděn na trh po dobu 6 měsíců a používán 
+  C | zrušená registrace, přípravek bude stažen z oběhu do doby uvedené v rozhodnutí o
+  F | specifický léčebný program povolený MZČR na základě doporučení SÚKL
+== cz/dlp_latky.csv: 21,567 rows x 8 cols
+columns: KOD_LATKY | ZDROJ | NAZEV_INN | NAZEV_EN | NAZEV | ZAV | DOP | NARVLA
+  -1 | nan | OR: | nan | NEBO: | nan | nan | nan
+  0 | nan | CORRESPONDING TO: | nan | ODPOVÍDÁ: | nan | nan | nan
+  1 | C21 | ABSINTHII HERBA | WORMWOOD | PELYŇKOVÁ NAŤ | nan | nan | nan
+== cz/dlp_lecivelatky.csv: 3,378 rows x 5 cols
+columns: KOD_LATKY | NAZEV_INN | NAZEV_EN | NAZEV | ZAV
+  1 | ABSINTHII HERBA | WORMWOOD | PELYŇKOVÁ NAŤ | nan
+  12 | ACIDUM ACETYLSALICYLICUM | ACETYLSALICYLIC ACID | KYSELINA ACETYLSALICYLOVÁ | nan
+  14 | MILLEFOLII HERBA | YARROW | ŘEBŘÍČKOVÁ NAŤ | nan
+
+######## sk
+GET https://www.sukl.sk/verejne/Zoznam_liekov/zoznam_liekov_aktualny.zip -> 200 6,213,596 bytes application/zip
+sk zip: atc.xls (1,270,474), firmy.xls (167,992), indikacne_skupiny.xls (11,984), staty.xls (14,660), typy_registracii.xls (5,120), vydaje.xls (5,120), zoznam_liekov.xlsx (6,294,894)
+== sk/zoznam_liekov.xlsx: 55,387 rows x 20 cols
+columns: vym_id | ŠÚKL kód | Názov | Doplnok | lie_sila | lie_balenie | Kód držiteľa | Kód štátu | ATC kód | atc_nazov_sk | Indikačná skupina | Registračné číslo | Exspirácia | Výdaj | Typ registrácie | Dátum registrácie | Platnosť do (D-neobmedzená, P-žiadosť o predĺženie) | Bezpečnostný prvok | pod_kod | form_kod
+  20725 | 5859D | (18F) Fluorocholine Biont | sol inj 1x0,2-10 ml/176-60 000 MBq (liek.inj.skl.-viacdáv.) | 880-6000 MBq/1ml | 1 | BNT | SK | V09IX07 | Fluórcholín (18F) | 88 | 88/0246/20-S | ? | Rx | NAR | 2020-11-23 00:00:00 | D | Nie | ive | SOL INJ
+  13466 | 4909D | [18F] FDG-FR | sol inj 1x15 ml (liek.inj.skl.viacdávková) | 300-3100 MBq/1ml | 1 | AA4-1 | DE | V09IX04 | Fludeoxyglukóza (18F) | 88 | 88/0095/09-S | 14 hodín | R | MRP | 2009-02-27 00:00:00 | D | Nie | ive | SOL INJ
+  11609 | 34397 | 0,9 % Chlorid sodný Baxter-Viaflo | sol inf 50x50 ml (vak POF/PA) | 0,9 % | 50 | BAX-SK | SK | B05XX | Iné aditíva do intravenóznych roztokov | 76 | 76/0248/05-S | 15 | R | MRP | 2005-08-15 00:00:00 | D | Nie | ive | SOL INF
+== sk/firmy.xls: 687 rows x 6 cols
+columns: fir_kod | fir_nazov | fir_ulica | fir_mesto | fir_psc | sta_kod
+  AA4-1 | Alliance Medical RP Berlin GmbH  | Max-Planck-Straße 4  | Berlin | 12489 | DE
+  ABV | AbbVie s.r.o. | Karadžičova 10 | Bratislava 2 | 821 08 | SK
+  ABV-DE | AbbVie Deutschland GmbH & Co. KG | Knollstrasse | Ludwigshafen | 67061 | DE
+
+######## us
+GET https://www.fda.gov/media/89850/download?attachment= -> 404 10 bytes None
+FAILED us: HTTPError: 404 Client Error: Not Found for url: https://www.fda.gov/apology_objects/abuse-detection-apology.html
