@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, RefreshCw, Ship } from "lucide-react";
 import { api, type PoTracker, type SupplierOrder, type SupplierOrderLine } from "@/lib/api";
 import { ddmmyy, ddmmyyTime } from "@/lib/dates";
-import DeliveryStrip from "@/components/DeliveryStrip";
-
-/** Short names for the portal's four statuses, in order (PoTracker.stages holds the portal's names). */
-const STOP_NAMES = ["Registered", "At factory", "Batch release", "Ready for pickup"];
-const PORTAL_STATUS = ["Order Registered", "Order Placed to Factory", "Order with Logistics Operator",
-  "Completed (Order Available for Pickup)"];
+import DeliveryStrip, { TRANSIT_DAYS } from "@/components/DeliveryStrip";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -26,33 +21,50 @@ function overdueDays(requested: string | null, completed: boolean) {
   return !completed && requested && requested < today() ? daysBetween(requested, today()) : 0;
 }
 
-// ─── One line as bus stops ────────────────────────────────────────────────────
-function Stops({ line }: { line: SupplierOrderLine }) {
-  const stage = line.stage ?? -1;
-  const done = line.stage === STOP_NAMES.length - 1;
-  const overdue = overdueDays(line.requested_delivery, done);
-  const lateBy = line.factory_confirmation && line.requested_delivery
-    ? daysBetween(line.requested_delivery, line.factory_confirmation) : 0;
-  const seen = (i: number) => line.stage_seen?.[PORTAL_STATUS[i]];
-  const muted = "text-surface-400";
+// ─── One line as two timelines: expected vs actual ───────────────────────────
+const DAY = 86400000;
+const dayOf = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+const isoOf = (t: number) => new Date(t).toISOString().slice(0, 10);
+const AT_FACTORY = "Order Placed to Factory";
 
-  // A date under every stop: what the portal gives, or the day our sync saw the line get there.
-  const under: JSX.Element[] = [
-    <span key="0" title="Acceptance date — when the order was placed">{fmt(line.accepted_at)}</span>,
-    seen(1)
-      ? <span key="1" title="First seen at the factory">{fmt(seen(1)!)}</span>
-      : <span key="1" className={muted} title="The portal gives no date for this step">—</span>,
-    line.factory_confirmation
-      ? <span key="2" title="Factory confirmation — predicted batch release">
-          {stage >= 2 && seen(2) ? fmt(seen(2)!) : `batch ${fmt(line.factory_confirmation)}`}{stage < 2 ? " (pred.)" : ""}
-        </span>
-      : seen(2) ? <span key="2">{fmt(seen(2)!)}</span> : <span key="2" className={muted}>—</span>,
-    done
-      ? <span key="3">{seen(3) ? fmt(seen(3)!) : "done"}</span>
-      : <span key="3" className={overdue ? "font-medium text-rose-700" : ""} title="Requested delivery date">
-          req. {fmt(line.requested_delivery)}{overdue ? ` · ${overdue}d late` : ""}
-        </span>,
-  ];
+/** The dates one line's two timelines are drawn from (day numbers, UTC). */
+function lineDates(line: SupplierOrderLine) {
+  const ordered = line.accepted_at ? dayOf(line.accepted_at.slice(0, 10)) : null;
+  const requested = line.requested_delivery ? dayOf(line.requested_delivery) : null;
+  const release = line.factory_confirmation ? dayOf(line.factory_confirmation) : null;
+  const factory = line.stage_seen?.[AT_FACTORY] ? dayOf(line.stage_seen[AT_FACTORY]) : null;
+  const arrival = release != null ? release + TRANSIT_DAYS * DAY : null;
+  return { ordered, requested, release, factory, arrival };
+}
+
+/** One date range shared by every line of an order, so their bars line up. */
+function orderDomain(order: SupplierOrder): [number, number] | null {
+  const now = dayOf(today());
+  const ts: number[] = [];
+  for (const l of order.lines) {
+    const d = lineDates(l);
+    for (const t of [d.ordered, d.requested, d.arrival]) if (t != null) ts.push(t);
+    if (!order.completed) ts.push(now);
+  }
+  if (!ts.length) return null;
+  const lo = Math.min(...ts), hi = Math.max(...ts);
+  return [lo, hi + Math.max(7 * DAY, (hi - lo) * 0.02)];
+}
+
+function Timeline({ line, domain }: { line: SupplierOrderLine; domain: [number, number] | null }) {
+  const done = !line.open;
+  const d = lineDates(line);
+  const now = dayOf(today());
+  const pct = (t: number) => domain ? `${((t - domain[0]) / (domain[1] - domain[0])) * 100}%` : "0%";
+  const span = (a: number, b: number) => ({ left: pct(Math.min(a, b)), width: `calc(${pct(Math.max(a, b))} - ${pct(Math.min(a, b))})` });
+  const days = (a: number, b: number) => Math.round((b - a) / DAY);
+  const delay = d.arrival != null && d.requested != null ? days(d.requested, d.arrival) : null;
+  const showToday = !done && domain && now >= domain[0] && now <= domain[1];
+  const predicted = !done;   // an open line's factory date is Tecnimede's forecast
+
+  const label = "w-16 shrink-0 text-[11px] font-medium uppercase tracking-wide text-surface-500";
+  const track = "relative h-5 flex-1";
+  const dot = "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white";
 
   return (
     <div className="grid grid-cols-[150px_1fr] items-start gap-4 py-3">
@@ -60,38 +72,81 @@ function Stops({ line }: { line: SupplierOrderLine }) {
         <p className="text-sm font-medium text-surface-900">{line.item_description}</p>
         <p className="text-xs text-surface-500">
           Line {line.order_line.split("|")[1]?.trim() ?? line.order_line} · {(line.order_quantity ?? 0).toLocaleString()} packs
-          {line.pending_quantity != null && line.pending_quantity !== line.order_quantity && !done
-            ? ` · ${line.pending_quantity.toLocaleString()} pending` : ""}
+          {line.pending_quantity ? ` · ${line.pending_quantity.toLocaleString()} pending` : ""}
         </p>
-        {!done && lateBy > 0 && (
-          <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
-            {lateBy} days after requested
+        <p className="mt-0.5 text-[11px] text-surface-500">{line.status ?? "—"}</p>
+        {delay != null && (
+          <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${delay > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-800"}`}
+            title="Estimated arrival in Dubai vs the requested date">
+            {delay > 0 ? `${plural(delay, "day")} late` : delay < 0 ? `${plural(-delay, "day")} early` : "On time"}
+            {predicted ? " (pred.)" : ""}
           </span>
         )}
       </div>
-      <div className="relative">
-        {/* track: from the first stop's centre to the last's */}
-        <div className="absolute left-[12.5%] right-[12.5%] top-[11px] h-1 rounded-full bg-surface-200" />
-        <div className="absolute left-[12.5%] top-[11px] h-1 rounded-full bg-pharma-700"
-          style={{ width: `${(Math.max(stage, 0) / (STOP_NAMES.length - 1)) * 75}%` }} />
-        <div className="relative grid grid-cols-4">
-          {STOP_NAMES.map((name, i) => {
-            const passed = i < stage || done;
-            const here = i === stage && !done;
-            return (
-              <div key={name} className="flex flex-col items-center text-center">
-                {here ? (
-                  <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full border-[3px] border-pharma-700 bg-white">
-                    <span className="h-3 w-3 rounded-full bg-pharma-700" />
-                  </span>
-                ) : (
-                  <span className={`mt-[3px] h-5 w-5 rounded-full border-[3px] ${passed ? "border-pharma-700 bg-pharma-700" : "border-surface-300 bg-white"}`} />
+
+      <div className="min-w-0 space-y-2.5">
+        {/* Expected: ordered → requested in Dubai */}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={label}>Expected</span>
+            <div className={track}>
+              {showToday && <div className="absolute inset-y-[-4px] w-px bg-surface-400" style={{ left: pct(now) }} />}
+              {d.ordered != null && d.requested != null && <>
+                <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-pharma-200" style={span(d.ordered, d.requested)} />
+                <span className={`${dot} bg-pharma-400`} style={{ left: pct(d.ordered) }} title={`Ordered ${fmt(isoOf(d.ordered))}`} />
+                <span className={`${dot} bg-pharma-700`} style={{ left: pct(d.requested) }} title={`Requested in Dubai ${fmt(isoOf(d.requested))}`} />
+              </>}
+            </div>
+          </div>
+          <p className="ml-[4.5rem] text-[11px] text-surface-500">
+            Ordered {fmt(line.accepted_at)} → in Dubai {fmt(line.requested_delivery)}
+            {d.ordered != null && d.requested != null ? ` · ${days(d.ordered, d.requested)} d` : ""}
+          </p>
+        </div>
+
+        {/* Actual: ordered → at factory → batch release → in Dubai (release + transit) */}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={label}>Actual</span>
+            <div className={track}>
+              {showToday && <div className="absolute inset-y-[-4px] w-px bg-surface-400" style={{ left: pct(now) }} title={`Today ${fmt(today())}`} />}
+              {d.ordered != null && d.arrival != null && d.release != null ? <>
+                {/* gap between requested and arrival: the delay (red) or the margin (green) */}
+                {d.requested != null && delay !== 0 && (
+                  <div className={`absolute top-1/2 h-4 -translate-y-1/2 ${delay! > 0 ? "bg-rose-100" : "bg-emerald-100"}`}
+                    style={span(d.requested, d.arrival)} />
                 )}
-                <span className={`mt-1.5 text-[11px] ${here ? "font-semibold text-pharma-800" : passed ? "text-surface-700" : "text-surface-400"}`}>{name}</span>
-                <span className="text-[11px] text-surface-500">{under[i]}</span>
-              </div>
-            );
-          })}
+                <div className={`absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full ${predicted ? "border border-dashed border-pharma-700 bg-pharma-100" : "bg-pharma-700"}`}
+                  style={span(d.ordered, d.release)} />
+                <div className="absolute top-1/2 h-0 -translate-y-1/2 border-t-2 border-dotted border-pharma-700" style={span(d.release, d.arrival)} />
+                <span className={`${dot} bg-pharma-400`} style={{ left: pct(d.ordered) }} title={`Ordered ${fmt(isoOf(d.ordered))}`} />
+                {d.factory != null && <span className={`${dot} bg-pharma-500`} style={{ left: pct(d.factory) }} title={`At factory ${fmt(isoOf(d.factory))}`} />}
+                <span className={`${dot} bg-pharma-700`} style={{ left: pct(d.release) }}
+                  title={`Batch release ${fmt(isoOf(d.release))}${predicted ? " (pred.)" : ""}`} />
+                <span className={`${dot} ${delay! > 0 ? "bg-rose-700" : "bg-emerald-700"}`} style={{ left: pct(d.arrival) }}
+                  title={`In Dubai ≈ ${fmt(isoOf(d.arrival))}`} />
+                {delay !== 0 && d.requested != null && (
+                  <span className={`absolute -top-3 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold ${delay! > 0 ? "text-rose-700" : "text-emerald-700"}`}
+                    style={{ left: pct((d.requested + d.arrival) / 2) }}>
+                    {delay! > 0 ? "+" : "−"}{Math.abs(delay!)} d
+                  </span>
+                )}
+              </> : d.ordered != null && <>
+                <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-surface-300" style={span(d.ordered, done ? d.ordered : now)} />
+                <span className={`${dot} bg-pharma-400`} style={{ left: pct(d.ordered) }} />
+                {d.factory != null && <span className={`${dot} bg-pharma-500`} style={{ left: pct(d.factory) }} title={`At factory ${fmt(isoOf(d.factory))}`} />}
+              </>}
+            </div>
+          </div>
+          <p className="ml-[4.5rem] text-[11px] text-surface-500">
+            {d.release != null && d.arrival != null ? <>
+              Ordered {fmt(line.accepted_at)}
+              {d.factory != null ? ` · at factory ${fmt(isoOf(d.factory))}` : ""}
+              {` · batch release ${fmt(line.factory_confirmation)}${predicted ? " (pred.)" : ""}`}
+              {` → in Dubai ≈ ${fmt(isoOf(d.arrival))}`}
+              {d.ordered != null ? ` · ${days(d.ordered, d.arrival)} d` : ""}
+            </> : done ? "No factory date given" : "Awaiting factory date"}
+          </p>
         </div>
       </div>
     </div>
@@ -140,6 +195,7 @@ function OrderCard({ order, portfolio, onLinked }: {
   order: SupplierOrder; portfolio: string[]; onLinked: (ref: string, molecule: string | null) => void;
 }) {
   const overdue = overdueDays(order.requested_delivery, order.completed);
+  const domain = orderDomain(order);
   return (
     <section className="rounded-xl border border-surface-300 bg-white px-5 py-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -161,7 +217,7 @@ function OrderCard({ order, portfolio, onLinked }: {
         </span>
       </div>
       <div className="mt-1 divide-y divide-surface-100">
-        {order.lines.map((line) => <Stops key={line.id} line={line} />)}
+        {order.lines.map((line) => <Timeline key={line.id} line={line} domain={domain} />)}
       </div>
     </section>
   );
