@@ -62,8 +62,12 @@ def dedupe(rows):
     return out
 
 
+EU_PACK = re.compile(r"(EU/\d+/\d+/\d+)/\d+")
+
+
 def row(record_key, registration_no, product_name, company_raw, ingredients, strength_raw="", form_raw="", atc="", status="active"):
-    return {"record_key": s(record_key), "registration_no": s(registration_no), "product_name": s(product_name),
+    # EU (centralised) numbers carry a pack suffix (EU/1/15/1029/025): drop it so packs collapse into one product
+    return {"record_key": EU_PACK.sub(r"\1", s(record_key)), "registration_no": EU_PACK.sub(r"\1", s(registration_no)), "product_name": s(product_name),
             "company_raw": s(company_raw), "ingredients": ingredients if isinstance(ingredients, list) else s(ingredients),
             "strength_raw": s(strength_raw), "form_raw": s(form_raw), "atc": atc_code(atc), "status": status}
 

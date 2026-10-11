@@ -46,6 +46,7 @@ def main(keys):
         for part in range(m["parts"]):
             print("  ", rpc("registry_load_part", p_base=BASE, p_key=key, p_part=part), flush=True)
         print("  match:", rpc("registry_finish_load", p_registry=key), flush=True)
+    print("## companies:", rpc("registry_match_companies"), flush=True)
 
 
 if __name__ == "__main__":
