@@ -1,0 +1,29 @@
+name: companies
+on:
+  push:
+    branches: [claude/cool-allen-cg9oit]
+    paths: [tools/companies/**, tools/data/companies/decisions.json, .github/workflows/companies.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install requests==2.32.3
+      - name: Apply decisions and export candidates
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python tools/companies/sync.py
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A tools/data/companies
+          git commit -m "Company merge review (Actions)" || echo "nothing to commit"
+          git pull --rebase && git push
