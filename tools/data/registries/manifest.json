@@ -1,0 +1,83 @@
+{
+ "nl_cbg": {
+  "country": "NL",
+  "name": "CBG-MEB medicines register",
+  "source_url": "https://www.geneesmiddeleninformatiebank.nl/metadata.csv",
+  "company_field": "HANDELSVERGUNNINGHOUDER (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 2,
+  "rows": 15878
+ },
+ "pl_urpl": {
+  "country": "PL",
+  "name": "URPL medicinal products register",
+  "source_url": "https://rejestry.ezdrowie.gov.pl/api/rpl/medicinal-products/public-pl-report/get-xlsx",
+  "company_field": "Podmiot odpowiedzialny (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 3,
+  "rows": 20303
+ },
+ "ro_anm": {
+  "country": "RO",
+  "name": "ANMDMR nomenclator",
+  "source_url": "https://nomenclator.anm.ro/files/nomenclator.xlsx",
+  "company_field": "Firma / tara detinatoare APP (holder)",
+  "snapshot_date": "2026-10-11",
+  "parts": 1,
+  "rows": 7687
+ },
+ "hu_ogyei": {
+  "country": "HU",
+  "name": "OGYÉI medicines database",
+  "source_url": "https://ogyei.gov.hu/generalt_listak/tk_lista.csv",
+  "company_field": "Forg_Eng_Jog (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 2,
+  "rows": 12233
+ },
+ "es_aemps": {
+  "country": "ES",
+  "name": "AEMPS CIMA Nomenclátor",
+  "source_url": "https://listadomedicamentos.aemps.gob.es/prescripcion.zip",
+  "company_field": "laboratorio_titular (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 3,
+  "rows": 22690
+ },
+ "cz_sukl": {
+  "country": "CZ",
+  "name": "SÚKL DLP medicines database",
+  "source_url": "https://opendata.sukl.cz/soubory/SOD20260827/DLP20260827.zip",
+  "company_field": "DRZ (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 3,
+  "rows": 21142
+ },
+ "sk_sukl": {
+  "country": "SK",
+  "name": "ŠÚKL list of medicines",
+  "source_url": "https://www.sukl.sk/verejne/Zoznam_liekov/zoznam_liekov_aktualny.zip",
+  "company_field": "Kód držiteľa (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 3,
+  "rows": 20756
+ },
+ "se_lv": {
+  "country": "SE",
+  "name": "Läkemedelsverket medicinal products",
+  "source_url": "https://www.lakemedelsverket.se/globalassets/excel/Lakemedelsprodukter-2026-10-11.xlsx",
+  "company_field": "Innehavare (MAH)",
+  "snapshot_date": "2026-10-11",
+  "parts": 5,
+  "rows": 36395
+ },
+ "us_fda": {
+  "country": "US",
+  "name": "Drugs@FDA (openFDA)",
+  "source_url": "https://download.open.fda.gov/drug/drugsfda/drug-drugsfda-0001-of-0001.json.zip",
+  "company_field": "sponsor_name (applicant)",
+  "snapshot_date": "2026-10-11",
+  "parts": 7,
+  "rows": 51859
+ }
+}
