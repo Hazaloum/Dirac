@@ -50,8 +50,8 @@
   "source_url": "https://opendata.sukl.cz/soubory/SOD20260827/DLP20260827.zip",
   "company_field": "DRZ (MAH)",
   "snapshot_date": "2026-10-11",
-  "parts": 3,
-  "rows": 21142
+  "parts": 2,
+  "rows": 11593
  },
  "sk_sukl": {
   "country": "SK",
@@ -59,8 +59,8 @@
   "source_url": "https://www.sukl.sk/verejne/Zoznam_liekov/zoznam_liekov_aktualny.zip",
   "company_field": "Kód držiteľa (MAH)",
   "snapshot_date": "2026-10-11",
-  "parts": 3,
-  "rows": 20756
+  "parts": 2,
+  "rows": 10625
  },
  "se_lv": {
   "country": "SE",
