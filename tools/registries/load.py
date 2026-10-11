@@ -28,7 +28,17 @@ def rpc(fn, **params):
     raise RuntimeError(f"{fn} failed")
 
 
+def key_role():
+    import base64
+    try:
+        payload = KEY.split(".")[1]
+        return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))).get("role", "?")
+    except Exception:
+        return "non-JWT key"
+
+
 def main(keys):
+    print("Supabase key role:", key_role(), flush=True)
     manifest = json.loads(Path("tools/data/registries/manifest.json").read_text())
     for key in keys or list(manifest):
         m = manifest[key]
