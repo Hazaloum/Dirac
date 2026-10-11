@@ -3,18 +3,20 @@ on:
   push:
     branches: [claude/cool-allen-cg9oit]
     paths: [tools/registries/**, .github/workflows/registries.yml]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install pandas==2.2.3 openpyxl==3.1.5 xlrd==2.0.1 requests==2.32.3
-      - run: python tools/registries/run.py
+      - name: Download and normalise registries
+        run: python tools/registries/run.py
       - name: Commit outputs
         run: |
           git config user.name "github-actions"
@@ -22,3 +24,11 @@ jobs:
           git add tools/data/registries
           git commit -m "Registry data (built by Actions)" || echo "nothing to commit"
           git pull --rebase && git push
+      - name: Load into Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          export SHA=$(git rev-parse HEAD)
+          sleep 15
+          python tools/registries/load.py
