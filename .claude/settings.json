@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Supabase__execute_sql",
+      "mcp__Supabase__apply_migration",
+      "mcp__Supabase__list_tables",
+      "mcp__github__actions_list",
+      "mcp__github__get_job_logs",
+      "mcp__github__get_file_contents",
+      "mcp__Google_Drive__search_files",
+      "mcp__Google_Drive__download_file_content"
+    ]
+  }
+}
