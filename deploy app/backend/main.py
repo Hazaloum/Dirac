@@ -974,6 +974,18 @@ def get_events():
     return {"events": list_events()}
 
 
+@app.get("/api/registry/companies")
+def registry_companies(q: str = ""):
+    from registry import search_companies
+    return search_companies(q)
+
+
+@app.get("/api/registry/molecule-companies")
+def registry_molecule_companies(molecule: str):
+    from registry import molecule_companies
+    return molecule_companies(molecule)
+
+
 @app.get("/api/events/exhibitors/{exhibitor_id}/portfolio")
 def get_exhibitor_portfolio(exhibitor_id: int):
     from events import exhibitor_portfolio

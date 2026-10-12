@@ -10,6 +10,7 @@ import {
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
+import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -542,13 +543,22 @@ export default function AnalysisPage() {
               <label className="block text-xs font-medium text-surface-600 mb-1.5">
                 {mode === "molecule" ? "Molecule Name (auto-filled)" : "Company / Portfolio Name"}
               </label>
+              {mode === "upload" ? (
+                <CompanyPicker
+                  value={companyName}
+                  onChange={setCompanyName}
+                  placeholder="Start typing, e.g. Adalvo"
+                  className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
+                />
+              ) : (
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder={mode === "upload" ? "e.g. Adalvo" : mode === "craft" ? "e.g. CNS Portfolio" : "Leave blank to auto-fill"}
+                placeholder={mode === "craft" ? "e.g. CNS Portfolio" : "Leave blank to auto-fill"}
                 className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
               />
+              )}
             </div>
 
             {/* Upload mode */}

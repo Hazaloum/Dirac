@@ -173,6 +173,11 @@ export const api = {
   getEvent: (key: string) => req<EventDetail>(`/api/events/${encodeURIComponent(key)}`),
   getExhibitorPortfolio: (id: number) => req<ExhibitorPortfolio>(`/api/events/exhibitors/${id}/portfolio`),
 
+  // Master registry
+  searchRegistryCompanies: (q: string) => req<RegistryCompany[]>(`/api/registry/companies?q=${encodeURIComponent(q)}`),
+  getMoleculeHolders: (molecule: string) =>
+    req<MoleculeHolders>(`/api/registry/molecule-companies?molecule=${encodeURIComponent(molecule)}`),
+
   // Deal Tracker
   getDeals: () => req<DealBoard>("/api/deals"),
   getDeal: (id: number) => req<DealDetail>(`/api/deals/${id}`),
@@ -895,4 +900,25 @@ export interface ExhibitorPortfolio {
 
 export interface EventDetail extends EventSummary {
   zones: { zone: string; exhibitors: EventExhibitor[] }[];
+}
+
+// ─── Master registry ─────────────────────────────────────────────────────────
+
+export interface RegistryCompany { id: number; name: string; products: number; countries: string[] }
+
+export interface MoleculeHolder {
+  company_id: number;
+  name: string;
+  countries: string[];
+  products: number;
+  in_uae: boolean;
+  product_names: string[];
+}
+
+export interface MoleculeHolders {
+  molecule: string;
+  combo_key: string | null;
+  companies: MoleculeHolder[];
+  countries: string[];
+  in_uae: number;
 }

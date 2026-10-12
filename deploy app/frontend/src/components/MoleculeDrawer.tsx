@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   X, TrendingUp, TrendingDown, Users, Building2,
   FlaskConical, Star, Activity, BarChart2, Layers,
   ShieldCheck, ShieldAlert, Minus,
 } from "lucide-react";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
-import type { MoleculeCard } from "@/lib/api";
+import { api, type MoleculeCard, type MoleculeHolders } from "@/lib/api";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,64 @@ function fmtPct(v?: number | null, showSign = false) {
 function fmtNum(v?: number | null) {
   if (v == null) return "N/A";
   return v.toString();
+}
+
+// ─── Registry holders: companies with a registration for this molecule ───────
+
+function RegistryHolders({ molecule }: { molecule: string }) {
+  const [data, setData] = useState<MoleculeHolders | null>(null);
+  const [error, setError] = useState(false);
+  const [notUae, setNotUae] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null); setError(false); setShowAll(false);
+    api.getMoleculeHolders(molecule)
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [molecule]);
+
+  if (error) return <p className="text-xs text-rose-700">Could not load registry holders.</p>;
+  if (!data) return <p className="text-xs text-surface-500">Loading…</p>;
+  if (!data.combo_key) return <p className="text-xs text-surface-500">This molecule isn't matched in the master registry yet.</p>;
+  if (!data.companies.length) return <p className="text-xs text-surface-500">No company holds an active registration for it in the loaded registries.</p>;
+
+  const list = data.companies.filter((c) => !notUae || !c.in_uae);
+  const shown = showAll ? list : list.slice(0, 12);
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-surface-600">
+        <span className="font-semibold text-surface-800">{data.companies.length}</span> companies across{" "}
+        <span className="font-semibold text-surface-800">{data.countries.length}</span> registries ·{" "}
+        <span className="font-semibold text-surface-800">{data.in_uae}</span> registered in the UAE
+      </p>
+      <label className="flex items-center gap-2 text-xs text-surface-700 cursor-pointer">
+        <input type="checkbox" checked={notUae} onChange={(e) => setNotUae(e.target.checked)} />
+        Not registered in the UAE only
+      </label>
+      <ul className="divide-y divide-surface-200">
+        {shown.map((c) => (
+          <li key={c.company_id} className="py-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm text-surface-900 truncate" title={c.product_names.join(", ")}>{c.name}</p>
+              <p className="text-xs text-surface-500">{c.countries.join(" · ")} · {c.products} product{c.products === 1 ? "" : "s"}</p>
+            </div>
+            <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full border ${
+              c.in_uae ? "bg-surface-100 text-surface-600 border-surface-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+              {c.in_uae ? "In UAE" : "Not in UAE"}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {list.length > 12 && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="text-xs text-pharma-900 font-medium">
+          {showAll ? "Show fewer" : `Show all ${list.length}`}
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -314,6 +372,11 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
                 m.mohap_manufacturers <= 6 ? "neutral" : "bad"
               }
             />
+          </Section>
+
+          {/* ── Registry holders (master registry, all countries) ── */}
+          <Section title="Companies holding it (registries)" icon={<Building2 className="w-4 h-4" />}>
+            <RegistryHolders molecule={m.molecule} />
           </Section>
 
           {/* ── Manufacturer Pie Chart ── */}
