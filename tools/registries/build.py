@@ -156,8 +156,28 @@ def es():
 CZ_TRANSLATIONS: list[dict] = []
 
 
+def cz_latest_url():
+    """SÚKL publishes the DLP database under a dated folder (SODyyyymmdd/DLPyyyymmdd.zip): walk back from today."""
+    day = dt.date.today()
+    for _ in range(120):
+        tag = day.strftime("%Y%m%d")
+        url = f"https://opendata.sukl.cz/soubory/SOD{tag}/DLP{tag}.zip"
+        try:
+            if requests.head(url, headers=UA, timeout=30, allow_redirects=True).status_code == 200:
+                log("cz latest:", url)
+                return url
+        except requests.RequestException:
+            pass
+        day -= dt.timedelta(days=1)
+    raise RuntimeError("no SÚKL DLP file found in the last 120 days")
+
+
+BUILT: list[str] = []
+
+
 def cz():
-    z = zipfile.ZipFile(io.BytesIO(get("https://opendata.sukl.cz/soubory/SOD20260827/DLP20260827.zip")))
+    url = cz_latest_url()
+    z = zipfile.ZipFile(io.BytesIO(get(url)))
     rd = lambda n: pd.read_csv(z.open(n), sep=";", dtype=str, encoding="cp1250")
     lp, org, latky, slozeni, stavy = rd("dlp_lecivepripravky.csv"), rd("dlp_organizace.csv"), rd("dlp_latky.csv"), rd("dlp_slozeni.csv"), rd("dlp_stavyreg.csv")
     log("cz stavyreg:", stavy.to_dict("records"))
@@ -178,7 +198,7 @@ def cz():
         rows.append(row(f"{s(r.RC)}|{s(r.SILA)}|{s(r.FORMA)}", r.RC, r.NAZEV, orgs.get((s(r.DRZ), s(r.ZEMDRZ)), s(r.DRZ)),
                         [i for i in ing.get(s(r.KOD_SUKL), []) if i], r.SILA, r.FORMA, r.ATC_WHO, status))
     rows.sort(key=lambda r: r["status"] != "active")
-    return dict(country="CZ", name="SÚKL DLP medicines database", source_url="https://opendata.sukl.cz/soubory/SOD20260827/DLP20260827.zip",
+    return dict(country="CZ", name="SÚKL DLP medicines database", source_url=url,
                 company_field="DRZ (MAH)"), rows
 
 
@@ -410,6 +430,14 @@ def om():
     import pdfplumber
     load_inns()
     url = "https://www.moh.gov.om/media/zkmlrorx/pharmaceutical-products-list-with-prices-07-07-2026.pdf"
+    try:   # the file name carries its date: take the newest link on the Drug Safety Center page
+        html = get("https://www.moh.gov.om/en/hospitals-directorates/directorates-and-centers-at-hq/drug-safety-center/").decode("utf-8", "replace")
+        links = re.findall(r"""href=["']([^"']*pharmaceutical-products-list-with-prices[^"']*\.pdf)["']""", html, re.I)
+        log("om links:", links[:5])
+        if links:
+            url = links[0] if links[0].startswith("http") else "https://www.moh.gov.om" + links[0]
+    except Exception as e:
+        log("om page failed, using the last known file:", e)
     content = get(url)
     raw = []
     with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -542,11 +570,47 @@ def at():
                 company_field="Holder (MAH)"), rows
 
 
+def bh():
+    """NHRA Bahrain refuses requests from outside Bahrain, so its price list is uploaded by hand to
+    tools/data/registries/manual/bh/ (any .xlsx/.xls/.csv; the last by file name is used, so keep the date in the name)."""
+    files = sorted(Path("tools/data/registries/manual/bh").glob("*.*"))
+    files = [f for f in files if f.suffix.lower() in (".xlsx", ".xls", ".csv")]
+    if not files:
+        raise RuntimeError("no file in tools/data/registries/manual/bh/ yet")
+    f = files[-1]
+    df = pd.read_csv(f, dtype=str) if f.suffix.lower() == ".csv" else pd.read_excel(f, dtype=str)
+    # header row may sit below a title: use the first row that mentions a name-like column
+    if not any(re.search(r"name|trade|generic", str(c), re.I) for c in df.columns):
+        for i in range(min(10, len(df))):
+            if any(re.search(r"name|trade|generic", str(v), re.I) for v in df.iloc[i].values):
+                df.columns = [s(v) for v in df.iloc[i].values]
+                df = df.iloc[i + 1:]
+                break
+    log("bh file:", f.name, "columns:", list(df.columns))
+    pick = lambda *pats: next((c for c in df.columns if any(re.search(p, str(c), re.I) for p in pats)), None)
+    c_reg, c_trade = pick(r"reg"), pick(r"trade|brand|product|name")
+    c_gen = pick(r"generic|scientific|active|ingredient|composition|inn")
+    c_comp = pick(r"manufactur|company|mah|holder|licen") or pick(r"agent")
+    c_str, c_form = pick(r"strength|dose"), pick(r"form")
+    load_inns()
+    rows = []
+    for _, r in df.iterrows():
+        trade = s(r.get(c_trade)) if c_trade else ""
+        if not trade:
+            continue
+        key = "|".join(x for x in (s(r.get(c_reg)) if c_reg else "", trade, s(r.get(c_str)) if c_str else "", s(r.get(c_form)) if c_form else "") if x)
+        gen = s(r.get(c_gen)) if c_gen else ""
+        rows.append(row(key, r.get(c_reg) if c_reg else "", trade, r.get(c_comp) if c_comp else "", gen,
+                        r.get(c_str) if c_str else "", r.get(c_form) if c_form else "", ""))
+    return dict(country="BH", name="NHRA Bahrain registered medicine price list (uploaded file)", source_url="https://www.nhra.bh/Departments/PPR/",
+                company_field=str(c_comp)), rows
+
+
 def s_lines(v):
     return [p.strip() for p in str(v or "").split("\n") if p.strip()]
 
 
-ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be, "at_basg": at}
+ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be, "at_basg": at, "bh_nhra": bh}
 
 
 def write(key, meta, rows):
@@ -572,6 +636,7 @@ def main(keys):
         try:
             meta, rows = ALL[key]()
             manifest[key] = write(key, meta, rows)
+            BUILT.append(key)
         except Exception as e:
             log(f"FAILED {key}: {type(e).__name__}: {e}")
             log(traceback.format_exc()[-1500:])
@@ -581,6 +646,7 @@ def main(keys):
         (t / "part-000.json").write_text(json.dumps(CZ_TRANSLATIONS, ensure_ascii=False, separators=(",", ":")))
         log(f"translations: {len(CZ_TRANSLATIONS):,}")
     manifest_path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False))
+    (OUT / "built.json").write_text(json.dumps(BUILT))
     (OUT / "build_log.txt").write_text("\n".join(LOG))
 
 

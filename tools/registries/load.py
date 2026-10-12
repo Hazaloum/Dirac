@@ -1,6 +1,9 @@
-"""Load the built registry chunks into Supabase via the registry_* SQL functions (PostgREST RPC).
+"""Sync the built registry chunks into Supabase as a diff (PostgREST RPC).
 
-The database fetches each chunk itself from raw.githubusercontent.com at the given commit.
+Per registry: registry_sync_begin (new run row) -> registry_sync_part per chunk (the database fetches it from
+raw.githubusercontent.com at the given commit) -> registry_sync_apply (new / changed / withdrawn, change log,
+molecule + company matching, look-alike pairs for new companies). A download that looks broken (fewer than half
+the products on file) is skipped by the database, so a bad month never withdraws a whole country.
 Env: SUPABASE_URL, SUPABASE_KEY (service role), SHA (commit holding tools/data/registries).
 """
 import json
@@ -28,25 +31,29 @@ def rpc(fn, **params):
     raise RuntimeError(f"{fn} failed")
 
 
-def key_role():
-    import base64
-    try:
-        payload = KEY.split(".")[1]
-        return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))).get("role", "?")
-    except Exception:
-        return "non-JWT key"
-
-
 def main(keys):
-    print("Supabase key role:", key_role(), flush=True)
     manifest = json.loads(Path("tools/data/registries/manifest.json").read_text())
-    for key in keys or list(manifest):
+    built = json.loads(Path("tools/data/registries/built.json").read_text()) if Path("tools/data/registries/built.json").exists() else None
+    keys = keys or built or list(manifest)
+    summary = []
+    for key in keys:
+        if key not in manifest:
+            print(f"## {key}: not in manifest, skipped", flush=True)
+            continue
         m = manifest[key]
         print(f"## {key}: {m['rows']:,} rows in {m['parts']} parts", flush=True)
-        for part in range(m["parts"]):
-            print("  ", rpc("registry_load_part", p_base=BASE, p_key=key, p_part=part), flush=True)
-        print("  match:", rpc("registry_finish_load", p_registry=key), flush=True)
-    print("## companies:", rpc("registry_match_companies"), flush=True)
+        try:
+            run = rpc("registry_sync_begin", p_base=BASE, p_key=key)
+            for part in range(m["parts"]):
+                rpc("registry_sync_part", p_run=run, p_url=f"{BASE}/{key}/part-{part:03d}.json", p_part=part)
+            res = rpc("registry_sync_apply", p_run=run)
+            print("  ", json.dumps(res)[:600], flush=True)
+            summary.append(f"{key}: {res.get('status')} +{res.get('added', 0)} new, {res.get('changed', 0)} changed, "
+                           f"{res.get('withdrawn', 0)} withdrawn, {res.get('new_companies', 0)} new companies")
+        except Exception as e:
+            print(f"  FAILED {key}: {e}", flush=True)
+            summary.append(f"{key}: FAILED {e}")
+    print("\n".join(["## summary", *summary]), flush=True)
 
 
 if __name__ == "__main__":
