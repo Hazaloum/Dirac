@@ -453,11 +453,50 @@ def om():
     return dict(country="OM", name="MOH Oman pharmaceutical products list with prices", source_url=url, company_field="Mfr Name (manufacturer)"), rows
 
 
+def be():
+    """FAMHP medicines database (medicinesdatabase.be): the site's JSON API, paged with startRow/RPP.
+    Every call needs an xsrf-token: HS256 signature (key from /api/config) over {a: user agent, exp, jti}."""
+    import base64, hashlib, hmac, random, time
+    b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+    sess = requests.Session()
+    sess.headers.update({**UA, "Accept": "application/json", "Accept-Language": "en"})
+    key = sess.get("https://medicinesdatabase.be/api/config", timeout=60).json()["key"]
+
+    def token():
+        jti, exp = str(int(time.time() * 1000) * random.randint(1, 9999)), int(time.time() + 300)
+        head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+        body = b64(json.dumps({"a": UA["User-Agent"], "exp": exp, "jti": jti}, separators=(",", ":")).encode())
+        return b64(hmac.new(key.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest()) + f".{jti}{exp}"
+
+    items, start, total = [], 0, None
+    while total is None or start < total:
+        r = sess.get("https://medicinesdatabase.be/api/products", params={"usage": "human", "startRow": start, "RPP": 500},
+                     headers={"xsrf-token": token()}, timeout=300)
+        r.raise_for_status()
+        d = r.json()
+        total = d["rows"]
+        if not d["data"]:
+            break
+        items += d["data"]
+        start += len(d["data"])
+    log(f"be: {len(items):,} of {total:,} products; keys: {sorted({k for x in items[:200] for k in x})}")
+    rows = []
+    for x in items:
+        avail = [a.lower() for a in x.get("availability") or []]
+        status = "active" if "available" in avail else "unknown"
+        atc = x.get("atcCode") or x.get("atc") or ""
+        rows.append(row(x["id"], x.get("authorisationNumber") or x["id"], x.get("name"), x.get("company"),
+                        [s(a) for a in x.get("activeSubstanceShort") or [] if s(a)], "", "; ".join(x.get("pharmaceuticalForm") or []),
+                        atc[0] if isinstance(atc, list) and atc else atc, status))
+    return dict(country="BE", name="FAMHP medicines database", source_url="https://medicinesdatabase.be/human-use",
+                company_field="company (MAH)"), rows
+
+
 def s_lines(v):
     return [p.strip() for p in str(v or "").split("\n") if p.strip()]
 
 
-ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om}
+ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be}
 
 
 def write(key, meta, rows):
