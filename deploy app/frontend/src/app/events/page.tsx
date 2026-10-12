@@ -32,7 +32,7 @@ function PortfolioModal({ exhibitor, onClose }: { exhibitor: EventExhibitor; onC
   const notInUae = all.filter((m) => !m.in_uae).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-12" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 p-4 pt-12" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={`${exhibitor.name} portfolio`} onClick={(ev) => ev.stopPropagation()}
         className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-surface-200 px-5 py-4">
@@ -81,7 +81,10 @@ function PortfolioModal({ exhibitor, onClose }: { exhibitor: EventExhibitor; onC
                         {g.molecules.map((m) => (
                           <tr key={m.molecule}>
                             <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>{m.molecule.replace(/\+/g, " + ")}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums text-surface-700">{m.market_value_aed ? fmtAed(m.market_value_aed) : <span className="text-surface-400">—</span>}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums text-surface-700">{m.market_value_aed == null
+                              ? <span className="text-surface-400" title="Not found in UAE IQVIA">—</span>
+                              : m.market_value_aed > 0 ? fmtAed(m.market_value_aed)
+                              : <span className="text-surface-500" title={`In IQVIA but no UAE sales in ${data.iqvia_year}`}>No sales</span>}</td>
                             <td className="px-2 py-1.5 text-surface-600">{m.countries.map(country).join(" · ")}</td>
                             <td className="px-2 py-1.5">{m.in_uae
                               ? <span className="rounded-full bg-surface-100 px-1.5 text-[10px] text-surface-600">Registered</span>
@@ -93,7 +96,7 @@ function PortfolioModal({ exhibitor, onClose }: { exhibitor: EventExhibitor; onC
                   </div>
                 </section>
               ))}
-              <p className="text-[11px] text-surface-400">From the master registry (EU, US, UAE registers). Market value: UAE IQVIA, combinations divided by their molecule count; — = not sold in the UAE per IQVIA.</p>
+              <p className="text-[11px] text-surface-400">From the master registry (EU, US, UAE registers). Market value: UAE IQVIA, combinations divided by their molecule count. — = not in UAE IQVIA; No sales = in IQVIA but nothing sold that year.</p>
             </div>
           )}
         </div>
