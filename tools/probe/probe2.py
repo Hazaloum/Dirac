@@ -1,4 +1,5 @@
-"""Find the JSON APIs behind the Belgian (medicinesdatabase.be) and Austrian (medikamente.basg.gv.at) registry apps."""
+"""BE / AT registry APIs: show code around the export calls and try them."""
+import json
 import re
 from pathlib import Path
 
@@ -14,26 +15,40 @@ def log(s=""):
     lines.append(str(s))
 
 
-def js_contexts(js, pat, n=60, width=160):
+def ctx(js, pat, n=8, width=700):
     for m in list(re.finditer(pat, js))[:n]:
-        log("    ..." + js[max(0, m.start() - width):m.end() + width].replace("\n", " ") + "...")
+        log("    >>> " + js[max(0, m.start() - width):m.end() + width].replace("\n", " "))
 
 
-for name, page, base in [("be", "https://medicinesdatabase.be/human-use", "https://medicinesdatabase.be/"),
-                         ("at", "https://medikamente.basg.gv.at/de/medicinal-products/", "https://medikamente.basg.gv.at/de/")]:
-    log(f"\n######## {name}")
+def main_js(page, base):
     html = requests.get(page, headers=UA, timeout=60).text
-    for src in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", html):
-        if not src.startswith("main"):
-            continue
-        js = requests.get(base + src, headers=UA, timeout=120).text
-        log(f"  {src}: {len(js):,} chars")
-        js_contexts(js, r"""["'`][^"'`]{0,40}/api[^"'`]{0,80}["'`]""")
-        js_contexts(js, r"(?i)export|csv|xlsx", n=25, width=120)
-    for path in ["api/config", "api/resources", "api/strings"]:
+    src = next(s for s in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", html) if s.startswith("main"))
+    return requests.get(base + src, headers=UA, timeout=120).text
+
+
+log("######## be")
+js = main_js("https://medicinesdatabase.be/human-use", "https://medicinesdatabase.be/")
+ctx(js, r"products/export", 3)
+ctx(js, r"getT\(\)\{", 3)
+ctx(js, r"exportProducts|productsExport", 4, 500)
+log("######## at")
+js = main_js("https://medikamente.basg.gv.at/de/medicinal-products/", "https://medikamente.basg.gv.at/de/")
+ctx(js, r"rootUrl\s*=", 4, 300)
+ctx(js, r"exportMedicalItems\$Csv\(", 4, 900)
+ctx(js, r"MedicationSearch|searchMedicalItems\(", 4, 600)
+s = requests.Session()
+s.headers.update(UA)
+for root in ["https://medikamente.basg.gv.at", "https://medikamente.basg.gv.at/de", "https://medikamente.basg.gv.at/backend"]:
+    for typ in ["CSV", "csv", None]:
         try:
-            r = requests.get(base.replace("/de/", "/") + path, headers=UA, timeout=60)
-            log(f"  GET {path} -> {r.status_code} {r.headers.get('content-type')} {r.text[:1500]}")
+            r = s.post(root + "/api/v1/medication/export", params={"type": typ} if typ else {}, json={},
+                       headers={"Accept": "text/csv", "Accept-Language": "de"}, timeout=180)
+            log(f"POST {root}/api/v1/medication/export type={typ} -> {r.status_code} {r.headers.get('content-type')} {len(r.content):,} {r.text[:600]!r}")
         except Exception as e:
-            log(f"  GET {path} failed {e}")
+            log(f"POST {root} failed {e}")
+    try:
+        r = s.get(root + "/api/v1/medication/last-update", timeout=60)
+        log(f"GET {root}/api/v1/medication/last-update -> {r.status_code} {r.text[:300]!r}")
+    except Exception as e:
+        log(f"GET failed {e}")
 OUT.write_text("\n".join(lines))
