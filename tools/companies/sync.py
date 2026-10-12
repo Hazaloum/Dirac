@@ -53,6 +53,27 @@ def export_candidates():
     print(f"candidates exported: {len(rows)}")
 
 
+def export_name_map():
+    """Backup of raw company name -> company, as a CSV in the repo."""
+    import csv
+    rows, start = [], 0
+    while True:
+        r = requests.get(f"{URL}/rest/v1/company_name_map?select=raw_name,raw_name_lower,company_id,company_name,method,confidence,company_countries&order=company_name,raw_name_lower",
+                         headers={**HEAD, "Range": f"{start}-{start + 999}"}, timeout=300)
+        r.raise_for_status()
+        page = r.json()
+        rows += page
+        if len(page) < 1000:
+            break
+        start += 1000
+    with open(DATA / "company_name_map.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    print(f"name map exported: {len(rows)}")
+
+
 if __name__ == "__main__":
     apply_decisions()
     export_candidates()
+    export_name_map()
