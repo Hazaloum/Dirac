@@ -1,12 +1,15 @@
 
 ######## be_famhp
-FAILED be_famhp: HTTPError: 400 Client Error: Bad Request for url: https://medicinesdatabase.be/api/products?usage=human&startRow=0&RPP=500
+be: RPP 200 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
+be: RPP 100 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
+be: RPP 50 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
+FAILED be_famhp: HTTPError: 429 Client Error: Too Many Requests for url: https://medicinesdatabase.be/api/products?usage=human&startRow=640&RPP=20
 Traceback (most recent call last):
-  File "tools/registries/build.py", line 523, in main
+  File "tools/registries/build.py", line 527, in main
     meta, rows = ALL[key]()
                  ^^^^^^^^^^
-  File "tools/registries/build.py", line 475, in be
+  File "tools/registries/build.py", line 479, in be
     r.raise_for_status()
   File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/requests/models.py", line 1024, in raise_for_status
     raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: https://medicinesdatabase.be/api/products?usage=human&startRow=0&RPP=500
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://medicinesdatabase.be/api/products?usage=human&startRow=640&RPP=20
