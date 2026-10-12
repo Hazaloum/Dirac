@@ -60,6 +60,24 @@ async def main():
                 log(f"  request {url} -> {r.status} {r.headers.get('content-type')} {len(await r.body()):,}")
             except Exception as e:
                 log(f"  request failed {e}")
+        log("######## ae")
+        import re
+        for url in ["https://mohap.gov.ae/en/services/registered-medical-product-directory",
+                    "https://mohap.gov.ae/en/open-data/mohap-open-data",
+                    "https://mohap.gov.ae/en/open-data",
+                    "https://www.doh.gov.ae/en/resources/drug-master",
+                    "https://www.doh.gov.ae/en/Shafafiya/dictionary",
+                    "https://www.shafafiya.org/dictionary"]:
+            try:
+                resp = await page.goto(url, wait_until="networkidle", timeout=90000)
+                html = await page.content()
+                links = sorted(set(re.findall(r"""href=["']([^"']+?\.(?:xlsx?|csv|zip)[^"']*)["']""", html, re.I)))
+                log(f"  {url} -> {resp.status if resp else None} title={await page.title()!r} data links: {links[:30]}")
+            except Exception as e:
+                log(f"  {url} failed: {type(e).__name__}: {str(e)[:200]}")
+        for r in reqs:
+            if "api" in r.lower() or "drug" in r.lower():
+                log("  -> " + r)
         await b.close()
 
 
