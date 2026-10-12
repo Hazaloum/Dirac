@@ -1,5 +1,6 @@
 """Open the Austrian and Bahraini registry sites in headless Chromium: capture the API calls (AT) and try the download (BH)."""
 import asyncio
+NL = bytes([10])
 from pathlib import Path
 
 from playwright.async_api import async_playwright
