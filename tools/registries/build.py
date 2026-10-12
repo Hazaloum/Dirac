@@ -372,6 +372,19 @@ def ie():
                 company_field="PAHolder (MAH)"), rows
 
 
+BG_LAT = dict(zip("абвгдежзийклмнопрстуфхцчшщъьюя", ["a","b","v","g","d","e","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","h","ts","ch","sh","sht","a","","yu","ya"]))
+
+
+def bg_latin(t):
+    """Cyrillic company name -> Latin (Bulgarian transliteration), legal forms dropped: 'Тева Фарма ЕАД' -> 'Teva Farma'."""
+    t = re.sub(r"\b(ЕАД|АД|ЕООД|ООД|ЕТ|СД|КД)\b\.?", " ", s(t), flags=re.I)
+    if not re.search(r"[\u0400-\u04FF]", t):
+        return s(t)
+    out = "".join((BG_LAT.get(c.lower(), c) if c.lower() in BG_LAT else c) if True else c for c in t)
+    words = [w.capitalize() if re.search(r"[\u0400-\u04FF]", o) else w for w, o in zip(out.split(), t.split())] if len(out.split()) == len(t.split()) else out.split()
+    return s(" ".join(words).strip('"„“ '))
+
+
 def bg():
     page = "https://www.bda.bg/bg/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8-%D0%BD%D0%B0-%D0%BB%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%B8-%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D0%B8"
     html = get(page).decode("utf-8", "replace")
@@ -381,7 +394,7 @@ def bg():
     url = "https://www.bda.bg" + ial
     df = pd.read_excel(io.BytesIO(get(url)), dtype=str)
     fix_atc = lambda a: re.sub(r"^([A-Z]\d\d[A-Z]{2})\s+(\d)$", r"\g<1>0\2", re.sub(r"^([A-Z]\d\d[A-Z]{2})\s*(\d\d)$", r"\1\2", s(a)))
-    rows = [row(f"{s(r['Рег. №'])}|{s(r['Количество на акт.в-во'])}", r["Рег. №"], r["Търговско име"], r["Притежател на РУ"], s(r["INN"]),
+    rows = [row(f"{s(r['Рег. №'])}|{s(r['Количество на акт.в-во'])}", r["Рег. №"], r["Търговско име"], bg_latin(r["Притежател на РУ"]), s(r["INN"]),
                 r["Количество на акт.в-во"], r["Лек. форма EN"], fix_atc(r["АТС-Код"])) for _, r in df.iterrows()]
     cap = next((u for u in found if "Centrally" in u), None)
     if cap:
@@ -407,7 +420,12 @@ def om():
             if i % 100 == 0:
                 log(f"om page {i}/{len(pdf.pages)}: {len(raw):,} rows")
     raw = [r for r in raw if s(r[0]) and not s(r[0]).lower().startswith(("regn", "for search")) and not re.search(r"[؀-ۿ]", s(r[0]))]
-    width = [max((len(p) for r in raw for p in s_lines(r[i])), default=0) for i in range(8)]
+    from collections import Counter
+    width = []
+    for i in range(8):
+        longest = Counter(max(len(p) for p in s_lines(r[i])) for r in raw if len(s_lines(r[i])) > 1)
+        width.append(longest.most_common(1)[0][0] if longest else 999)
+    log("om wrap widths:", width)
 
     def cell(v, i):
         parts = s_lines(v)
@@ -423,8 +441,13 @@ def om():
         acts = []
         for v in (r[3], r[4]):
             a = dose.sub("", cell(v, 3)).strip()
-            if a:
-                acts.append(to_english(a))
+            if not a:
+                continue
+            glued = dose.sub("", "".join(s_lines(v))).strip()      # retry with every break glued, keep whichever is an INN
+            e = to_english(a)
+            if e == a and glued != a and to_english(glued) != glued:
+                e = to_english(glued)
+            acts.append(e)
         rows.append(row(f"{cell(r[0], 0)}|{cell(r[1], 1)}", cell(r[0], 0), cell(r[1], 1), cell(r[6], 6), acts, "", "", ""))
     log(f"om translation: {TRANSLATED}")
     return dict(country="OM", name="MOH Oman pharmaceutical products list with prices", source_url=url, company_field="Mfr Name (manufacturer)"), rows

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      ONLY: "it_aifa fr_ansm ie_hpra bg_bda om_moh"
+      ONLY: "bg_bda om_moh"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
