@@ -38,16 +38,10 @@ def apply_decisions():
 
 
 def export_candidates():
-    rows, start = [], 0
-    while True:
-        r = requests.get(f"{URL}/rest/v1/company_merge_review?select=*&order=a,b", timeout=300,
-                         headers={**HEAD, "Range": f"{start}-{start + 999}"})
-        r.raise_for_status()
-        page = r.json()
-        rows += page
-        if len(page) < 1000:
-            break
-        start += 1000
+    """Unreviewed look-alike pairs with countries + example products (SQL registry_company_pairs)."""
+    r = requests.post(f"{URL}/rest/v1/rpc/registry_company_pairs", json={"p_verdict": None, "p_limit": 5000}, headers=HEAD, timeout=900)
+    r.raise_for_status()
+    rows = r.json()
     DATA.mkdir(parents=True, exist_ok=True)
     (DATA / "candidates.json").write_text(json.dumps(rows, ensure_ascii=False, indent=0))
     print(f"candidates exported: {len(rows)}")
