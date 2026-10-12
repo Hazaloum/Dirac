@@ -468,10 +468,14 @@ def be():
         body = b64(json.dumps({"a": UA["User-Agent"], "exp": exp, "jti": jti}, separators=(",", ":")).encode())
         return b64(hmac.new(key.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest()) + f".{jti}{exp}"
 
-    items, start, total = [], 0, None
+    items, start, total, rpp = [], 0, None, 200
     while total is None or start < total:
-        r = sess.get("https://medicinesdatabase.be/api/products", params={"usage": "human", "startRow": start, "RPP": 500},
+        r = sess.get("https://medicinesdatabase.be/api/products", params={"usage": "human", "startRow": start, "RPP": rpp},
                      headers={"xsrf-token": token()}, timeout=300)
+        if r.status_code == 400 and rpp > 20:
+            log(f"be: RPP {rpp} refused: {r.text[:200]}")
+            rpp = {200: 100, 100: 50, 50: 20}[rpp]
+            continue
         r.raise_for_status()
         d = r.json()
         total = d["rows"]
