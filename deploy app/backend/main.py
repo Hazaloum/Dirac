@@ -46,9 +46,9 @@ async def lifespan(app: FastAPI):
     )
     print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
     from tecnimede import daily_sync
-    from registry_review import daily_review
+    from registry_review import review_after_refresh
     daily = asyncio.create_task(daily_sync())
-    review = asyncio.create_task(daily_review())
+    review = asyncio.create_task(review_after_refresh())
     yield
     daily.cancel()
     review.cancel()

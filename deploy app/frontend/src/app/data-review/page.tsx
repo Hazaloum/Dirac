@@ -165,7 +165,7 @@ export default function DataReviewPage() {
             ))}
           </div>
           <p className="-mt-5 mb-8 text-xs text-surface-500">
-            The AI review runs every day at 10:00 Dubai.{" "}
+            The AI review runs by itself after each monthly registry refresh, until both queues are empty.{" "}
             {last && (last.error
               ? <span className="text-rose-700">Last run {ddmmyyTime(last.started_at)} failed: {last.error}</span>
               : <>Last run {ddmmyyTime(last.started_at)}{last.finished_at ? "" : " (still running)"}: {n(last.companies_judged)} company pairs judged, {n(last.companies_merged)} merged; {n(last.molecules_judged)} ingredients judged, {n(last.molecules_matched)} matched.</>)}

@@ -4,7 +4,8 @@ registry_review.py — the AI review step of the master registry, run by the bac
 GitHub Actions does the heavy monthly work (download, diff, rule matching) and leaves two queues in Supabase:
   * company look-alike pairs (company_merge_candidates, verdict null) — new spellings vs existing companies
   * ingredient names no rule could match to a molecule (registration_molecules.molecule_id null)
-Every day at 10:00 Dubai (and on demand from Data → Review) this module sends both queues to Claude Haiku:
+After each registry refresh (the backend checks hourly for a run that finished since the last review) and on demand
+from Data → Review, this module sends both queues to Claude Haiku, until they are empty:
   * confident "same company" → merged (apply_company_merges; merging only points a company at another, nothing is deleted)
   * confident "different" → saved, never asked again
   * unsure → verdict "unsure", shown on the Review page for a person to decide
@@ -17,16 +18,14 @@ import asyncio
 import json
 import os
 import threading
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone
 
 from supabase_client import get_client, get_service_client
 
 MODEL = "claude-haiku-5-5"
-DUBAI = ZoneInfo("Asia/Dubai")
-REVIEW_HOUR = 10
+CHECK_EVERY = 3600                                      # seconds between "has a refresh landed?" checks
 COMPANY_BATCH, MOLECULE_BATCH = 25, 40
-MAX_COMPANY_PAIRS, MAX_MOLECULES = 2000, 4000          # per run, so one run stays a few minutes
+MAX_COMPANY_PAIRS, MAX_MOLECULES = 20000, 50000        # safety caps only; a run normally empties both queues
 MERGE_CONFIDENCE = 0.8
 
 _lock = threading.Lock()
@@ -243,22 +242,28 @@ def _safe(trigger: str):
         print("Registry review failed:", e)
 
 
-def seconds_until_next_run(now: datetime | None = None) -> float:
-    now = (now or datetime.now(timezone.utc)).astimezone(DUBAI)
-    target = now.replace(hour=REVIEW_HOUR, minute=0, second=0, microsecond=0)
-    if target <= now:
-        target += timedelta(days=1)
-    return (target - now).total_seconds()
+def refresh_landed() -> bool:
+    """True when a registry run finished after the last review started (or there has never been a review)."""
+    db = get_client()
+    run = db.table("registry_runs").select("finished_at").eq("status", "applied").order("finished_at", desc=True).limit(1).execute().data
+    if not run or not run[0]["finished_at"]:
+        return False
+    review = db.table("registry_review_log").select("started_at").order("started_at", desc=True).limit(1).execute().data
+    return not review or run[0]["finished_at"] > review[0]["started_at"]
 
 
-async def daily_review() -> None:
-    """Background task started with the backend: review the queues at 10:00 Dubai every day."""
+async def review_after_refresh() -> None:
+    """Background task started with the backend: once an hour, review the queues if a registry refresh landed."""
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("Registry review off — ANTHROPIC_API_KEY not set")
         return
     while True:
-        await asyncio.sleep(seconds_until_next_run())
-        await asyncio.to_thread(_safe, "schedule")
+        try:
+            if not _lock.locked() and await asyncio.to_thread(refresh_landed):
+                await asyncio.to_thread(_safe, "after refresh")
+        except Exception as e:      # keep the loop alive
+            print("Registry review check failed:", e)
+        await asyncio.sleep(CHECK_EVERY)
 
 
 # ---------------------------------------------------------------- Review page
