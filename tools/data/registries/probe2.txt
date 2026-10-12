@@ -1,14 +1,443 @@
 ######## at
   <- 200 https://medikamente.basg.gv.at/api/api/v1/medication/ctl-filter
   <- 200 https://medikamente.basg.gv.at/api/api/v1/medication/last-update
-  page request https://medikamente.basg.gv.at/api/api/v1/medication/last-update headers: {'sec-ch-ua-platform': '"Windows"', 'authorization': 'Bearer YXy/c2LDk28vDsNqrukqoBfvNmNFOEoEnt-rA/FoCgBv5K?GRn4mec2xc!mzs6VnUWmCFI338l0G0vTGSeZcMFUZYBFclIx?5iu!CgQcujZygafyoj0D?hkWxx-6PqRVyOz6zM?MIIVyo?2CRZq8ViA-AoVFKJZe0H5iYamMzXS8pZ5BUp0HPM1DM7YkoInFZIT-AkNoEhbr9oXisGrlEI45sV43drXBqGxVGFjuobYkty?Pd4tgTyFOWWOYQKy=', 'referer': 'https://medikamente.basg.gv.at/', 'accept-language': 'de-AT', 'sec-ch-ua': '"HeadlessChrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"', 'sec-ch-ua-mobile': '?0', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36', 'accept': 'application/json'}
-  page request https://medikamente.basg.gv.at/api/api/v1/medication/ctl-filter headers: {'sec-ch-ua-platform': '"Windows"', 'authorization': 'Bearer YXy/c2LDk28vDsNqrukqoBfvNmNFOEoEnt-rA/FoCgBv5K?GRn4mec2xc!mzs6VnUWmCFI338l0G0vTGSeZcMFUZYBFclIx?5iu!CgQcujZygafyoj0D?hkWxx-6PqRVyOz6zM?MIIVyo?2CRZq8ViA-AoVFKJZe0H5iYamMzXS8pZ5BUp0HPM1DM7YkoInFZIT-AkNoEhbr9oXisGrlEI45sV43drXBqGxVGFjuobYkty?Pd4tgTyFOWWOYQKy=', 'referer': 'https://medikamente.basg.gv.at/', 'accept-language': 'DE', 'sec-ch-ua': '"HeadlessChrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"', 'sec-ch-ua-mobile': '?0', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36', 'accept': 'application/json'}
-  export CSV -> 200 text/csv 637 b'\xef\xbb\xbfDescription,Type,Name,MA number,MR/DC/CP number,Holder,MA date,Active substance(s),ATC code,Narcotic drug,Psychotropic,Mandatory for batch release?,Marketing cessation notified,Exception for batch release?,Authorised in Liechtenstein?,Prescription status,Supply status,Domain,Category of medicinal product,Strength,Strength Unit,Pharmaceutical dose form,Allergen,Vaccine,Prescription required,Additional monitoring,Animal species,Animal species category,Usage,Dosage,Tissue Name,Waiting time,Unit,Specialities,Package Leaflet,PL valid from,SmPC,SmPC valid from,Public Assessment Report (PAR),PAR valid from,RMP Summary,RMP valid from\n'
-  export csv -> 200 text/csv 637 b'\xef\xbb\xbfDescription,Type,Name,MA number,MR/DC/CP number,Holder,MA date,Active substance(s),ATC code,Narcotic drug,Psychotropic,Mandatory for batch release?,Marketing cessation notified,Exception for batch release?,Authorised in Liechtenstein?,Prescription status,Supply status,Domain,Category of medicinal product,Strength,Strength Unit,Pharmaceutical dose form,Allergen,Vaccine,Prescription required,Additional monitoring,Animal species,Animal species category,Usage,Dosage,Tissue Name,Waiting time,Unit,Specialities,Package Leaflet,PL valid from,SmPC,SmPC valid from,Public Assessment Report (PAR),PAR valid from,RMP Summary,RMP valid from\n'
-######## ae
-  Drugs.xlsx failed Error: APIRequestContext.get: read ECONNRESET
+  inputs: 6 placeholders: [None, None, None, None, 'TT.MM.JJJJ', 'TT.MM.JJJJ']
+  <- 200 https://medikamente.basg.gv.at/api/api/v1/medication/suggest-name-authnr?searchString=*&page=1&size=200
+  search click failed Locator.click: Timeout 30000ms exceeded.
 Call log:
-→ GET https://shafafiyaportal.doh.gov.ae/dictionary/DrugCoding/Drugs.xlsx
-  -   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36
-  -   accept: */*
-  -   accept-encoding: gzip,defla
+waiting for get_by_role("button", name="Suche").first
+  -   locator resolved to <button mat-button="" type="button" name="Erweiterte Suche" _ngcontent-ng-c1958076615="" mat-ripple-loader-uninitialized="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button stretch mat-primary ng-star-inserted">…</button>
+  - attempting click action
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <div role="listbox" id="mat-autocomplete-0" aria-labelledby="mat-mdc-form-field-label-2" class="mat-mdc-autocomplete-panel mdc-menu-surface mdc-menu-surface--open mat-autocomplete-panel-animations-enabled ng-star-inserted mat-primary mat-mdc-autocomplete-visible">…</div> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #1
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <div class="ng-star-inserted" _ngcontent-ng-c2075259508="">…</div> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #2
+  -   waiting 20ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <div class="ng-star-inserted" _ngcontent-ng-c2075259508="">…</div> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #3
+  -   waiting 100ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <div class="ng-star-inserted" _ngcontent-ng-c2075259508="">…</div> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #4
+  -   waiting 100ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <div class="ng-star-inserted" _ngcontent-ng-c2075259508="">…</div> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #5
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #6
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #7
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #8
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #9
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #10
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #11
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #12
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #13
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #14
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #15
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #16
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #17
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #18
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #19
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #20
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #21
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #22
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #23
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #24
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #25
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #26
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #27
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #28
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #29
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #30
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #31
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #32
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #33
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #34
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #35
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #36
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #37
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #38
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #39
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #40
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #41
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #42
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #43
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #44
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #45
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #46
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #47
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #48
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #49
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #50
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #51
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #52
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #53
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #54
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #55
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #56
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #57
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #58
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #59
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #60
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #61
+  -   waiting 500ms
+  -   waiting for element to be visible, enabled and stable
+  -   element is visible, enabled and stable
+  -   scrolling into view if needed
+  -   done scrolling
+  -   <mat-option id="0" role="option" aria-selected="false" aria-disabled="false" _ngcontent-ng-c2075259508="" class="mat-mdc-option mdc-list-item ng-star-inserted">…</mat-option> from <form class="ng-tns-c792128141-1">…</form> subtree intercepts pointer events
+  - retrying click action, attempt #62
+  -   waiting 500ms
