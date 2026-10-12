@@ -41,31 +41,25 @@ def main_js(page, base):
 
 log("######## be")
 js = main_js("https://medicinesdatabase.be/human-use", "https://medicinesdatabase.be/")
-for m in list(re.finditer(r"products/export", js))[:1]:
-    log("  ctx: " + js[m.start() - 3000:m.end() + 100])
+for pat in [r"productsSearchProducts\(", r"productsExportProducts\(", r"usage:\"human"]:
+    for m in list(re.finditer(pat, js))[1:3]:
+        log(f"  ctx {pat}: " + js[max(0, m.start() - 500):m.end() + 900])
 s = requests.Session()
 s.headers.update({"User-Agent": UA, "Accept-Language": "en"})
 cfg = s.get("https://medicinesdatabase.be/api/config").json()
-for params in [{}, {"usage": "human"}, {"usage": "human", "format": "csv"}]:
-    r = s.get("https://medicinesdatabase.be/api/products/export", params=params, headers={"xsrf-token": be_token(cfg["key"])}, timeout=300)
-    log(f"GET products/export {params} -> {r.status_code} {r.headers.get('content-type')} {r.headers.get('content-disposition')} {len(r.content):,} {r.content[:400]!r}")
+for path, params, acc in [("/api/products/export", {"usage": "human"}, "text/html"), ("/api/products/export", {"usage": "HUMAN_USE"}, "text/html"),
+                          ("/api/products/export", {"term": "a", "usage": "human"}, "*/*"), ("/api/products", {"usage": "human"}, "application/json"),
+                          ("/api/products/search", {"usage": "human"}, "application/json")]:
+    r = s.get("https://medicinesdatabase.be" + path, params=params, headers={"xsrf-token": be_token(cfg["key"]), "Accept": acc}, timeout=300)
+    log(f"GET {path} {params} -> {r.status_code} {r.headers.get('content-type')} {r.headers.get('content-disposition')} {len(r.content):,} {r.content[:300]!r}")
 
 log("######## at")
 js = main_js("https://medikamente.basg.gv.at/de/medicinal-products/", "https://medikamente.basg.gv.at/de/")
-for pat in [r"aspregisterservice", r"exportMedicalItems\$Csv\(\{", r"ExportType|exportType"]:
+for pat in [r"rootUrl=i", r"\.rootUrl=", r"assets/[a-zA-Z_-]+\.json", r"environment"]:
     for m in list(re.finditer(pat, js))[:3]:
-        log(f"  ctx {pat}: " + js[max(0, m.start() - 600):m.end() + 600])
-for root in ["https://medikamente.basg.gv.at/aspregisterservice", "https://aspregister.basg.gv.at/aspregisterservice"]:
-    for typ in ["CSV", "EXCEL", None]:
-        try:
-            r = requests.post(root + "/api/v1/medication/export", params={"type": typ} if typ else {}, json={},
-                              headers={"User-Agent": UA, "Accept": "text/csv", "Accept-Language": "de", "Content-Type": "application/json"}, timeout=300)
-            log(f"POST {root} type={typ} -> {r.status_code} {r.headers.get('content-type')} {len(r.content):,} {r.content[:500]!r}")
-        except Exception as e:
-            log(f"POST {root} failed {e}")
-    try:
-        r = requests.get(root + "/api/v1/medication/last-update", headers={"User-Agent": UA}, timeout=60)
-        log(f"GET {root}/last-update -> {r.status_code} {r.text[:300]!r}")
-    except Exception as e:
-        log(f"GET failed {e}")
+        log(f"  ctx {pat}: " + js[max(0, m.start() - 700):m.end() + 300])
+for u in ["https://medikamente.basg.gv.at/de/assets/config.json", "https://medikamente.basg.gv.at/de/assets/env.json",
+          "https://medikamente.basg.gv.at/assets/config.json", "https://medikamente.basg.gv.at/de/config.json"]:
+    r = requests.get(u, headers={"User-Agent": UA}, timeout=60)
+    log(f"GET {u} -> {r.status_code} {r.headers.get('content-type')} {r.text[:400]!r}")
 OUT.write_text("\n".join(lines))
