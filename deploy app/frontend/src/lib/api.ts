@@ -174,6 +174,9 @@ export const api = {
   getExhibitorPortfolio: (id: number) => req<ExhibitorPortfolio>(`/api/events/exhibitors/${id}/portfolio`),
 
   // Master registry
+  getRegistries: () => req<RegistrySource[]>("/api/registry/registries"),
+  searchRegistry: (registry: string, q: string, status: string, offset: number, limit = 50) =>
+    req<RegistrySearch>(`/api/registry/search?registry=${encodeURIComponent(registry)}&q=${encodeURIComponent(q)}&status=${status}&offset=${offset}&limit=${limit}`),
   searchRegistryCompanies: (q: string) => req<RegistryCompany[]>(`/api/registry/companies?q=${encodeURIComponent(q)}`),
   getMoleculeHolders: (molecule: string) =>
     req<MoleculeHolders>(`/api/registry/molecule-companies?molecule=${encodeURIComponent(molecule)}`),
@@ -924,3 +927,30 @@ export interface MoleculeHolders {
   countries: string[];
   in_uae: number;
 }
+
+export interface RegistrySource {
+  key: string;
+  country: string;
+  name: string;
+  source_url: string | null;
+  company_field: string | null;
+  snapshot_date: string | null;
+  row_count: number | null;
+}
+
+export interface RegistryRow {
+  id: number;
+  registration_no: string | null;
+  product_name: string | null;
+  company_raw: string | null;
+  company_id: number | null;
+  company_name: string | null;
+  molecule_raw: string | null;
+  combo_key: string | null;
+  strength_raw: string | null;
+  form_raw: string | null;
+  atc: string | null;
+  status: "active" | "withdrawn" | "unknown";
+}
+
+export interface RegistrySearch { total: number; offset: number; rows: RegistryRow[] }

@@ -30,3 +30,18 @@ def molecule_companies(name: str) -> dict:
         "countries": sorted({c for r in exact for c in (r.get("countries") or [])}),
         "in_uae": sum(1 for r in exact if r.get("in_uae")),
     }
+
+
+def list_registries() -> list[dict]:
+    rows = get_client().table("registries").select("key,country,name,source_url,company_field,snapshot_date,row_count").execute().data or []
+    return sorted(rows, key=lambda r: (r["country"] != "AE", r["country"]))
+
+
+def search_registry(registry: str, q: str = "", status: str = "active", offset: int = 0, limit: int = 50) -> dict:
+    status = status if status in ("active", "withdrawn", "all") else "active"
+    rows = get_client().rpc("registry_search", {"p_registry": registry, "p_q": q or "", "p_status": status,
+                                                "p_offset": max(offset, 0), "p_limit": min(max(limit, 1), 200)}).execute().data or []
+    total = rows[0]["total"] if rows else 0
+    for r in rows:
+        r.pop("total", None)
+    return {"total": total, "offset": offset, "rows": rows}

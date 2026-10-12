@@ -14,6 +14,7 @@ import {
   Search,
   Users,
   Ship,
+  Database,
 } from "lucide-react";
 
 const groups = [
@@ -36,6 +37,12 @@ const groups = [
       { name: "Inventory", href: "/inventory", icon: Boxes },
       { name: "PO Tracker", href: "/po-tracker", icon: Ship },
       { name: "Field Force", href: "/field-force", icon: Users },
+    ],
+  },
+  {
+    name: "Data",
+    pages: [
+      { name: "Registries", href: "/registries", icon: Database },
     ],
   },
 ];

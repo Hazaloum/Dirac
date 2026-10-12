@@ -980,6 +980,18 @@ def registry_companies(q: str = ""):
     return search_companies(q)
 
 
+@app.get("/api/registry/registries")
+def registry_list():
+    from registry import list_registries
+    return list_registries()
+
+
+@app.get("/api/registry/search")
+def registry_search(registry: str, q: str = "", status: str = "active", offset: int = 0, limit: int = 50):
+    from registry import search_registry
+    return search_registry(registry, q, status, offset, limit)
+
+
 @app.get("/api/registry/molecule-companies")
 def registry_molecule_companies(molecule: str):
     from registry import molecule_companies
