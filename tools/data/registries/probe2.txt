@@ -1,17 +1,14 @@
 ######## at
   <- 200 https://medikamente.basg.gv.at/api/api/v1/medication/ctl-filter
   <- 200 https://medikamente.basg.gv.at/api/api/v1/medication/last-update
-  buttons: ['menu', '', '', '', '', '', '', 'Erweiterte Sucheexpand_more', 'Initialisieren', 'Suche']
-  clicking Suche
-  no download after Suche: TimeoutError
-  -> GET https://medikamente.basg.gv.at/api/api/v1/medication/last-update 
-  -> GET https://medikamente.basg.gv.at/api/api/v1/medication/ctl-filter 
-######## bh
-  goto https://www.nhra.bh/Departments/PPR/?page=102 -> 403
-  title: 403 Forbidden
-  body: <html><head><title>403 Forbidden</title></head> <body> <center><h1>403 Forbidden</h1></center>         </body></html>
-  request https://www.nhra.bh/Departments/PPR/?page=102 -> 403 text/html 520
-  goto https://www.nhra.bh/Departments/PPR/MediaHandler/GenericHandler/documents/departments/PPR/Medicines/List/PPR_LISTS_Registered%20Medicine%20Price%20List_20260614.xlsx -> 403
-  title: 403 Forbidden
-  body: <html><head><title>403 Forbidden</title></head> <body> <center><h1>403 Forbidden</h1></center>         </body></html>
-  request https://www.nhra.bh/Departments/PPR/MediaHandler/GenericHandler/documents/departments/PPR/Medicines/List/PPR_LISTS_Registered%20Medicine%20Price%20List_20260614.xlsx -> 403 text/html 520
+  page request https://medikamente.basg.gv.at/api/api/v1/medication/last-update headers: {'sec-ch-ua-platform': '"Windows"', 'authorization': 'Bearer YXy/c2LDk28vDsNqrukqoBfvNmNFOEoEnt-rA/FoCgBv5K?GRn4mec2xc!mzs6VnUWmCFI338l0G0vTGSeZcMFUZYBFclIx?5iu!CgQcujZygafyoj0D?hkWxx-6PqRVyOz6zM?MIIVyo?2CRZq8ViA-AoVFKJZe0H5iYamMzXS8pZ5BUp0HPM1DM7YkoInFZIT-AkNoEhbr9oXisGrlEI45sV43drXBqGxVGFjuobYkty?Pd4tgTyFOWWOYQKy=', 'referer': 'https://medikamente.basg.gv.at/', 'accept-language': 'de-AT', 'sec-ch-ua': '"HeadlessChrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"', 'sec-ch-ua-mobile': '?0', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36', 'accept': 'application/json'}
+  page request https://medikamente.basg.gv.at/api/api/v1/medication/ctl-filter headers: {'sec-ch-ua-platform': '"Windows"', 'authorization': 'Bearer YXy/c2LDk28vDsNqrukqoBfvNmNFOEoEnt-rA/FoCgBv5K?GRn4mec2xc!mzs6VnUWmCFI338l0G0vTGSeZcMFUZYBFclIx?5iu!CgQcujZygafyoj0D?hkWxx-6PqRVyOz6zM?MIIVyo?2CRZq8ViA-AoVFKJZe0H5iYamMzXS8pZ5BUp0HPM1DM7YkoInFZIT-AkNoEhbr9oXisGrlEI45sV43drXBqGxVGFjuobYkty?Pd4tgTyFOWWOYQKy=', 'referer': 'https://medikamente.basg.gv.at/', 'accept-language': 'DE', 'sec-ch-ua': '"HeadlessChrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"', 'sec-ch-ua-mobile': '?0', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36', 'accept': 'application/json'}
+  export CSV -> 200 text/csv 637 b'\xef\xbb\xbfDescription,Type,Name,MA number,MR/DC/CP number,Holder,MA date,Active substance(s),ATC code,Narcotic drug,Psychotropic,Mandatory for batch release?,Marketing cessation notified,Exception for batch release?,Authorised in Liechtenstein?,Prescription status,Supply status,Domain,Category of medicinal product,Strength,Strength Unit,Pharmaceutical dose form,Allergen,Vaccine,Prescription required,Additional monitoring,Animal species,Animal species category,Usage,Dosage,Tissue Name,Waiting time,Unit,Specialities,Package Leaflet,PL valid from,SmPC,SmPC valid from,Public Assessment Report (PAR),PAR valid from,RMP Summary,RMP valid from\n'
+  export csv -> 200 text/csv 637 b'\xef\xbb\xbfDescription,Type,Name,MA number,MR/DC/CP number,Holder,MA date,Active substance(s),ATC code,Narcotic drug,Psychotropic,Mandatory for batch release?,Marketing cessation notified,Exception for batch release?,Authorised in Liechtenstein?,Prescription status,Supply status,Domain,Category of medicinal product,Strength,Strength Unit,Pharmaceutical dose form,Allergen,Vaccine,Prescription required,Additional monitoring,Animal species,Animal species category,Usage,Dosage,Tissue Name,Waiting time,Unit,Specialities,Package Leaflet,PL valid from,SmPC,SmPC valid from,Public Assessment Report (PAR),PAR valid from,RMP Summary,RMP valid from\n'
+######## ae
+  Drugs.xlsx failed Error: APIRequestContext.get: read ECONNRESET
+Call log:
+→ GET https://shafafiyaportal.doh.gov.ae/dictionary/DrugCoding/Drugs.xlsx
+  -   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36
+  -   accept: */*
+  -   accept-encoding: gzip,defla
