@@ -171,6 +171,7 @@ export const api = {
   // Events (CPHI exhibitor lists)
   getEvents: () => req<{ events: EventSummary[] }>("/api/events"),
   getEvent: (key: string) => req<EventDetail>(`/api/events/${encodeURIComponent(key)}`),
+  getExhibitorPortfolio: (id: number) => req<ExhibitorPortfolio>(`/api/events/exhibitors/${id}/portfolio`),
 
   // Deal Tracker
   getDeals: () => req<DealBoard>("/api/deals"),
@@ -867,6 +868,15 @@ export interface EventExhibitor {
   is_new: boolean;
   years_exhibiting: number | null;
   employees: string;
+  /** Master-registry company this exhibitor was matched to (null = not found in any registry). */
+  company_id: number | null;
+}
+
+export interface ExhibitorPortfolio {
+  matched: boolean;
+  company: { id: number; name: string; countries: string[]; products: number } | null;
+  /** One row per molecule or combination ("amlodipine+valsartan"); unmatched ingredient text keeps its raw spelling. */
+  molecules: { molecule: string; matched: boolean; combination: boolean; countries: string[]; products: number; in_uae: boolean }[];
 }
 
 export interface EventDetail extends EventSummary {

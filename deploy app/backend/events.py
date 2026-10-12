@@ -57,3 +57,47 @@ def get_event(key: str) -> dict | None:
     zones = [{"zone": z, "exhibitors": sorted(groups[z], key=lambda e: e["name"].lower())}
              for z in sorted(groups, key=_zone_rank)]
     return {**rows[0], "zones": zones}
+
+
+def summarise_portfolio(regs: list[dict]) -> list[dict]:
+    """Registrations -> one row per molecule/combination with countries, product count and UAE presence."""
+    by: dict[str, dict] = {}
+    for r in regs:
+        key = r["combo_key"] or (r["molecule_raw"] or "").lower()
+        if not key:
+            continue
+        m = by.setdefault(key, {"molecule": key, "matched": bool(r["combo_key"]), "countries": set(), "products": 0})
+        m["countries"].add(r["country"])
+        m["products"] += 1
+    molecules = [{**m, "countries": sorted(m["countries"]), "in_uae": "AE" in m["countries"],
+                  "combination": "+" in m["molecule"]} for m in by.values()]
+    molecules.sort(key=lambda m: (-len(m["countries"]), m["molecule"]))
+    return molecules
+
+
+def exhibitor_portfolio(exhibitor_id: int) -> dict | None:
+    """What a matched exhibitor holds in the master registry, one row per molecule (or combination).
+
+    Each row: the molecule(s), countries where it is registered (active or unknown status), product count,
+    and whether it is registered in the UAE. Unmatched exhibitors return matched=False.
+    """
+    client = get_client()
+    rows = client.table("event_exhibitors").select("id,name,company_id").eq("id", exhibitor_id).execute().data
+    if not rows:
+        return None
+    company_id = rows[0]["company_id"]
+    if not company_id:
+        return {"matched": False, "company": None, "molecules": []}
+    company = client.table("companies").select("id,name").eq("id", company_id).execute().data[0]
+    regs, start = [], 0
+    while True:
+        page = (client.table("registrations").select("country,combo_key,molecule_raw,status")
+                .eq("company_id", company_id).neq("status", "withdrawn").order("id")
+                .range(start, start + PAGE_SIZE - 1).execute().data)
+        regs.extend(page)
+        if len(page) < PAGE_SIZE:
+            break
+        start += PAGE_SIZE
+    molecules = summarise_portfolio(regs)
+    countries = sorted({r["country"] for r in regs})
+    return {"matched": True, "company": {**company, "countries": countries, "products": len(regs)}, "molecules": molecules}

@@ -1,12 +1,60 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, ExternalLink, Search } from "lucide-react";
-import { api, type EventDetail, type EventExhibitor, type EventSummary } from "@/lib/api";
+import { CalendarDays, ChevronDown, ExternalLink, Loader2, Search } from "lucide-react";
+import { api, type EventDetail, type EventExhibitor, type EventSummary, type ExhibitorPortfolio } from "@/lib/api";
 import { ddmmyy } from "@/lib/dates";
 
 const MIDDLE_EAST = "Middle East Region (e.g. UAE)";
 const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
+
+/** What a matched exhibitor holds in the master registry: molecules, countries, UAE presence. */
+function Portfolio({ exhibitorId }: { exhibitorId: number }) {
+  const [data, setData] = useState<ExhibitorPortfolio | null>(null);
+  const [error, setError] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    api.getExhibitorPortfolio(exhibitorId).then(setData).catch((err: Error) => setError(err.message));
+  }, [exhibitorId]);
+
+  if (error) return <p className="text-xs text-red-700">{error}</p>;
+  if (!data) return <p className="flex items-center gap-1.5 text-xs text-surface-500"><Loader2 className="h-3 w-3 animate-spin" /> Loading portfolio…</p>;
+  if (!data.matched || !data.company) return null;
+  const rows = showAll ? data.molecules : data.molecules.slice(0, 15);
+  const notInUae = data.molecules.filter((m) => !m.in_uae).length;
+  return (
+    <div className="grid gap-2 rounded-lg border border-surface-200 bg-surface-50 p-3">
+      <p className="text-xs text-surface-600">
+        <b className="text-surface-800">{data.company.name}</b> · {data.company.products.toLocaleString()} registered products in{" "}
+        {data.company.countries.map((c) => (c === "AE" ? "UAE" : c)).join(", ")} · {data.molecules.length} molecules, {notInUae} not registered in the UAE
+      </p>
+      <div className="overflow-x-auto rounded border border-surface-200 bg-white">
+        <table className="w-full text-xs">
+          <thead className="bg-surface-50 text-left text-[11px] uppercase tracking-wider text-surface-500">
+            <tr><th className="px-2 py-1.5">Molecule</th><th className="px-2 py-1.5">Registered in</th><th className="px-2 py-1.5 text-right">Products</th><th className="px-2 py-1.5">UAE</th></tr>
+          </thead>
+          <tbody className="divide-y divide-surface-100">
+            {rows.map((m) => (
+              <tr key={m.molecule}>
+                <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>{m.molecule.replace(/\+/g, " + ")}</td>
+                <td className="px-2 py-1.5 text-surface-600">{m.countries.map((c) => (c === "AE" ? "UAE" : c)).join(" · ")}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-surface-600">{m.products}</td>
+                <td className="px-2 py-1.5">{m.in_uae
+                  ? <span className="rounded-full bg-surface-100 px-1.5 text-[10px] text-surface-600">Registered</span>
+                  : <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Not in UAE</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {data.molecules.length > 15 && (
+        <button onClick={() => setShowAll((s) => !s)} className="justify-self-start text-xs font-medium text-pharma-800 hover:underline">
+          {showAll ? "Show fewer" : `Show all ${data.molecules.length} molecules`}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function ExhibitorRow({ e }: { e: EventExhibitor }) {
   const [open, setOpen] = useState(false);
@@ -21,6 +69,7 @@ function ExhibitorRow({ e }: { e: EventExhibitor }) {
             <span className="text-xs text-surface-500">{e.country}</span>
             {e.is_new && <span className="rounded-full bg-sky-50 px-1.5 text-[10px] font-medium text-sky-800">New</span>}
             {inMiddleEast && <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Active in Middle East</span>}
+            {e.company_id && <span className="rounded-full bg-pharma-50 px-1.5 text-[10px] font-medium text-pharma-800">Portfolio</span>}
           </span>
           {e.org_types.length > 0 && <span className="mt-0.5 block truncate text-xs text-surface-500">{e.org_types.join(" · ")}</span>}
         </span>
@@ -31,6 +80,7 @@ function ExhibitorRow({ e }: { e: EventExhibitor }) {
       </button>
       {open && (
         <div className="grid gap-2 px-4 pb-3 text-sm">
+          {e.company_id && <Portfolio exhibitorId={e.id} />}
           {e.description && <p className="max-w-3xl whitespace-pre-line text-surface-700">{e.description}</p>}
           <dl className="grid gap-1 text-xs text-surface-600 sm:grid-cols-[140px_1fr]">
             {e.categories.length > 0 && <><dt className="text-surface-400">Categories</dt><dd>{e.categories.join(" · ")}</dd></>}
@@ -60,6 +110,7 @@ export default function EventsPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [middleEastOnly, setMiddleEastOnly] = useState(false);
+  const [portfolioOnly, setPortfolioOnly] = useState(false);
   const [openZones, setOpenZones] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -86,12 +137,13 @@ export default function EventsPage() {
       zone: z.zone,
       exhibitors: z.exhibitors.filter((e) =>
         (!middleEastOnly || e.markets.includes(MIDDLE_EAST)) &&
+        (!portfolioOnly || e.company_id != null) &&
         (!q || e.name.toLowerCase().includes(q) || e.country.toLowerCase().includes(q) ||
           e.categories.some((c) => c.toLowerCase().includes(q)) || e.description.toLowerCase().includes(q))),
       total: z.exhibitors.length,
     })).filter((z) => z.exhibitors.length > 0);
-  }, [event, query, middleEastOnly]);
-  const filtering = query.trim() !== "" || middleEastOnly;
+  }, [event, query, middleEastOnly, portfolioOnly]);
+  const filtering = query.trim() !== "" || middleEastOnly || portfolioOnly;
   const shown = zones.reduce((n, z) => n + z.exhibitors.length, 0);
 
   const toggleZone = (zone: string) => setOpenZones((s) => {
@@ -137,6 +189,10 @@ export default function EventsPage() {
             <label className="flex items-center gap-2 text-sm text-surface-700">
               <input type="checkbox" checked={middleEastOnly} onChange={(e) => setMiddleEastOnly(e.target.checked)} className="accent-pharma-700" />
               Active in the Middle East only
+            </label>
+            <label className="flex items-center gap-2 text-sm text-surface-700">
+              <input type="checkbox" checked={portfolioOnly} onChange={(e) => setPortfolioOnly(e.target.checked)} className="accent-pharma-700" />
+              With a registry portfolio only
             </label>
             <span className="text-xs text-surface-500">
               {plural(shown, "exhibitor")}{filtering ? ` of ${event.exhibitor_count.toLocaleString()}` : ""}

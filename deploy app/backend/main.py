@@ -974,6 +974,15 @@ def get_events():
     return {"events": list_events()}
 
 
+@app.get("/api/events/exhibitors/{exhibitor_id}/portfolio")
+def get_exhibitor_portfolio(exhibitor_id: int):
+    from events import exhibitor_portfolio
+    result = exhibitor_portfolio(exhibitor_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Exhibitor not found")
+    return result
+
+
 @app.get("/api/events/{key}")
 def get_event(key: str):
     from events import get_event as _get
