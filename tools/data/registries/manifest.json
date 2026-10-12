@@ -79,5 +79,50 @@
   "snapshot_date": "2026-10-11",
   "parts": 7,
   "rows": 51859
+ },
+ "it_aifa": {
+  "country": "IT",
+  "name": "AIFA authorised medicines (confezioni)",
+  "source_url": "https://drive.aifa.gov.it/farmaci/confezioni.csv",
+  "company_field": "RAGIONE_SOCIALE (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 4,
+  "rows": 25467
+ },
+ "fr_ansm": {
+  "country": "FR",
+  "name": "ANSM base de données publique des médicaments",
+  "source_url": "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_bdpm.txt",
+  "company_field": "Titulaire (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 2,
+  "rows": 14567
+ },
+ "ie_hpra": {
+  "country": "IE",
+  "name": "HPRA human medicines",
+  "source_url": "https://assets.hpra.ie/products/xml/latestHumanlist.xml",
+  "company_field": "PAHolder (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 2,
+  "rows": 9336
+ },
+ "bg_bda": {
+  "country": "BG",
+  "name": "BDA register of medicinal products (national)",
+  "source_url": "https://www.bda.bg/images/stories/documents/registers/Register_Lekarstva/IAL_Register_08_2026.xlsx",
+  "company_field": "Притежател на РУ (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 1,
+  "rows": 6931
+ },
+ "om_moh": {
+  "country": "OM",
+  "name": "MOH Oman pharmaceutical products list with prices",
+  "source_url": "https://www.moh.gov.om/media/zkmlrorx/pharmaceutical-products-list-with-prices-07-07-2026.pdf",
+  "company_field": "Mfr Name (manufacturer)",
+  "snapshot_date": "2026-10-12",
+  "parts": 1,
+  "rows": 6839
  }
 }
