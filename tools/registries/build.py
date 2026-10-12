@@ -498,11 +498,55 @@ def be():
                 company_field="company (MAH)"), rows
 
 
+def at():
+    """BASG Medikamente Info Austria: the site's own CSV export. The API wants a Bearer token the page creates,
+    so a headless browser opens the page, keeps that token, then posts the wildcard search ("*") to /export."""
+    from playwright.sync_api import sync_playwright
+    api = "https://medikamente.basg.gv.at/api/api/v1/medication"
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        ctx = b.new_context(user_agent=UA["User-Agent"])
+        page = ctx.new_page()
+        auth = {}
+        page.on("request", lambda r: auth.setdefault("h", r.headers.get("authorization")) if "/api/api/" in r.url and r.headers.get("authorization") else None)
+        page.goto("https://medikamente.basg.gv.at/de/medicinal-products/", wait_until="networkidle", timeout=120000)
+        page.wait_for_timeout(3000)
+        if not auth.get("h"):
+            raise RuntimeError("no API token seen on the page")
+        body = {"nameAuthNumber": "*"}
+        r = ctx.request.post(f"{api}/export?type=CSV", data=body, timeout=900000,
+                             headers={"Authorization": auth["h"], "Accept": "text/csv", "Accept-Language": "en", "Content-Type": "application/json"})
+        if r.status != 200:
+            raise RuntimeError(f"export -> {r.status} {r.text()[:300]}")
+        content = r.body()
+        b.close()
+    log(f"at export: {len(content):,} bytes")
+    df = pd.read_csv(io.BytesIO(content), dtype=str, encoding="utf-8-sig")
+    log("at columns:", list(df.columns))
+    dom = next((c for c in df.columns if c.lower() in ("domain", "domäne")), None)
+    if dom:
+        log("at domains:", df[dom].value_counts().to_dict())
+        df = df[df[dom].fillna("").str.lower().str.startswith("hum")]
+    col = lambda *names: next((c for c in names if c in df.columns), None)
+    c_ma, c_name, c_holder = col("MA number", "Zulassungsnummer"), col("Name", "Bezeichnung"), col("Holder", "Zulassungsinhaber")
+    c_subst, c_atc = col("Active substance(s)", "Wirkstoff(e)"), col("ATC code", "ATC-Code")
+    c_str, c_unit, c_form = col("Strength"), col("Strength Unit"), col("Pharmaceutical dose form")
+    load_inns()
+    rows = []
+    for _, r in df.iterrows():
+        strength = " ".join(x for x in (s(r.get(c_str)) if c_str else "", s(r.get(c_unit)) if c_unit else "") if x)
+        subs = [to_english(x) for x in re.split(r",\s+(?![^()]*\))", s(r.get(c_subst))) if x.strip()]
+        rows.append(row(f"{s(r[c_ma])}|{strength}|{s(r.get(c_form)) if c_form else ''}", r[c_ma], r[c_name], s(r[c_holder]).split(",")[0], subs,
+                        strength, r.get(c_form) if c_form else "", r.get(c_atc) if c_atc else ""))
+    return dict(country="AT", name="BASG Medikamente Info Austria", source_url="https://medikamente.basg.gv.at/de/medicinal-products/",
+                company_field="Holder (MAH)"), rows
+
+
 def s_lines(v):
     return [p.strip() for p in str(v or "").split("\n") if p.strip()]
 
 
-ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be}
+ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be, "at_basg": at}
 
 
 def write(key, meta, rows):
