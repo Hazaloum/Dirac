@@ -1,15 +1,5 @@
 
 ######## be_famhp
-be: RPP 200 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
-be: RPP 100 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
-be: RPP 50 refused: {"error":"Invalid payload","details":{"RPP":"[not found (en) - generic_error_number_too_big]"}}
-FAILED be_famhp: HTTPError: 429 Client Error: Too Many Requests for url: https://medicinesdatabase.be/api/products?usage=human&startRow=640&RPP=20
-Traceback (most recent call last):
-  File "tools/registries/build.py", line 527, in main
-    meta, rows = ALL[key]()
-                 ^^^^^^^^^^
-  File "tools/registries/build.py", line 479, in be
-    r.raise_for_status()
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/requests/models.py", line 1024, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://medicinesdatabase.be/api/products?usage=human&startRow=640&RPP=20
+be: 429 at 640, waiting 2.0s
+be: 14,275 of 14,275 products; keys: ['activeMonitoring', 'activeSubstanceShort', 'availability', 'company', 'documents', 'editTS', 'id', 'name', 'nameHistory', 'pharmaceuticalForm', 'targetSpecies']
+be_famhp: 14,273 rows in 2 parts (14,271 with ingredients); sample: [{"record_key": "62bc231e8ab5583c188d2ac4", "registration_no": "62bc231e8ab5583c188d2ac4", "product_name": "2LEBV pilules single-dose cont.", "company_raw": "Labolife Belgium BV-SRL", "ingredients": ["Desoxyribonucleic Acid", "Interleukin-1", "Interleukin-2", "Ribonucleic Acid", "Specific nucleic acid SNA-EBV", "Specific Nucleic Acid SNA-HLA II"], "strength_raw": "", "form_raw": "Pillules in single-dose container", "atc": "", "status": "active"}, {"record_key": "62bc23108ab5583c188d04b1", "registration_no": "62bc23108ab5583c188d04b1", "product_name": "2LHERP pilules single-dose cont.", "compan

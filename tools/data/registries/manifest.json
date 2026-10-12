@@ -124,5 +124,14 @@
   "snapshot_date": "2026-10-12",
   "parts": 1,
   "rows": 6839
+ },
+ "be_famhp": {
+  "country": "BE",
+  "name": "FAMHP medicines database",
+  "source_url": "https://medicinesdatabase.be/human-use",
+  "company_field": "company (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 2,
+  "rows": 14273
  }
 }
