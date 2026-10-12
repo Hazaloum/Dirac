@@ -46,7 +46,7 @@ async def main():
             r = await ctx.request.post("https://medikamente.basg.gv.at/api/api/v1/medication/export?type=CSV", data=_j.loads(search_body),
                                        headers={**keep, "Accept": "text/csv", "Content-Type": "application/json"}, timeout=600000)
             body = await r.body()
-            log(f"  export with search body -> {r.status} {len(body):,} lines={body.count(b'\n'):,} {body[600:1600]!r}")
+            log(f"  export with search body -> {r.status} {len(body):,} lines={body.count(NL):,} {body[600:1600]!r}")
         await b.close()
 
 
