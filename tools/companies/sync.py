@@ -53,6 +53,42 @@ def export_candidates():
     print(f"candidates exported: {len(rows)}")
 
 
+def exhibitors():
+    """CPHI exhibitors -> companies: apply exhibitor_decisions.json, export open candidates."""
+    f = DATA / "exhibitor_decisions.json"
+    if f.exists():
+        decisions = json.loads(f.read_text())
+        rows = [{"exhibitor_id": d["exhibitor_id"], "company_id": d["company_id"], "verdict": d["verdict"]} for d in decisions]
+        for i in range(0, len(rows), 500):
+            r = requests.post(f"{URL}/rest/v1/exhibitor_match_candidates?on_conflict=exhibitor_id,company_id", json=rows[i:i + 500],
+                              headers={**HEAD, "Prefer": "resolution=merge-duplicates,return=minimal"}, timeout=300)
+            r.raise_for_status()
+        linked = 0
+        for d in decisions:
+            if d["verdict"] == "same":
+                r = requests.patch(f"{URL}/rest/v1/event_exhibitors?id=eq.{d['exhibitor_id']}&company_id=is.null",
+                                   json={"company_id": d["company_id"], "company_match": "ai"}, headers=HEAD, timeout=60)
+                r.raise_for_status()
+                linked += 1
+        print(f"exhibitor verdicts: {len(rows)}, linked: {linked}")
+        done = DATA / "decisions_applied"
+        done.mkdir(exist_ok=True)
+        f.rename(done / f"exhibitors-{dt.datetime.utcnow():%Y%m%dT%H%M%S}.json")
+    r = requests.get(f"{URL}/rest/v1/exhibitor_match_candidates?verdict=is.null&select=exhibitor_id,company_id,ex_name,ex_country,co_name,co_countries,sim&order=exhibitor_id",
+                     headers={**HEAD, "Range": "0-4999"}, timeout=300)
+    r.raise_for_status()
+    ex_ids = sorted({x["exhibitor_id"] for x in r.json()})
+    desc = {}
+    for i in range(0, len(ex_ids), 200):
+        q = requests.get(f"{URL}/rest/v1/event_exhibitors?id=in.({','.join(map(str, ex_ids[i:i + 200]))})&select=id,zone,description",
+                         headers=HEAD, timeout=300)
+        q.raise_for_status()
+        desc.update({x["id"]: {"zone": x["zone"], "about": (x["description"] or "")[:300]} for x in q.json()})
+    rows = [{**x, **desc.get(x["exhibitor_id"], {})} for x in r.json()]
+    (DATA / "exhibitor_candidates.json").write_text(json.dumps(rows, ensure_ascii=False, indent=0))
+    print(f"exhibitor candidates exported: {len(rows)}")
+
+
 def export_name_map():
     """Backup of raw company name -> company, as a CSV in the repo."""
     import csv
@@ -76,4 +112,5 @@ def export_name_map():
 if __name__ == "__main__":
     apply_decisions()
     export_candidates()
+    exhibitors()
     export_name_map()

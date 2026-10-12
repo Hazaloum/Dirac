@@ -2,7 +2,7 @@ name: companies
 on:
   push:
     branches: [claude/cool-allen-cg9oit]
-    paths: [tools/companies/**, tools/data/companies/decisions.json, .github/workflows/companies.yml]
+    paths: [tools/companies/**, tools/data/companies/decisions.json, tools/data/companies/exhibitor_decisions.json, .github/workflows/companies.yml]
   workflow_dispatch:
 permissions:
   contents: write
