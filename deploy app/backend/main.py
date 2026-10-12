@@ -977,7 +977,7 @@ def get_events():
 @app.get("/api/events/exhibitors/{exhibitor_id}/portfolio")
 def get_exhibitor_portfolio(exhibitor_id: int):
     from events import exhibitor_portfolio
-    result = exhibitor_portfolio(exhibitor_id)
+    result = exhibitor_portfolio(exhibitor_id, _state.get("dfs"))
     if result is None:
         raise HTTPException(status_code=404, detail="Exhibitor not found")
     return result

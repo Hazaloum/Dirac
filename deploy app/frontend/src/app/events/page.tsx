@@ -1,86 +1,140 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, ExternalLink, Loader2, Search } from "lucide-react";
+import { CalendarDays, ChevronDown, ExternalLink, Loader2, Pill, Search, X } from "lucide-react";
 import { api, type EventDetail, type EventExhibitor, type EventSummary, type ExhibitorPortfolio } from "@/lib/api";
 import { ddmmyy } from "@/lib/dates";
+import { fmtAed } from "@/lib/forecastExport";
 
 const MIDDLE_EAST = "Middle East Region (e.g. UAE)";
 const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
 
-/** What a matched exhibitor holds in the master registry: molecules, countries, UAE presence. */
-function Portfolio({ exhibitorId }: { exhibitorId: number }) {
+const country = (c: string) => (c === "AE" ? "UAE" : c);
+
+/** Pop-up: what a matched exhibitor holds in the master registry, grouped by ATC1, with UAE IQVIA market value. */
+function PortfolioModal({ exhibitor, onClose }: { exhibitor: EventExhibitor; onClose: () => void }) {
   const [data, setData] = useState<ExhibitorPortfolio | null>(null);
   const [error, setError] = useState("");
-  const [showAll, setShowAll] = useState(false);
+  const [notInUaeOnly, setNotInUaeOnly] = useState(false);
   useEffect(() => {
-    api.getExhibitorPortfolio(exhibitorId).then(setData).catch((err: Error) => setError(err.message));
-  }, [exhibitorId]);
+    api.getExhibitorPortfolio(exhibitor.id).then(setData).catch((err: Error) => setError(err.message));
+  }, [exhibitor.id]);
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => ev.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  if (error) return <p className="text-xs text-red-700">{error}</p>;
-  if (!data) return <p className="flex items-center gap-1.5 text-xs text-surface-500"><Loader2 className="h-3 w-3 animate-spin" /> Loading portfolio…</p>;
-  if (!data.matched || !data.company) return null;
-  const rows = showAll ? data.molecules : data.molecules.slice(0, 15);
-  const notInUae = data.molecules.filter((m) => !m.in_uae).length;
+  const groups = (data?.groups ?? [])
+    .map((g) => ({ ...g, molecules: g.molecules.filter((m) => !notInUaeOnly || !m.in_uae) }))
+    .filter((g) => g.molecules.length > 0);
+  const all = data?.groups.flatMap((g) => g.molecules) ?? [];
+  const notInUae = all.filter((m) => !m.in_uae).length;
+
   return (
-    <div className="grid gap-2 rounded-lg border border-surface-200 bg-surface-50 p-3">
-      <p className="text-xs text-surface-600">
-        <b className="text-surface-800">{data.company.name}</b> · {data.company.products.toLocaleString()} registered products in{" "}
-        {data.company.countries.map((c) => (c === "AE" ? "UAE" : c)).join(", ")} · {data.molecules.length} molecules, {notInUae} not registered in the UAE
-      </p>
-      <div className="overflow-x-auto rounded border border-surface-200 bg-white">
-        <table className="w-full text-xs">
-          <thead className="bg-surface-50 text-left text-[11px] uppercase tracking-wider text-surface-500">
-            <tr><th className="px-2 py-1.5">Molecule</th><th className="px-2 py-1.5">Registered in</th><th className="px-2 py-1.5 text-right">Products</th><th className="px-2 py-1.5">UAE</th></tr>
-          </thead>
-          <tbody className="divide-y divide-surface-100">
-            {rows.map((m) => (
-              <tr key={m.molecule}>
-                <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>{m.molecule.replace(/\+/g, " + ")}</td>
-                <td className="px-2 py-1.5 text-surface-600">{m.countries.map((c) => (c === "AE" ? "UAE" : c)).join(" · ")}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums text-surface-600">{m.products}</td>
-                <td className="px-2 py-1.5">{m.in_uae
-                  ? <span className="rounded-full bg-surface-100 px-1.5 text-[10px] text-surface-600">Registered</span>
-                  : <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Not in UAE</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-12" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={`${exhibitor.name} portfolio`} onClick={(ev) => ev.stopPropagation()}
+        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="flex items-start justify-between gap-3 border-b border-surface-200 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-surface-900">{exhibitor.name}</h2>
+            {data?.company && (
+              <p className="text-xs text-surface-500">
+                Registry company <b className="text-surface-700">{data.company.name}</b> · {data.company.products.toLocaleString()} products ·{" "}
+                {plural(data.company.molecules, "molecule")} · registered in {data.company.countries.map(country).join(", ")}
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-surface-500 hover:bg-surface-100"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4">
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+          {!data && !error && <p className="flex items-center gap-2 text-sm text-surface-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading portfolio…</p>}
+          {data && !data.matched && <p className="text-sm text-surface-500">This exhibitor isn&apos;t matched to a registry company.</p>}
+          {data?.matched && (
+            <div className="grid gap-5">
+              <label className="flex items-center gap-2 text-sm text-surface-700">
+                <input type="checkbox" checked={notInUaeOnly} onChange={(ev) => setNotInUaeOnly(ev.target.checked)} className="accent-pharma-700" />
+                Not registered in the UAE only ({notInUae} of {all.length})
+              </label>
+              {groups.map((g) => (
+                <section key={g.atc1 ?? "none"} className="grid gap-2">
+                  <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-surface-900">
+                    {g.atc1 && <span className="rounded bg-pharma-50 px-1.5 text-xs font-semibold text-pharma-800">{g.atc1}</span>}
+                    {g.name}
+                    <span className="text-xs font-normal text-surface-500">
+                      {plural(g.molecules.length, "molecule")}{g.market_value_aed > 0 ? ` · UAE market ${fmtAed(g.market_value_aed)}` : ""}
+                    </span>
+                  </h3>
+                  <div className="overflow-x-auto rounded-lg border border-surface-200">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-50 text-left text-[11px] uppercase tracking-wider text-surface-500">
+                        <tr>
+                          <th className="px-2 py-1.5">Molecule</th>
+                          <th className="px-2 py-1.5 text-right">UAE market{data.iqvia_year ? ` (IQVIA ${data.iqvia_year})` : ""}</th>
+                          <th className="px-2 py-1.5">Registered in</th>
+                          <th className="px-2 py-1.5">UAE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface-100">
+                        {g.molecules.map((m) => (
+                          <tr key={m.molecule}>
+                            <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>{m.molecule.replace(/\+/g, " + ")}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums text-surface-700">{m.market_value_aed ? fmtAed(m.market_value_aed) : <span className="text-surface-400">—</span>}</td>
+                            <td className="px-2 py-1.5 text-surface-600">{m.countries.map(country).join(" · ")}</td>
+                            <td className="px-2 py-1.5">{m.in_uae
+                              ? <span className="rounded-full bg-surface-100 px-1.5 text-[10px] text-surface-600">Registered</span>
+                              : <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Not in UAE</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))}
+              <p className="text-[11px] text-surface-400">From the master registry (EU, US, UAE registers). Market value: UAE IQVIA, combinations divided by their molecule count; — = not sold in the UAE per IQVIA.</p>
+            </div>
+          )}
+        </div>
       </div>
-      {data.molecules.length > 15 && (
-        <button onClick={() => setShowAll((s) => !s)} className="justify-self-start text-xs font-medium text-pharma-800 hover:underline">
-          {showAll ? "Show fewer" : `Show all ${data.molecules.length} molecules`}
-        </button>
-      )}
     </div>
   );
 }
 
 function ExhibitorRow({ e }: { e: EventExhibitor }) {
   const [open, setOpen] = useState(false);
+  const [showPortfolio, setShowPortfolio] = useState(false);
   const inMiddleEast = e.markets.includes(MIDDLE_EAST);
   return (
     <li className="border-b border-surface-100 last:border-b-0">
-      <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-        className="grid w-full grid-cols-[1fr_auto] items-start gap-3 px-4 py-2.5 text-left hover:bg-surface-50">
-        <span className="min-w-0">
-          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="text-sm font-medium text-surface-900">{e.name}</span>
-            <span className="text-xs text-surface-500">{e.country}</span>
-            {e.is_new && <span className="rounded-full bg-sky-50 px-1.5 text-[10px] font-medium text-sky-800">New</span>}
-            {inMiddleEast && <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Active in Middle East</span>}
-            {e.company_id && <span className="rounded-full bg-pharma-50 px-1.5 text-[10px] font-medium text-pharma-800">Portfolio</span>}
+      <div className="flex items-start gap-2 pr-4 hover:bg-surface-50">
+        <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
+          className="grid min-w-0 flex-1 grid-cols-[1fr_auto] items-start gap-3 py-2.5 pl-4 text-left">
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-sm font-medium text-surface-900">{e.name}</span>
+              <span className="text-xs text-surface-500">{e.country}</span>
+              {e.is_new && <span className="rounded-full bg-sky-50 px-1.5 text-[10px] font-medium text-sky-800">New</span>}
+              {inMiddleEast && <span className="rounded-full bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-800">Active in Middle East</span>}
+            </span>
+            {e.org_types.length > 0 && <span className="mt-0.5 block truncate text-xs text-surface-500">{e.org_types.join(" · ")}</span>}
           </span>
-          {e.org_types.length > 0 && <span className="mt-0.5 block truncate text-xs text-surface-500">{e.org_types.join(" · ")}</span>}
-        </span>
-        <span className="flex items-center gap-2 text-xs tabular-nums text-surface-600">
-          {e.booth && <span className="rounded bg-surface-100 px-1.5 py-0.5 font-medium">Booth {e.booth}</span>}
-          <ChevronDown className={`h-4 w-4 text-surface-400 transition-transform ${open ? "rotate-180" : ""}`} />
-        </span>
-      </button>
+          <span className="flex items-center gap-2 text-xs tabular-nums text-surface-600">
+            {e.booth && <span className="rounded bg-surface-100 px-1.5 py-0.5 font-medium">Booth {e.booth}</span>}
+            <ChevronDown className={`h-4 w-4 text-surface-400 transition-transform ${open ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        {e.company_id && (
+          <button onClick={() => setShowPortfolio(true)}
+            className="mt-2 flex shrink-0 items-center gap-1 rounded-lg border border-pharma-700 bg-white px-2.5 py-1 text-xs font-medium text-pharma-800 hover:bg-pharma-50">
+            <Pill className="h-3.5 w-3.5" /> Portfolio
+          </button>
+        )}
+      </div>
+      {showPortfolio && <PortfolioModal exhibitor={e} onClose={() => setShowPortfolio(false)} />}
       {open && (
         <div className="grid gap-2 px-4 pb-3 text-sm">
-          {e.company_id && <Portfolio exhibitorId={e.id} />}
           {e.description && <p className="max-w-3xl whitespace-pre-line text-surface-700">{e.description}</p>}
           <dl className="grid gap-1 text-xs text-surface-600 sm:grid-cols-[140px_1fr]">
             {e.categories.length > 0 && <><dt className="text-surface-400">Categories</dt><dd>{e.categories.join(" · ")}</dd></>}

@@ -872,11 +872,25 @@ export interface EventExhibitor {
   company_id: number | null;
 }
 
+export interface PortfolioMolecule {
+  /** INN or combination ("amlodipine+valsartan"); unmatched ingredient text keeps its raw spelling. */
+  molecule: string;
+  matched: boolean;
+  combination: boolean;
+  countries: string[];
+  products: number;
+  in_uae: boolean;
+  atc1: string | null;
+  /** UAE IQVIA market value (AED, latest full year); null when not found in IQVIA. */
+  market_value_aed: number | null;
+}
+
 export interface ExhibitorPortfolio {
   matched: boolean;
-  company: { id: number; name: string; countries: string[]; products: number } | null;
-  /** One row per molecule or combination ("amlodipine+valsartan"); unmatched ingredient text keeps its raw spelling. */
-  molecules: { molecule: string; matched: boolean; combination: boolean; countries: string[]; products: number; in_uae: boolean }[];
+  company: { id: number; name: string; countries: string[]; products: number; molecules: number } | null;
+  /** ATC1 sections A..V, unclassified last. */
+  groups: { atc1: string | null; name: string; market_value_aed: number; molecules: PortfolioMolecule[] }[];
+  iqvia_year: number | null;
 }
 
 export interface EventDetail extends EventSummary {
