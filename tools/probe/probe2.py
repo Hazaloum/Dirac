@@ -23,21 +23,10 @@ def log(s=""):
 DATA = re.compile(r"""href=["']([^"']+?(?:\.csv|\.xlsx?|\.xml|\.zip|\.gz|\.txt|\.pdf|export[^"']*|download[^"']*|telechargement[^"']*|fichier=[^"']*))["']""", re.I)
 
 TARGETS = {
-    "it": ["https://drive.aifa.gov.it/farmaci/confezioni_fornitura.csv", "https://drive.aifa.gov.it/farmaci/PA_confezioni.csv",
-           "https://drive.aifa.gov.it/farmaci/confezioni.csv", "https://www.aifa.gov.it/liste-dei-farmaci",
-           "https://www.aifa.gov.it/en-US/web/guest/liste-dei-farmaci"],
-    "fr": ["https://base-donnees-publique.medicaments.gouv.fr/telechargement",
-           "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_bdpm.txt",
-           "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_bdpm.txt",
-           "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_COMPO_bdpm.txt",
-           "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_COMPO_bdpm.txt"],
-    "ie": ["https://www.hpra.ie/find-a-medicine/for-human-use/xml-product-listings",
-           "https://www.hpra.ie/img/uploaded/swedocuments/latestHumanlist.xml"],
-    "be": ["https://medicinesdatabase.be/human-use", "https://medicinesdatabase.be/"],
-    "at": ["https://aspregister.basg.gv.at/", "https://aspregister.basg.gv.at/aspregister/faces/aspregister.jspx"],
-    "bg": ["https://www.bda.bg/bg/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8-%D0%BD%D0%B0-%D0%BB%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%B8-%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D0%B8"],
-    "bh": ["https://www.nhra.bh/Departments/PPR/MediaHandler/GenericHandler/documents/departments/PPR/Medicines/List/PPR_LISTS_Registered%20Medicine%20Price%20List_20260614.xlsx"],
-    "om": ["https://www.moh.gov.om/media/zkmlrorx/pharmaceutical-products-list-with-prices-07-07-2026.pdf"],
+    "ie": ["https://assets.hpra.ie/products/xml/latestHumanlist.xml"],
+    "bg": ["https://www.bda.bg/images/stories/documents/registers/Register_Lekarstva/IAL_Register_08_2026.xlsx"],
+    "be": ["https://medicinesdatabase.be/human-use"],
+    "at": ["https://medikamente.basg.gv.at/de/medicinal-products/"],
 }
 
 
@@ -71,6 +60,9 @@ def show_file(url, c, ctype):
         except UnicodeDecodeError:
             continue
     log(f"  head ({enc}):")
+    if t.lstrip().startswith("<"):
+        log("    " + t[:3000].replace("\n", " "))
+        return
     for l in t.splitlines()[:6]:
         log("    " + l[:300])
 
@@ -95,6 +87,11 @@ def probe(key, url):
         log(f"  forms: {forms}")
         buttons = re.findall(r"""(?:id|name)=["']([^"']*(?:export|Export|download|csv|CSV)[^"']*)["']""", r.text)[:20]
         log(f"  export-ish ids: {buttons}")
+        log("  html: " + r.text[:1500].replace("\n", " "))
+        for src in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", r.text)[:10]:
+            js = requests.get(up.urljoin(r.url, src), headers=UA, timeout=120).text
+            apis = sorted(set(re.findall(r"""["'`]((?:https?://|/)[^"'`\s]*(?:api|export|download|csv|search)[^"'`\s]*)["'`]""", js, re.I)))
+            log(f"  script {src} {len(js):,} chars, api-ish strings: {apis[:40]}")
     else:
         show_file(url, r.content, ctype)
 
