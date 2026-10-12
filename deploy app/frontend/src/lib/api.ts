@@ -913,12 +913,14 @@ export interface MoleculeHolder {
   products: number;
   in_uae: boolean;
   product_names: string[];
+  combos: string[] | null;   // for combination holders: which combinations
 }
 
 export interface MoleculeHolders {
   molecule: string;
   combo_key: string | null;
-  companies: MoleculeHolder[];
+  companies: MoleculeHolder[];              // same molecule / combination
+  combination_companies: MoleculeHolder[];  // combinations that contain it
   countries: string[];
   in_uae: number;
 }

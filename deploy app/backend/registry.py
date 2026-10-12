@@ -3,7 +3,8 @@ registry.py — read-only lookups on the master registry (Supabase `registration
 
 - search_companies(q): canonical companies for the company-name picker (most registrations first).
 - molecule_companies(name): every company holding a registration for a molecule or combination
-  (IQVIA-style name, e.g. "AMLODIPINE + VALSARTAN"); matched on combo_key via SQL registry_molecule_key.
+  (IQVIA-style name, e.g. "AMLODIPINE + VALSARTAN"), via SQL registry_molecule_holders: match "exact" = the same
+  molecule / combination; "combination" = a combination that contains it (amlodipine -> amlodipine + valsartan).
 """
 from __future__ import annotations
 
@@ -18,12 +19,14 @@ def search_companies(q: str, limit: int = 15) -> list[dict]:
 
 
 def molecule_companies(name: str) -> dict:
-    rows = get_client().rpc("registry_molecule_companies", {"p_name": name}).execute().data or []
-    countries = sorted({c for r in rows for c in (r.get("countries") or [])})
+    rows = get_client().rpc("registry_molecule_holders", {"p_name": name}).execute().data or []
+    exact = [r for r in rows if r["match"] == "exact"]
+    combos = [r for r in rows if r["match"] == "combination"]
     return {
         "molecule": name,
-        "combo_key": rows[0]["combo_key"] if rows else None,
-        "companies": rows,
-        "countries": countries,
-        "in_uae": sum(1 for r in rows if r.get("in_uae")),
+        "combo_key": rows[0]["combo_key"] if rows else get_client().rpc("registry_molecule_key", {"p_name": name}).execute().data,
+        "companies": exact,
+        "combination_companies": combos,
+        "countries": sorted({c for r in exact for c in (r.get("countries") or [])}),
+        "in_uae": sum(1 for r in exact if r.get("in_uae")),
     }

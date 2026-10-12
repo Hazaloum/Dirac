@@ -36,10 +36,11 @@ function RegistryHolders({ molecule }: { molecule: string }) {
   const [error, setError] = useState(false);
   const [notUae, setNotUae] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [tab, setTab] = useState<"exact" | "combination">("exact");
 
   useEffect(() => {
     let cancelled = false;
-    setData(null); setError(false); setShowAll(false);
+    setData(null); setError(false); setShowAll(false); setTab("exact");
     api.getMoleculeHolders(molecule)
       .then((d) => { if (!cancelled) setData(d); })
       .catch(() => { if (!cancelled) setError(true); });
@@ -49,9 +50,11 @@ function RegistryHolders({ molecule }: { molecule: string }) {
   if (error) return <p className="text-xs text-rose-700">Could not load registry holders.</p>;
   if (!data) return <p className="text-xs text-surface-500">Loading…</p>;
   if (!data.combo_key) return <p className="text-xs text-surface-500">This molecule isn't matched in the master registry yet.</p>;
-  if (!data.companies.length) return <p className="text-xs text-surface-500">No company holds an active registration for it in the loaded registries.</p>;
+  if (!data.companies.length && !data.combination_companies.length)
+    return <p className="text-xs text-surface-500">No company holds an active registration for it in the loaded registries.</p>;
 
-  const list = data.companies.filter((c) => !notUae || !c.in_uae);
+  const source = tab === "exact" ? data.companies : data.combination_companies;
+  const list = source.filter((c) => !notUae || !c.in_uae);
   const shown = showAll ? list : list.slice(0, 12);
   return (
     <div className="space-y-3">
@@ -60,6 +63,14 @@ function RegistryHolders({ molecule }: { molecule: string }) {
         <span className="font-semibold text-surface-800">{data.countries.length}</span> registries ·{" "}
         <span className="font-semibold text-surface-800">{data.in_uae}</span> registered in the UAE
       </p>
+      <div className="flex gap-1 p-1 bg-surface-100 rounded-lg w-fit">
+        {([["exact", `This molecule (${data.companies.length})`], ["combination", `In combinations (${data.combination_companies.length})`]] as const).map(([k, label]) => (
+          <button key={k} type="button" onClick={() => { setTab(k); setShowAll(false); }}
+            className={`text-xs px-3 py-1 rounded-md ${tab === k ? "bg-white shadow-sm text-surface-900 font-medium" : "text-surface-600"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
       <label className="flex items-center gap-2 text-xs text-surface-700 cursor-pointer">
         <input type="checkbox" checked={notUae} onChange={(e) => setNotUae(e.target.checked)} />
         Not registered in the UAE only
@@ -69,6 +80,7 @@ function RegistryHolders({ molecule }: { molecule: string }) {
           <li key={c.company_id} className="py-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm text-surface-900 truncate" title={c.product_names.join(", ")}>{c.name}</p>
+              {c.combos?.length ? <p className="text-xs text-surface-700 capitalize">{c.combos.join(" · ")}</p> : null}
               <p className="text-xs text-surface-500">{c.countries.join(" · ")} · {c.products} product{c.products === 1 ? "" : "s"}</p>
             </div>
             <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full border ${
