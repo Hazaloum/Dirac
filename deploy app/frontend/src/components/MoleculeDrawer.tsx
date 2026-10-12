@@ -49,7 +49,7 @@ function RegistryHolders({ molecule }: { molecule: string }) {
 
   if (error) return <p className="text-xs text-rose-700">Could not load registry holders.</p>;
   if (!data) return <p className="text-xs text-surface-500">Loading…</p>;
-  if (!data.combo_key) return <p className="text-xs text-surface-500">This molecule isn't matched in the master registry yet.</p>;
+  if (!data.combo_key) return <p className="text-xs text-surface-500">This molecule isn&apos;t matched in the master registry yet.</p>;
   if (!data.companies.length && !data.combination_companies.length)
     return <p className="text-xs text-surface-500">No company holds an active registration for it in the loaded registries.</p>;
 
