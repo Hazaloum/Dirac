@@ -32,7 +32,8 @@ async def main():
         log(f"  inputs: {await inputs.count()} placeholders: {[await inputs.nth(i).get_attribute('placeholder') for i in range(min(await inputs.count(), 8))]}")
         try:
             await inputs.first.fill("*")
-            await page.get_by_role("button", name="Suche").first.click()
+            await page.keyboard.press("Escape")
+            await page.get_by_role("button", name="Suche", exact=True).first.click(force=True)
             await page.wait_for_timeout(8000)
         except Exception as e:
             log(f"  search click failed {e}")
