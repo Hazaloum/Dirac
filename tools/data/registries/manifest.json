@@ -133,5 +133,14 @@
   "snapshot_date": "2026-10-12",
   "parts": 2,
   "rows": 14273
+ },
+ "at_basg": {
+  "country": "AT",
+  "name": "BASG Medikamente Info Austria",
+  "source_url": "https://medikamente.basg.gv.at/de/medicinal-products/",
+  "company_field": "Holder (MAH)",
+  "snapshot_date": "2026-10-12",
+  "parts": 3,
+  "rows": 16821
  }
 }
