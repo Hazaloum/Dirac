@@ -40,26 +40,20 @@ def main_js(page, base):
 
 
 log("######## be")
-js = main_js("https://medicinesdatabase.be/human-use", "https://medicinesdatabase.be/")
-for pat in [r"productsSearchProducts\(", r"productsExportProducts\(", r"usage:\"human"]:
-    for m in list(re.finditer(pat, js))[1:3]:
-        log(f"  ctx {pat}: " + js[max(0, m.start() - 500):m.end() + 900])
 s = requests.Session()
-s.headers.update({"User-Agent": UA, "Accept-Language": "en"})
+s.headers.update({"User-Agent": UA, "Accept-Language": "en", "Accept": "application/json"})
 cfg = s.get("https://medicinesdatabase.be/api/config").json()
-for path, params, acc in [("/api/products/export", {"usage": "human"}, "text/html"), ("/api/products/export", {"usage": "HUMAN_USE"}, "text/html"),
-                          ("/api/products/export", {"term": "a", "usage": "human"}, "*/*"), ("/api/products", {"usage": "human"}, "application/json"),
-                          ("/api/products/search", {"usage": "human"}, "application/json")]:
-    r = s.get("https://medicinesdatabase.be" + path, params=params, headers={"xsrf-token": be_token(cfg["key"]), "Accept": acc}, timeout=300)
-    log(f"GET {path} {params} -> {r.status_code} {r.headers.get('content-type')} {r.headers.get('content-disposition')} {len(r.content):,} {r.content[:300]!r}")
-
-log("######## at")
-js = main_js("https://medikamente.basg.gv.at/de/medicinal-products/", "https://medikamente.basg.gv.at/de/")
-for pat in [r"rootUrl=i", r"\.rootUrl=", r"assets/[a-zA-Z_-]+\.json", r"environment"]:
-    for m in list(re.finditer(pat, js))[:3]:
-        log(f"  ctx {pat}: " + js[max(0, m.start() - 700):m.end() + 300])
-for u in ["https://medikamente.basg.gv.at/de/assets/config.json", "https://medikamente.basg.gv.at/de/assets/env.json",
-          "https://medikamente.basg.gv.at/assets/config.json", "https://medikamente.basg.gv.at/de/config.json"]:
-    r = requests.get(u, headers={"User-Agent": UA}, timeout=60)
-    log(f"GET {u} -> {r.status_code} {r.headers.get('content-type')} {r.text[:400]!r}")
+def get(params):
+    r = s.get("https://medicinesdatabase.be/api/products", params=params, headers={"xsrf-token": be_token(cfg["key"])}, timeout=300)
+    return r.status_code, r.json() if r.ok else r.text[:200]
+code, d = get({"usage": "human"})
+log(f"default: rows={d['rows']} n={len(d['data'])} keys={list(d)}")
+log("record: " + json.dumps(d["data"][0], ensure_ascii=False)[:3000])
+first = d["data"][0]["id"]
+for params in [{"page": 2}, {"page": 1, "limit": 500}, {"limit": 500, "offset": 20}, {"pageSize": 500, "page": 2}, {"take": 500, "skip": 20}, {"size": 500, "page": 2}]:
+    code, x = get({"usage": "human", **params})
+    if isinstance(x, dict):
+        log(f"{params}: n={len(x['data'])} first_same={x['data'][0]['id'] == first if x['data'] else None}")
+    else:
+        log(f"{params}: {code} {x}")
 OUT.write_text("\n".join(lines))
