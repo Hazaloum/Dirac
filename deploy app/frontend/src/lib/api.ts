@@ -174,6 +174,14 @@ export const api = {
   getExhibitorPortfolio: (id: number) => req<ExhibitorPortfolio>(`/api/events/exhibitors/${id}/portfolio`),
 
   // Master registry
+  getRegistryReview: () => req<RegistryReview>("/api/registry/review"),
+  runRegistryReview: () => req<{ started: boolean }>("/api/registry/review/run", { method: "POST" }),
+  decideCompanyPair: (a: number, b: number, verdict: "same" | "different") =>
+    req<unknown>("/api/registry/review/company", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a, b, verdict }) }),
+  decideMolecule: (alias: string, inn: string | null) =>
+    req<unknown>("/api/registry/review/molecule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alias, inn }) }),
+  getRunChanges: (runId: number, kind?: string) =>
+    req<RegistryChange[]>(`/api/registry/runs/${runId}/changes${kind ? `?kind=${kind}` : ""}`),
   getRegistries: () => req<RegistrySource[]>("/api/registry/registries"),
   searchRegistry: (registry: string, q: string, status: string, offset: number, limit = 50) =>
     req<RegistrySearch>(`/api/registry/search?registry=${encodeURIComponent(registry)}&q=${encodeURIComponent(q)}&status=${status}&offset=${offset}&limit=${limit}`),
@@ -954,3 +962,65 @@ export interface RegistryRow {
 }
 
 export interface RegistrySearch { total: number; offset: number; rows: RegistryRow[] }
+
+export interface RegistryRun {
+  id: number;
+  registry: string;
+  started_at: string;
+  finished_at: string | null;
+  status: "running" | "applied" | "skipped" | "failed";
+  snapshot_date: string | null;
+  incoming: number | null;
+  added: number | null;
+  changed: number | null;
+  withdrawn: number | null;
+  reactivated: number | null;
+  unchanged: number | null;
+  new_companies: number | null;
+  note: string | null;
+}
+
+export interface RegistryReviewLog {
+  id: number;
+  started_at: string;
+  finished_at: string | null;
+  trigger: string | null;
+  companies_judged: number;
+  companies_merged: number;
+  companies_unsure: number;
+  molecules_judged: number;
+  molecules_matched: number;
+  molecules_unsure: number;
+  error: string | null;
+}
+
+export interface CompanyPair {
+  a: number; b: number; a_name: string; b_name: string; sim: number;
+  a_countries: string | null; b_countries: string | null; a_products: number; b_products: number;
+  a_examples: string | null; b_examples: string | null;
+}
+
+export interface UnmatchedIngredient {
+  alias: string; products: number; example: string; countries: string | null; ai_answer: string | null; ai_status: string | null;
+}
+
+export interface RegistryReview {
+  runs: RegistryRun[];
+  reviews: RegistryReviewLog[];
+  running: boolean;
+  counts: { companies_waiting: number; companies_unsure: number; molecules_waiting: number; molecules_unsure: number; queue_refreshed_at: string | null };
+  company_pairs: CompanyPair[];
+  molecules: UnmatchedIngredient[];
+}
+
+export interface RegistryChange {
+  kind: "new" | "changed" | "withdrawn" | "reactivated";
+  changes: Record<string, [string | null, string | null]> | null;
+  registration_id: number;
+  product_name?: string | null;
+  company_raw?: string | null;
+  molecule_raw?: string | null;
+  combo_key?: string | null;
+  strength_raw?: string | null;
+  status?: string | null;
+}

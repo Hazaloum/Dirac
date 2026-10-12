@@ -1,0 +1,53 @@
+# Monthly refresh of the master registry (Supabase). The pipeline code and the built data chunks live on the
+# data branch; this file sits on main only because GitHub runs schedules from the default branch.
+# Steps: download + normalise every registry -> commit the chunks to the data branch -> diff-load them into
+# Supabase (new / changed / withdrawn). The AI review of new company spellings and unmatched ingredients runs
+# afterwards in the backend (daily 10:00 Dubai, or Data -> Review -> Run review now).
+name: registries-monthly
+on:
+  schedule:
+    - cron: "17 1 1 * *"        # 1st of each month, 05:17 Dubai
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Registry keys to refresh (space-separated, empty = all)"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: registries
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATA_BRANCH: claude/cool-allen-cg9oit
+      ONLY: ${{ github.event.inputs.only }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "claude/cool-allen-cg9oit" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install pandas==2.2.3 openpyxl==3.1.5 xlrd==2.0.1 requests==2.32.3 pdfplumber==0.11.4 playwright==1.47.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Download and normalise registries
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python tools/registries/run.py $ONLY
+      - name: Commit the built chunks to the data branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add tools/data/registries
+          git commit -m "Registry data, monthly refresh $(date -u +%F)" || echo "nothing to commit"
+          git pull --rebase origin "$DATA_BRANCH" && git push origin "HEAD:$DATA_BRANCH"
+      - name: Diff-load into Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          export SHA=$(git rev-parse HEAD)
+          sleep 15
+          python tools/registries/load.py $ONLY

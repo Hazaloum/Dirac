@@ -46,9 +46,12 @@ async def lifespan(app: FastAPI):
     )
     print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
     from tecnimede import daily_sync
+    from registry_review import daily_review
     daily = asyncio.create_task(daily_sync())
+    review = asyncio.create_task(daily_review())
     yield
     daily.cancel()
+    review.cancel()
 
 app = FastAPI(title="COMIX BD API", lifespan=lifespan)
 
@@ -990,6 +993,55 @@ def registry_list():
 def registry_search(registry: str, q: str = "", status: str = "active", offset: int = 0, limit: int = 50):
     from registry import search_registry
     return search_registry(registry, q, status, offset, limit)
+
+
+@app.get("/api/registry/review")
+def registry_review_overview():
+    from registry_review import review_overview
+    return review_overview()
+
+
+@app.post("/api/registry/review/run")
+def registry_review_run():
+    from registry_review import start_review
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(400, "ANTHROPIC_API_KEY is not set on the backend")
+    return {"started": start_review("manual")}
+
+
+class CompanyDecision(BaseModel):
+    a: int
+    b: int
+    verdict: str
+
+
+@app.post("/api/registry/review/company")
+def registry_review_company(body: CompanyDecision):
+    from registry_review import decide_company_pair
+    try:
+        return decide_company_pair(body.a, body.b, body.verdict)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+class MoleculeDecision(BaseModel):
+    alias: str
+    inn: Optional[str] = None
+
+
+@app.post("/api/registry/review/molecule")
+def registry_review_molecule(body: MoleculeDecision):
+    from registry_review import decide_molecule
+    try:
+        return decide_molecule(body.alias, body.inn)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/registry/runs/{run_id}/changes")
+def registry_run_changes(run_id: int, kind: Optional[str] = None):
+    from registry_review import run_changes
+    return run_changes(run_id, kind)
 
 
 @app.get("/api/registry/molecule-companies")
