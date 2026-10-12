@@ -49,8 +49,13 @@ def get(params):
 code, d = get({"usage": "human"})
 log(f"default: rows={d['rows']} n={len(d['data'])} keys={list(d)}")
 log("record: " + json.dumps(d["data"][0], ensure_ascii=False)[:3000])
+html = requests.get("https://medicinesdatabase.be/human-use", headers={"User-Agent": UA}).text
+src = next(x for x in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", html) if x.startswith("main"))
+js = requests.get("https://medicinesdatabase.be/" + src, headers={"User-Agent": UA}).text
+for m in list(re.finditer(r"basePath\}/products`", js))[:2]:
+    log("  ctx: " + js[max(0, m.start() - 2500):m.end() + 50])
 first = d["data"][0]["id"]
-for params in [{"page": 2}, {"page": 1, "limit": 500}, {"limit": 500, "offset": 20}, {"pageSize": 500, "page": 2}, {"take": 500, "skip": 20}, {"size": 500, "page": 2}]:
+for params in [{"skip": 20}, {"offset": 20}, {"start": 20}, {"from": 20}, {"pageIndex": 1}, {"pageNumber": 2}, {"p": 2}, {"page": 2}, {"page": 1, "limit": 500}, {"limit": 500, "offset": 20}, {"pageSize": 500, "page": 2}, {"take": 500, "skip": 20}, {"size": 500, "page": 2}]:
     code, x = get({"usage": "human", **params})
     if isinstance(x, dict):
         log(f"{params}: n={len(x['data'])} first_same={x['data'][0]['id'] == first if x['data'] else None}")
