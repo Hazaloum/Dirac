@@ -229,7 +229,212 @@ def us():
                 company_field="sponsor_name (applicant)"), rows
 
 
-ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us}
+# ---------------------------------------------------------------- foreign INN -> English (FR / IT / OM)
+SALT_WORDS = set("""chlorhydrate dichlorhydrate cloridrato dicloridrato idrocloruro hydrochloride dihydrochloride bromhydrate bromidrato hydrobromide
+sulfate solfato maleate maleato fumarate fumarato hemifumarate tartrate tartrato bitartrate citrate citrato acetate acetato succinate succinato
+mesilate mesilato mesylate besilate besilato besylate phosphate fosfato sodique disodique sodico disodico sodium disodium potassique potassico
+potassium calcique calcico calcium magnesien magnesico magnesium monohydrate monoidrato dihydrate diidrato trihydrate triidrato hemihydrate
+emiidrato sesquihydrate pentahydrate heptahydrate anhydre anidro anhydrous base dipropionate dipropionato propionate propionato valerate
+valerato furoate furoato nitrate nitrato lactate lattato gluconate gluconato hyclate iclato trometamol arginine lisina lysine sel sels de d di
+hydrate idrato hcl monosodique monosodico trisodique""".split())
+INN_INDEX: dict[str, str] = {}
+
+
+def _unaccent(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", t) if not unicodedata.combining(c))
+
+
+def _skel_word(w):
+    w = w.replace("ph", "f").replace("th", "t").replace("rh", "r").replace("y", "i").replace("k", "c").replace("ae", "e").replace("oe", "e")
+    w = re.sub(r"(.)\1+", r"\1", w)
+    w = re.sub(r"(ique|ico|ica)$", "ic", w)
+    w = re.sub(r"(ate|ato)$", "at", w)
+    return re.sub(r"(?<=...)[aeio]+$", "", w)
+
+
+def inn_key(t):
+    words = re.findall(r"[a-z]+", _unaccent(t).lower())
+    acid = [w for w in words if w in ("acide", "acido", "acid")]
+    words = [w for w in words if w not in ("acide", "acido", "acid")] + (["acid"] if acid else [])
+    return " ".join(_skel_word(w) for w in words)
+
+
+def load_inns():
+    import os
+    if INN_INDEX or not os.environ.get("SUPABASE_URL"):
+        return
+    url, key = os.environ["SUPABASE_URL"].rstrip("/"), os.environ["SUPABASE_KEY"]
+    inns, start = [], 0
+    while True:
+        r = requests.get(f"{url}/rest/v1/molecules?select=inn&order=id", headers={"apikey": key, "Authorization": f"Bearer {key}", "Range": f"{start}-{start + 999}"}, timeout=120)
+        r.raise_for_status()
+        page = [x["inn"] for x in r.json()]
+        inns += page
+        if len(page) < 1000:
+            break
+        start += 1000
+    seen: dict[str, set] = {}
+    for inn in inns:
+        seen.setdefault(inn_key(inn), set()).add(inn)
+    INN_INDEX.update({k: next(iter(v)) for k, v in seen.items() if len(v) == 1 and k})
+    log(f"INN index: {len(INN_INDEX):,} keys from {len(inns):,} molecules")
+
+
+TRANSLATED = {"hit": 0, "miss": 0}
+
+
+def to_english(name):
+    """French/Italian/messy INN -> WHO English INN when it can be matched, else the name as given."""
+    n = re.sub(r"\(.*?\)", " ", s(name))
+    if not n:
+        return ""
+    words = re.findall(r"[a-z]+", _unaccent(n).lower())
+    for cand in (" ".join(words), " ".join(w for w in words if w not in SALT_WORDS)):
+        k = inn_key(cand)
+        if k in INN_INDEX:
+            TRANSLATED["hit"] += 1
+            return INN_INDEX[k]
+    TRANSLATED["miss"] += 1
+    return n.strip()
+
+
+def it():
+    load_inns()
+    base = "https://drive.aifa.gov.it/farmaci/"
+    df = pd.read_csv(io.BytesIO(get(base + "confezioni.csv")), sep=";", dtype=str, encoding="utf-8")
+    pa = pd.read_csv(io.BytesIO(get(base + "PA_confezioni.csv")), sep=";", dtype=str, encoding="utf-8")
+    pa = pa[~pa["PRINCIPIO_ATTIVO"].fillna("N.D.").str.strip().isin(["N.D.", ""])]
+    ing = pa.groupby("CODICE_AIC")["PRINCIPIO_ATTIVO"].apply(lambda xs: list(dict.fromkeys(to_english(x) for x in xs))).to_dict()
+    log("it states:", df["STATO_AMMINISTRATIVO"].value_counts().to_dict())
+    strength = re.compile(r"\d+(?:[.,]\d+)?\s*(?:MG|MCG|µG|G|UI|U\.I\.|%|ML|MMOL)(?:\s*/\s*\d*(?:[.,]\d+)?\s*(?:ML|G|MG|DOSE|H|24 ORE))?", re.I)
+    rows = []
+    for r in df.itertuples():
+        st = s(r.STATO_AMMINISTRATIVO).lower()
+        status = "active" if st.startswith("autorizz") else "withdrawn" if st.startswith("revoc") else "unknown"
+        m = strength.search(s(r.DESCRIZIONE))
+        sv = m.group(0).upper().replace(" ", "") if m else ""
+        ingredients = ing.get(s(r.CODICE_AIC)) or [to_english(x) for x in re.split(r"\s*[;/+]\s*", s(r.PA_ASSOCIATI)) if x and x != "N.D."]
+        rows.append(row(f"{s(r.COD_FARMACO)}|{sv}|{s(r.FORMA)}", r.COD_FARMACO, r.DENOMINAZIONE, r.RAGIONE_SOCIALE, ingredients,
+                        sv, r.FORMA, r.CODICE_ATC, status))
+    rows.sort(key=lambda r: r["status"] != "active")
+    log(f"it translation: {TRANSLATED}")
+    return dict(country="IT", name="AIFA authorised medicines (confezioni)", source_url=base + "confezioni.csv",
+                company_field="RAGIONE_SOCIALE (MAH)"), rows
+
+
+def fr():
+    load_inns()
+    base = "https://base-donnees-publique.medicaments.gouv.fr/download/file/"
+    rd = lambda f, cols: pd.read_csv(io.BytesIO(get(base + f)), sep="\t", header=None, dtype=str, encoding="cp1252", quoting=3,
+                                     names=range(cols), usecols=range(cols), on_bad_lines="skip")
+    cis = rd("CIS_bdpm.txt", 12)
+    compo = rd("CIS_COMPO_bdpm.txt", 8)
+    compo["key"] = compo[0].str.strip() + "|" + compo[7].fillna("").str.strip()
+    compo["ft"] = compo[6].fillna("").str.strip() == "FT"
+    compo = compo.sort_values("ft", ascending=False).drop_duplicates("key")      # per linked pair keep the FT (base) name
+    ing, dose = {}, {}
+    for r in compo.itertuples():
+        c = s(r[1])
+        name = to_english(r[4])
+        if name and name not in ing.setdefault(c, []):
+            ing[c].append(name)
+            dose.setdefault(c, []).append(s(r[5]))
+    rows = []
+    for r in cis.itertuples():
+        proc, st = s(r[6]).lower(), s(r[5]).lower()
+        if "homéo" in proc or "homeo" in proc:
+            continue
+        status = "active" if "active" in st else "unknown" if "suspen" in st else "withdrawn"
+        c = s(r[1])
+        rows.append(row(c, s(r[10]) or c, re.sub(r",[^,]*$", "", s(r[2])), s(r[11]).split(";")[0], ing.get(c, []),
+                        " + ".join(dose.get(c, [])), r[3], "", status))
+    rows.sort(key=lambda r: r["status"] != "active")
+    log(f"fr translation: {TRANSLATED}")
+    return dict(country="FR", name="ANSM base de données publique des médicaments", source_url=base + "CIS_bdpm.txt",
+                company_field="Titulaire (MAH)"), rows
+
+
+def ie():
+    content = get("https://assets.hpra.ie/products/xml/latestHumanlist.xml")
+    rows = []
+    for _, el in ET.iterparse(io.BytesIO(content)):
+        if el.tag.split("}")[-1] != "Product":
+            continue
+        g = lambda t: (el.findtext(f"{{*}}{t}") or "").strip()
+        atcs = sorted((a.text or "").strip() for a in el.iter() if a.tag.endswith("}ATC"))
+        subs = [(a.text or "").strip() for a in el.iter() if a.tag.endswith("}ActiveSubstance") and (a.text or "").strip()]
+        st = g("RegistrationStatus")
+        rows.append(row(g("LicenceNumber") or g("DrugIDPK"), g("LicenceNumber"), g("ProductName"), g("PAHolder"), subs, "", g("DosageForm"),
+                        max(atcs, key=len) if atcs else "", "active" if st == "AU" else "unknown"))
+        el.clear()
+    return dict(country="IE", name="HPRA human medicines", source_url="https://assets.hpra.ie/products/xml/latestHumanlist.xml",
+                company_field="PAHolder (MAH)"), rows
+
+
+def bg():
+    page = "https://www.bda.bg/bg/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8/%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8-%D0%BD%D0%B0-%D0%BB%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%B8-%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D0%B8"
+    html = get(page).decode("utf-8", "replace")
+    found = re.findall(r"""/images/stories/documents/registers/Register_Lekarstva/[^"']+\.xlsx""", html)
+    log("bg links:", found)
+    ial = next((u for u in found if "IAL_Register" in u), "/images/stories/documents/registers/Register_Lekarstva/IAL_Register_08_2026.xlsx")
+    url = "https://www.bda.bg" + ial
+    df = pd.read_excel(io.BytesIO(get(url)), dtype=str)
+    fix_atc = lambda a: re.sub(r"^([A-Z]\d\d[A-Z]{2})\s+(\d)$", r"\g<1>0\2", re.sub(r"^([A-Z]\d\d[A-Z]{2})\s*(\d\d)$", r"\1\2", s(a)))
+    rows = [row(f"{s(r['Рег. №'])}|{s(r['Количество на акт.в-во'])}", r["Рег. №"], r["Търговско име"], r["Притежател на РУ"], s(r["INN"]),
+                r["Количество на акт.в-во"], r["Лек. форма EN"], fix_atc(r["АТС-Код"])) for _, r in df.iterrows()]
+    cap = next((u for u in found if "Centrally" in u), None)
+    if cap:
+        try:
+            c = pd.read_excel(io.BytesIO(get("https://www.bda.bg" + cap.replace(" ", "%20"))), dtype=str)
+            log("bg CAP columns:", list(c.columns), c.head(3).to_dict("records"))
+        except Exception as e:
+            log("bg CAP read failed:", e)
+    return dict(country="BG", name="BDA register of medicinal products (national)", source_url=url, company_field="Притежател на РУ (MAH)"), rows
+
+
+def om():
+    import pdfplumber
+    load_inns()
+    url = "https://www.moh.gov.om/media/zkmlrorx/pharmaceutical-products-list-with-prices-07-07-2026.pdf"
+    content = get(url)
+    raw = []
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for i, page in enumerate(pdf.pages):
+            for t in page.extract_tables() or []:
+                raw += [r for r in t if r and len(r) >= 8]
+            page.flush_cache()
+            if i % 100 == 0:
+                log(f"om page {i}/{len(pdf.pages)}: {len(raw):,} rows")
+    raw = [r for r in raw if s(r[0]) and not s(r[0]).lower().startswith(("regn", "for search")) and not re.search(r"[؀-ۿ]", s(r[0]))]
+    width = [max((len(p) for r in raw for p in s_lines(r[i])), default=0) for i in range(8)]
+
+    def cell(v, i):
+        parts = s_lines(v)
+        out = ""
+        for p in parts:
+            out += ("" if out and len(prev) >= width[i] - 1 and out[-1].isalpha() and p[:1].isalpha() else " " if out else "") + p
+            prev = p
+        return out.strip()
+
+    dose = re.compile(r"\s+\d[\d.,]*\s*(MG|MCG|G|IU|ML|%|MMOL|UNITS?)\b.*$", re.I)
+    rows = []
+    for r in raw:
+        acts = []
+        for v in (r[3], r[4]):
+            a = dose.sub("", cell(v, 3)).strip()
+            if a:
+                acts.append(to_english(a))
+        rows.append(row(f"{cell(r[0], 0)}|{cell(r[1], 1)}", cell(r[0], 0), cell(r[1], 1), cell(r[6], 6), acts, "", "", ""))
+    log(f"om translation: {TRANSLATED}")
+    return dict(country="OM", name="MOH Oman pharmaceutical products list with prices", source_url=url, company_field="Mfr Name (manufacturer)"), rows
+
+
+def s_lines(v):
+    return [p.strip() for p in str(v or "").split("\n") if p.strip()]
+
+
+ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om}
 
 
 def write(key, meta, rows):

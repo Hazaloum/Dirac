@@ -11,13 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      ONLY: ""
+      ONLY: "it_aifa fr_ansm ie_hpra bg_bda om_moh"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install pandas==2.2.3 openpyxl==3.1.5 xlrd==2.0.1 requests==2.32.3
+      - run: pip install pandas==2.2.3 openpyxl==3.1.5 xlrd==2.0.1 requests==2.32.3 pdfplumber==0.11.4
       - name: Download and normalise registries
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python tools/registries/run.py $ONLY
       - name: Commit outputs
         run: |
