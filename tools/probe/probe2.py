@@ -23,37 +23,36 @@ async def main():
         page.on("request", lambda r: reqs.append(f"{r.method} {r.url} {(r.post_data or '')[:300]}") if r.resource_type in ("xhr", "fetch") else None)
         page.on("response", lambda r: log(f"  <- {r.status} {r.url}") if r.request.resource_type in ("xhr", "fetch") else None)
         log("######## at")
+        heads = {}
+        page.on("request", lambda r: heads.update({r.url: r.headers}) if "/api/api/" in r.url else None)
+        await page.goto("https://medikamente.basg.gv.at/de/medicinal-products/", wait_until="networkidle", timeout=90000)
+        await page.wait_for_timeout(4000)
+        for u, h in list(heads.items())[:3]:
+            log(f"  page request {u} headers: {h}")
+        h = next(iter(heads.values()), {})
+        keep = {k: v for k, v in h.items() if k.lower() not in ("content-length", "host")}
         base = "https://medikamente.basg.gv.at/api/api/v1/medication"
-        for path, method, body, params in [("/search", "post", {}, {"page": 0, "size": 5}), ("/list", "get", None, {"page": 0, "size": 5}),
-                                           ("/export", "post", {}, {"type": "CSV"}), ("/export", "post", {}, {"type": "csv"}),
-                                           ("/export", "post", {}, {})]:
+        for typ in ["CSV", "csv"]:
             try:
-                q = "&".join(f"{k}={v}" for k, v in params.items())
-                url = f"{base}{path}" + (f"?{q}" if q else "")
-                hdr = {"Accept": "text/csv" if path == "/export" else "application/json", "Accept-Language": "de", "Content-Type": "application/json"}
-                r = await (ctx.request.post(url, data=body, headers=hdr, timeout=300000) if method == "post" else ctx.request.get(url, headers=hdr, timeout=120000))
-                b = await r.body()
-                log(f"  {method.upper()} {url} -> {r.status} {r.headers.get('content-type')} {r.headers.get('content-disposition')} {len(b):,} {b[:700]!r}")
+                r = await ctx.request.post(f"{base}/export?type={typ}", data={}, headers={**keep, "Accept": "text/csv", "Content-Type": "application/json"}, timeout=600000)
+                body = await r.body()
+                log(f"  export {typ} -> {r.status} {r.headers.get('content-type')} {len(body):,} {body[:1500]!r}")
             except Exception as e:
-                log(f"  {path} failed: {type(e).__name__}: {str(e)[:300]}")
+                log(f"  export failed {type(e).__name__}: {str(e)[:300]}")
         log("######## ae")
-        import re
-        for url in ["https://mohap.gov.ae/en/services/registered-medical-product-directory",
-                    "https://mohap.gov.ae/en/open-data/mohap-open-data",
-                    "https://mohap.gov.ae/en/open-data",
-                    "https://www.doh.gov.ae/en/resources/drug-master",
-                    "https://www.doh.gov.ae/en/Shafafiya/dictionary",
-                    "https://www.shafafiya.org/dictionary"]:
-            try:
-                resp = await page.goto(url, wait_until="networkidle", timeout=90000)
-                html = await page.content()
-                links = sorted(set(re.findall(r"""href=["']([^"']+?\.(?:xlsx?|csv|zip)[^"']*)["']""", html, re.I)))
-                log(f"  {url} -> {resp.status if resp else None} title={await page.title()!r} data links: {links[:30]}")
-            except Exception as e:
-                log(f"  {url} failed: {type(e).__name__}: {str(e)[:200]}")
-        for r in reqs:
-            if "api" in r.lower() or "drug" in r.lower():
-                log("  -> " + r)
+        try:
+            r = await ctx.request.get("https://shafafiyaportal.doh.gov.ae/dictionary/DrugCoding/Drugs.xlsx", timeout=300000)
+            body = await r.body()
+            log(f"  Drugs.xlsx -> {r.status} {r.headers.get('content-type')} {len(body):,}")
+            import io
+            import pandas as pd
+            x = pd.read_excel(io.BytesIO(body), sheet_name=None, nrows=5)
+            for sh, df in x.items():
+                log(f"  sheet {sh}: {list(df.columns)}")
+                for _, row in df.head(3).iterrows():
+                    log("    " + " | ".join(str(v)[:50] for v in row.values))
+        except Exception as e:
+            log(f"  Drugs.xlsx failed {type(e).__name__}: {str(e)[:300]}")
         await b.close()
 
 
