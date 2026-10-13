@@ -236,8 +236,9 @@ export default function AnalysisPage() {
       let res: AnalysisResult;
 
       if (mode === "upload") {
+        if (!companyName) throw new Error("Pick the company this catalogue is from");
         if (!file) throw new Error("Please select a file");
-        res = await api.uploadCatalogue(file, companyName || file.name.replace(/\.[^.]+$/, ""));
+        res = await api.uploadCatalogue(file, companyName);
       } else if (mode === "craft") {
         if (!craftMolecules.length) throw new Error("Add at least one molecule");
         res = await api.enrichMolecules(craftMolecules, companyName || "Portfolio");
@@ -541,13 +542,13 @@ export default function AnalysisPage() {
             {/* Company / portfolio name */}
             <div>
               <label className="block text-xs font-medium text-surface-600 mb-1.5">
-                {mode === "molecule" ? "Molecule Name (auto-filled)" : "Company / Portfolio Name"}
+                {mode === "molecule" ? "Molecule Name (auto-filled)" : mode === "upload" ? "Company" : "Company / Portfolio Name"}
               </label>
               {mode === "upload" ? (
                 <CompanyPicker
                   value={companyName}
                   onChange={setCompanyName}
-                  placeholder="Start typing, e.g. Adalvo"
+                  placeholder="Search the company directory, e.g. Adalvo"
                   className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
                 />
               ) : (
