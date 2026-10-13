@@ -1,0 +1,19 @@
+name: doctors-import
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/cool-allen-cg9oit]
+    paths: ["tools/doctors/**", ".github/workflows/doctors.yml"]
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas openpyxl
+      - run: python tools/doctors/import_dha.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
