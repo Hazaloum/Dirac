@@ -178,6 +178,8 @@ export const api = {
   runRegistryReview: () => req<{ started: boolean }>("/api/registry/review/run", { method: "POST" }),
   decideCompanyPair: (a: number, b: number, verdict: "same" | "different") =>
     req<unknown>("/api/registry/review/company", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a, b, verdict }) }),
+  decideGroup: (clusterId: number, groups: { name: string; member_ids: number[] }[]) =>
+    req<unknown>("/api/registry/review/group", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cluster_id: clusterId, groups }) }),
   decideMolecule: (alias: string, inn: string | null) =>
     req<unknown>("/api/registry/review/molecule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alias, inn }) }),
   getRunChanges: (runId: number, kind?: string) =>
@@ -903,7 +905,7 @@ export interface PortfolioMolecule {
 
 export interface ExhibitorPortfolio {
   matched: boolean;
-  company: { id: number; name: string; countries: string[]; products: number; molecules: number } | null;
+  company: { id: number; name: string; entities?: string[]; countries: string[]; products: number; molecules: number } | null;
   /** ATC1 sections A..V, unclassified last. */
   groups: { atc1: string | null; name: string; market_value_aed: number; molecules: PortfolioMolecule[] }[];
   iqvia_year: number | null;
@@ -915,7 +917,17 @@ export interface EventDetail extends EventSummary {
 
 // ─── Master registry ─────────────────────────────────────────────────────────
 
-export interface RegistryCompany { id: number; name: string; products: number; countries: string[] }
+export interface RegistryCompanyMember { id: number; name: string; products: number; countries: string[] }
+
+/** A company group (or a company with no group: one member). */
+export interface RegistryCompany {
+  group_key: string;
+  group_id: number | null;
+  name: string;
+  products: number;
+  countries: string[];
+  members: RegistryCompanyMember[];
+}
 
 export interface MoleculeHolder {
   company_id: number;
@@ -925,6 +937,8 @@ export interface MoleculeHolder {
   in_uae: boolean;
   product_names: string[];
   combos: string[] | null;   // for combination holders: which combinations
+  group_key: string;
+  members: { company_id: number; name: string; countries: string[]; products: number; in_uae: boolean }[];
 }
 
 export interface MoleculeHolders {
@@ -991,7 +1005,21 @@ export interface RegistryReviewLog {
   molecules_judged: number;
   molecules_matched: number;
   molecules_unsure: number;
+  groups_judged: number | null;
+  groups_applied: number | null;
+  groups_unsure: number | null;
   error: string | null;
+}
+
+export interface GroupClusterMember {
+  id: number; name: string; group: string | null; countries: string | null; products: number; examples: string | null;
+}
+
+export interface GroupCluster {
+  id: number;
+  brand: string;
+  proposal: { name: string; member_ids: number[]; confidence?: number }[] | null;
+  members: GroupClusterMember[];
 }
 
 export interface CompanyPair {
@@ -1008,8 +1036,12 @@ export interface RegistryReview {
   runs: RegistryRun[];
   reviews: RegistryReviewLog[];
   running: boolean;
-  counts: { companies_waiting: number; companies_unsure: number; molecules_waiting: number; molecules_unsure: number; queue_refreshed_at: string | null };
+  counts: {
+    companies_waiting: number; companies_unsure: number; molecules_waiting: number; molecules_unsure: number;
+    groups_waiting: number; groups_unsure: number; groups: number; queue_refreshed_at: string | null;
+  };
   company_pairs: CompanyPair[];
+  group_clusters: GroupCluster[];
   molecules: UnmatchedIngredient[];
 }
 

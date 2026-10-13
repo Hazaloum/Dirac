@@ -3,12 +3,16 @@ registry_review.py — the AI review step of the master registry, run by the bac
 
 GitHub Actions does the heavy monthly work (download, diff, rule matching) and leaves two queues in Supabase:
   * company look-alike pairs (company_merge_candidates, verdict null) — new spellings vs existing companies
+  * brand clusters (company_group_candidates, status pending) — companies sharing a brand word, to group into
+    company groups (Pfizer Romania, Pfizer Hellas … → group "Pfizer")
   * ingredient names no rule could match to a molecule (registration_molecules.molecule_id null)
 After each registry refresh (the backend checks hourly for a run that finished since the last review) and on demand
 from Data → Review, this module sends both queues to Claude Haiku, until they are empty:
-  * confident "same company" → merged (apply_company_merges; merging only points a company at another, nothing is deleted)
+  * confident "same company" (same legal entity, spelt differently) → merged (apply_company_merges; merging only points a company at another, nothing is deleted)
   * confident "different" → saved, never asked again
   * unsure → verdict "unsure", shown on the Review page for a person to decide
+  * brand clusters: Haiku splits each into groups (subsidiaries of one parent); confident → applied (companies.group_id),
+    unsure → shown on the Review page
   * an ingredient Haiku maps to a WHO INN that exists in `molecules` → molecule alias (method "ai"), applied at once;
     otherwise the attempt is saved (no_inn / unsure) so it is not asked again.
 """
@@ -24,8 +28,8 @@ from supabase_client import get_client, get_service_client
 
 MODEL = "claude-haiku-5-5"
 CHECK_EVERY = 3600                                      # seconds between "has a refresh landed?" checks
-COMPANY_BATCH, MOLECULE_BATCH = 25, 40
-MAX_COMPANY_PAIRS, MAX_MOLECULES = 20000, 50000        # safety caps only; a run normally empties both queues
+COMPANY_BATCH, MOLECULE_BATCH, GROUP_BATCH = 25, 40, 5
+MAX_COMPANY_PAIRS, MAX_MOLECULES, MAX_GROUPS = 20000, 50000, 5000       # safety caps only; a run normally empties both queues
 MERGE_CONFIDENCE = 0.8
 
 _lock = threading.Lock()
@@ -62,12 +66,13 @@ def _ask(system: str, payload: list[dict], schema: dict) -> dict:
 # ---------------------------------------------------------------- companies
 
 COMPANY_SYSTEM = (
-    "You decide whether two company names from medicine registries are the same company group, for a pharma "
-    "licensing team that wants one company per group. Same = the same company or group written differently, a "
-    "local subsidiary or branch of the same group, a renamed or transliterated name (e.g. Bulgarian 'Teva Farma' "
-    "and 'Teva'; 'Sandoz GmbH' and 'SANDOZ GMBH -- AUSTRIA'). Different = unrelated firms that only share a word "
-    "(e.g. 'Medochemie' vs 'Medopharm', two different 'Pharma Nord' style generic names in different groups). "
-    "Use the countries and example products as evidence. Give confidence 0-1; below 0.8 means a person should check."
+    "You decide whether two company names from medicine registries are the same company: the same legal entity "
+    "written differently — spelling, punctuation, legal-form suffix, a country or city added, a transliteration "
+    "(e.g. 'Sandoz GmbH' and 'SANDOZ GMBH -- AUSTRIA'; 'Adalvo Limited' and 'Adalvo Limited Malta'; Bulgarian "
+    "'Teva Farma' and 'Тева Фарма'). Different = separate legal entities, including subsidiaries of one group in "
+    "different countries (e.g. 'Pfizer Hellas' vs 'Pfizer Romania' — those are grouped separately, not merged) "
+    "and unrelated firms that only share a word ('Medochemie' vs 'Medopharm'). Use the countries and example "
+    "products as evidence. Give confidence 0-1; below 0.8 means a person should check."
 )
 COMPANY_SCHEMA = {
     "type": "object",
@@ -120,6 +125,67 @@ def decide_company_pair(a: int, b: int, verdict: str) -> dict:
     if verdict == "same":
         return db.rpc("apply_company_merges", {"p_pairs": [[a, b]]}).execute().data
     return {"saved": True}
+
+
+# ---------------------------------------------------------------- company groups
+
+GROUP_SYSTEM = (
+    "Each item is a cluster of companies from medicine registries whose names share a brand word, with their "
+    "countries, product counts, example products and any group already assigned. Split each cluster into company "
+    "groups: one group = one parent company and its subsidiaries, country affiliates, factories and branches (e.g. "
+    "'Pfizer Hellas', 'Pfizer Romania', 'Pfizer Europe MA EEIG' -> group 'Pfizer'). Keep apart firms that only share "
+    "a word: 'Merck KGaA' (Germany) and 'Merck Sharp & Dohme' (MSD, US) are different groups; unrelated local firms "
+    "with a common word (pharmacies, 'Euro-Pharma' style names) are not grouped. Name each group by its parent's "
+    "usual short name. Leave out companies that belong to no group with another member. Only list groups of 2+ "
+    "members. Confidence 0-1 per group; below 0.8 means a person should check."
+)
+GROUP_SCHEMA = {
+    "type": "object",
+    "properties": {"clusters": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "groups": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}, "member_ids": {"type": "array", "items": {"type": "integer"}},
+                           "confidence": {"type": "number"}},
+            "required": ["name", "member_ids", "confidence"], "additionalProperties": False}}},
+        "required": ["id", "groups"], "additionalProperties": False}}},
+    "required": ["clusters"], "additionalProperties": False,
+}
+
+
+def review_groups(db) -> dict:
+    db.rpc("registry_build_group_candidates", {}).execute()
+    judged = applied = unsure = 0
+    while judged < MAX_GROUPS:
+        clusters = db.rpc("registry_group_clusters", {"p_status": "pending", "p_limit": GROUP_BATCH}).execute().data or []
+        if not clusters:
+            break
+        payload = [{"id": k["id"], "brand": k["brand"],
+                    "companies": [{"id": m["id"], "name": m["name"], "countries": m["countries"], "products": m["products"],
+                                   "examples": m["examples"], **({"current_group": m["group"]} if m.get("group") else {})}
+                                  for m in (k["members"] or [])]}
+                   for k in clusters]
+        answers = {a["id"]: a for a in _ask(GROUP_SYSTEM, payload, GROUP_SCHEMA)["clusters"]}
+        for k in clusters:
+            a = answers.get(k["id"])
+            groups = [g for g in (a or {}).get("groups", []) if len(g["member_ids"]) >= 2]
+            if a is None or any(g["confidence"] < MERGE_CONFIDENCE for g in groups):
+                db.table("company_group_candidates").update({"status": "unsure", "proposal": groups}).eq("id", k["id"]).execute()
+                unsure += 1
+            else:
+                db.rpc("registry_apply_groups", {"p_cluster": k["id"], "p_groups": groups, "p_method": "ai",
+                                                 "p_status": "applied" if groups else "no_group"}).execute()
+                applied += bool(groups)
+        judged += len(clusters)
+    return {"groups_judged": judged, "groups_applied": applied, "groups_unsure": unsure}
+
+
+def decide_group(cluster_id: int, groups: list[dict]) -> dict:
+    """A person's answer on the Review page: the groups to form ([] = none of these belong together)."""
+    groups = [{"name": (g.get("name") or "").strip(), "member_ids": [int(i) for i in g.get("member_ids", [])]}
+              for g in groups if len(g.get("member_ids", [])) >= 2]
+    return _db().rpc("registry_apply_groups", {"p_cluster": cluster_id, "p_groups": groups, "p_method": "manual",
+                                               "p_status": "manual"}).execute().data
 
 
 # ---------------------------------------------------------------- molecules
@@ -212,6 +278,7 @@ def run_review(trigger: str) -> dict:
     result: dict = {}
     try:
         result.update(review_companies(db))
+        result.update(review_groups(db))
         result.update(review_molecules(db))
         db.table("registry_review_log").update({**result, "finished_at": datetime.now(timezone.utc).isoformat()}).eq("id", log["id"]).execute()
         last_review.clear()
@@ -252,14 +319,25 @@ def refresh_landed() -> bool:
     return not review or run[0]["finished_at"] > review[0]["started_at"]
 
 
+def work_waiting() -> bool:
+    """True when a queue still has unjudged items, e.g. a review cut short by a backend restart."""
+    c = get_client().rpc("registry_review_counts", {}).execute().data or {}
+    return bool(c.get("companies_waiting") or c.get("groups_waiting") or c.get("molecules_waiting"))
+
+
+def should_review() -> bool:
+    return refresh_landed() or work_waiting()
+
+
 async def review_after_refresh() -> None:
-    """Background task started with the backend: once an hour, review the queues if a registry refresh landed."""
+    """Background task started with the backend: once an hour, review the queues if a registry refresh landed
+    or a queue still has unjudged items."""
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("Registry review off — ANTHROPIC_API_KEY not set")
         return
     while True:
         try:
-            if not _lock.locked() and await asyncio.to_thread(refresh_landed):
+            if not _lock.locked() and await asyncio.to_thread(should_review):
                 await asyncio.to_thread(_safe, "after refresh")
         except Exception as e:      # keep the loop alive
             print("Registry review check failed:", e)
@@ -278,6 +356,7 @@ def review_overview() -> dict:
         "running": _lock.locked(),
         "counts": db.rpc("registry_review_counts", {}).execute().data,
         "company_pairs": db.rpc("registry_company_pairs", {"p_verdict": "unsure", "p_limit": 100}).execute().data or [],
+        "group_clusters": db.rpc("registry_group_clusters", {"p_status": "unsure", "p_limit": 100}).execute().data or [],
         "molecules": db.rpc("registry_unmatched_ingredients", {"p_limit": 100, "p_status": "unsure"}).execute().data or [],
     }
 

@@ -1024,6 +1024,17 @@ def registry_review_company(body: CompanyDecision):
         raise HTTPException(400, str(e))
 
 
+class GroupDecision(BaseModel):
+    cluster_id: int
+    groups: list[dict]          # [{name, member_ids}]; [] = none of these belong together
+
+
+@app.post("/api/registry/review/group")
+def registry_review_group(body: GroupDecision):
+    from registry_review import decide_group
+    return decide_group(body.cluster_id, body.groups)
+
+
 class MoleculeDecision(BaseModel):
     alias: str
     inn: Optional[str] = None

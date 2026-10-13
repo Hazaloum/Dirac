@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { api, type RegistryCompany } from "@/lib/api";
 
-/** Pick a company from the master-registry company list. Shows the pick as a chip; typing only searches. */
+/** Pick a company from the master-registry company directory. Results are company groups (Pfizer = all its
+ *  subsidiaries); ▸ shows a group's companies, each pickable too. Shows the pick as a chip; typing only searches. */
 export function CompanyPicker({ value, onChange, placeholder, className }: {
   value: string;
   onChange: (name: string) => void;
@@ -15,6 +16,7 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
   const [options, setOptions] = useState<RegistryCompany[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
@@ -22,7 +24,7 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
     let cancelled = false;
     const t = setTimeout(() => {
       api.searchRegistryCompanies(q)
-        .then((rows) => { if (!cancelled) { setOptions(rows); setActive(0); } })
+        .then((rows) => { if (!cancelled) { setOptions(rows); setActive(0); setExpanded(null); } })
         .catch(() => { if (!cancelled) setOptions([]); });
     }, 200);
     return () => { cancelled = true; clearTimeout(t); };
@@ -72,18 +74,39 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
       {open && rows > 0 && (
         <ul className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-white border border-surface-200 rounded-xl shadow-lg py-1">
           {options.map((c, i) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); choose(c.name); }}
-                onMouseEnter={() => setActive(i)}
-                className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-3 ${i === active ? "bg-pharma-50" : ""}`}
-              >
-                <span className="text-surface-900 truncate">{c.name}</span>
-                <span className="text-xs text-surface-500 shrink-0">
-                  {c.products.toLocaleString()} products · {c.countries.length} {c.countries.length === 1 ? "country" : "countries"}
-                </span>
-              </button>
+            <li key={c.group_key}>
+              <div className={`flex items-center ${i === active ? "bg-pharma-50" : ""}`} onMouseEnter={() => setActive(i)}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); choose(c.name); }}
+                  className="flex-1 min-w-0 text-left px-4 py-2 text-sm flex items-center justify-between gap-3"
+                >
+                  <span className="text-surface-900 truncate">{c.name}</span>
+                  <span className="text-xs text-surface-500 shrink-0">
+                    {c.products.toLocaleString()} products · {c.countries.length} {c.countries.length === 1 ? "country" : "countries"}
+                  </span>
+                </button>
+                {c.members.length > 1 && (
+                  <button type="button" title="Show the companies in this group"
+                    onMouseDown={(e) => { e.preventDefault(); setExpanded(expanded === c.group_key ? null : c.group_key); }}
+                    className="shrink-0 px-3 py-2 text-xs text-pharma-900 font-medium">
+                    {c.members.length} {expanded === c.group_key ? "▾" : "▸"}
+                  </button>
+                )}
+              </div>
+              {expanded === c.group_key && (
+                <ul className="bg-surface-50 border-y border-surface-100">
+                  {c.members.map((m) => (
+                    <li key={m.id}>
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); choose(m.name); }}
+                        className="w-full text-left pl-8 pr-4 py-1.5 text-xs flex justify-between gap-3 hover:bg-pharma-50">
+                        <span className="text-surface-700 truncate">{m.name}</span>
+                        <span className="text-surface-500 shrink-0">{m.products} · {m.countries.join(" ")}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
           <li className="border-t border-surface-100 mt-1 pt-1">

@@ -1,10 +1,12 @@
 """
 registry.py — read-only lookups on the master registry (Supabase `registrations` / `companies`).
 
-- search_companies(q): canonical companies for the company-name picker (most registrations first).
+- search_companies(q): company groups for the company picker (most registrations first), each with its member
+  companies. A company with no group is its own one-member group.
 - molecule_companies(name): every company holding a registration for a molecule or combination
   (IQVIA-style name, e.g. "AMLODIPINE + VALSARTAN"), via SQL registry_molecule_holders: match "exact" = the same
   molecule / combination; "combination" = a combination that contains it (amlodipine -> amlodipine + valsartan).
+  Rolled up to company groups: one row per group, with its member companies.
 """
 from __future__ import annotations
 
@@ -15,13 +17,36 @@ def search_companies(q: str, limit: int = 15) -> list[dict]:
     q = (q or "").strip()
     if len(q) < 2:
         return []
-    return get_client().rpc("registry_search_companies", {"p_q": q, "p_limit": limit}).execute().data or []
+    return get_client().rpc("registry_search_company_groups", {"p_q": q, "p_limit": limit}).execute().data or []
+
+
+def _by_group(rows: list[dict]) -> list[dict]:
+    """One row per company group (summed products, union of countries), its companies listed under `members`."""
+    out: dict[str, dict] = {}
+    for r in rows:
+        key = r.get("group_key") or f"c{r['company_id']}"
+        g = out.setdefault(key, {"company_id": r["company_id"], "group_key": key, "name": r.get("group_name") or r["name"],
+                                 "match": r["match"], "combos": set(), "countries": set(), "products": 0,
+                                 "in_uae": False, "product_names": [], "members": []})
+        g["combos"].update(r.get("combos") or [])
+        g["countries"].update(r.get("countries") or [])
+        g["products"] += r["products"]
+        g["in_uae"] = g["in_uae"] or bool(r.get("in_uae"))
+        g["product_names"] += [p for p in (r.get("product_names") or []) if p not in g["product_names"]]
+        g["members"].append({"company_id": r["company_id"], "name": r["name"], "countries": r.get("countries") or [],
+                             "products": r["products"], "in_uae": bool(r.get("in_uae"))})
+    for g in out.values():
+        g["combos"] = sorted(g["combos"]) or None
+        g["countries"] = sorted(g["countries"])
+        g["product_names"] = g["product_names"][:6]
+        g["members"].sort(key=lambda m: -m["products"])
+    return sorted(out.values(), key=lambda g: (-len(g["countries"]), -g["products"]))
 
 
 def molecule_companies(name: str) -> dict:
-    rows = get_client().rpc("registry_molecule_holders", {"p_name": name}).execute().data or []
-    exact = [r for r in rows if r["match"] == "exact"]
-    combos = [r for r in rows if r["match"] == "combination"]
+    rows = get_client().rpc("registry_molecule_holders_g", {"p_name": name}).execute().data or []
+    exact = _by_group([r for r in rows if r["match"] == "exact"])
+    combos = _by_group([r for r in rows if r["match"] == "combination"])
     return {
         "molecule": name,
         "combo_key": rows[0]["combo_key"] if rows else get_client().rpc("registry_molecule_key", {"p_name": name}).execute().data,

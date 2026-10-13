@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { ClipboardCheck, Loader2, Play } from "lucide-react";
-import { api, type CompanyPair, type RegistryChange, type RegistryReview, type RegistryRun, type UnmatchedIngredient } from "@/lib/api";
+import { api, type CompanyPair, type GroupCluster, type RegistryChange, type RegistryReview, type RegistryRun, type UnmatchedIngredient } from "@/lib/api";
 import { ddmmyy, ddmmyyTime } from "@/lib/dates";
 
 const COUNTRY: Record<string, string> = {
@@ -93,6 +93,70 @@ function PairRow({ pair, onDone }: { pair: CompanyPair; onDone: () => void }) {
   );
 }
 
+function GroupRow({ cluster, onDone }: { cluster: GroupCluster; onDone: () => void }) {
+  const proposal = cluster.proposal ?? [];
+  const first = proposal[0];
+  const [name, setName] = useState(first?.name ?? cluster.brand.replace(/^./, (c) => c.toUpperCase()));
+  const [picked, setPicked] = useState<Set<number>>(new Set(first ? first.member_ids : cluster.members.map((m) => m.id)));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const save = (groups: { name: string; member_ids: number[] }[]) => {
+    setBusy(true); setErr("");
+    api.decideGroup(cluster.id, groups).then(onDone).catch((e: Error) => { setErr(e.message); setBusy(false); });
+  };
+  const toggle = (id: number) => setPicked((s) => { const t = new Set(s); if (t.has(id)) t.delete(id); else t.add(id); return t; });
+  const groupOf = (id: number) => proposal.findIndex((g) => g.member_ids.includes(id));
+  return (
+    <li className="py-4">
+      <div className="mb-2 flex flex-wrap items-center gap-3">
+        <p className="text-sm text-surface-600">Brand word <b className="text-surface-900">{cluster.brand}</b> · {cluster.members.length} companies</p>
+        {proposal.length > 1 && (
+          <p className="text-xs text-surface-500">AI suggests {proposal.length} groups: {proposal.map((g) => `${g.name} (${g.member_ids.length})`).join(", ")}</p>
+        )}
+      </div>
+      <ul className="mb-3 grid gap-1 sm:grid-cols-2">
+        {cluster.members.map((m) => {
+          const g = groupOf(m.id);
+          return (
+            <li key={m.id}>
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-surface-50">
+                <input type="checkbox" className="mt-1" checked={picked.has(m.id)} onChange={() => toggle(m.id)} />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-surface-900">{m.name}</span>
+                  <span className="block text-xs text-surface-500">
+                    {countries(m.countries)} · {n(m.products)} products
+                    {proposal.length > 1 && g >= 0 ? ` · AI: ${proposal[g].name}` : ""}
+                    {m.group ? ` · now in ${m.group}` : ""}
+                  </span>
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name"
+          className="w-48 rounded-lg border border-surface-300 px-3 py-1.5 text-sm focus:border-pharma-300 focus:outline-none" />
+        <button disabled={busy || picked.size < 2 || !name.trim()} onClick={() => save([{ name: name.trim(), member_ids: Array.from(picked) }])}
+          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 disabled:opacity-50">
+          Group the {picked.size} ticked
+        </button>
+        {proposal.length > 1 && (
+          <button disabled={busy} onClick={() => save(proposal.map((g) => ({ name: g.name, member_ids: g.member_ids })))}
+            className="rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-xs font-medium text-surface-700 disabled:opacity-50">
+            Use the AI&apos;s {proposal.length} groups
+          </button>
+        )}
+        <button disabled={busy} onClick={() => save([])}
+          className="rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-xs font-medium text-surface-700 disabled:opacity-50">
+          Not one company
+        </button>
+        {err && <p className="w-full text-xs text-rose-700">{err}</p>}
+      </div>
+    </li>
+  );
+}
+
 function IngredientRow({ item, onDone }: { item: UnmatchedIngredient; onDone: () => void }) {
   const [inn, setInn] = useState(item.ai_answer ?? "");
   const [busy, setBusy] = useState(false);
@@ -121,6 +185,7 @@ export default function DataReviewPage() {
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
+  const [tab, setTab] = useState<"updates" | "companies" | "molecules">("companies");
 
   const load = useCallback(() => {
     api.getRegistryReview().then(setData).catch((e: Error) => setError(e.message));
@@ -155,9 +220,24 @@ export default function DataReviewPage() {
 
       {data && (
         <>
-          <div className="mb-8 grid gap-3 sm:grid-cols-4">
-            {[["Company pairs waiting for AI", data.counts.companies_waiting], ["Company pairs for you", data.counts.companies_unsure],
-              ["Ingredients waiting for AI", data.counts.molecules_waiting], ["Ingredients for you", data.counts.molecules_unsure]].map(([label, v]) => (
+          <div className="mb-6 flex gap-1 rounded-lg bg-surface-100 p-1 w-fit">
+            {([["companies", "Company review", data.counts.companies_unsure + data.counts.groups_unsure],
+               ["molecules", "Molecule review", data.counts.molecules_unsure],
+               ["updates", "Monthly updates", null]] as const).map(([k, label, count]) => (
+              <button key={k} onClick={() => setTab(k)}
+                className={`rounded-md px-4 py-1.5 text-sm ${tab === k ? "bg-white font-medium text-surface-900 shadow-sm" : "text-surface-600"}`}>
+                {label}{count ? <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[11px] text-amber-800">{n(count)}</span> : null}
+              </button>
+            ))}
+          </div>
+          <div className="mb-8 grid gap-3 sm:grid-cols-3">
+            {(tab === "companies"
+              ? [["Pairs + brand clusters waiting for AI", data.counts.companies_waiting + data.counts.groups_waiting],
+                 ["For you to check", data.counts.companies_unsure + data.counts.groups_unsure],
+                 ["Company groups", data.counts.groups]]
+              : tab === "molecules"
+              ? [["Ingredients waiting for AI", data.counts.molecules_waiting], ["For you to check", data.counts.molecules_unsure]]
+              : []).map(([label, v]) => (
               <div key={label as string} className="rounded-xl border border-surface-200 bg-white p-4">
                 <p className="text-2xl font-semibold text-surface-900">{n(v as number)}</p>
                 <p className="text-xs text-surface-500">{label}</p>
@@ -165,13 +245,13 @@ export default function DataReviewPage() {
             ))}
           </div>
           <p className="-mt-5 mb-8 text-xs text-surface-500">
-            The AI review runs by itself after each monthly registry refresh, until both queues are empty.{" "}
+            The AI review runs by itself after each monthly registry refresh, until the queues are empty.{" "}
             {last && (last.error
               ? <span className="text-rose-700">Last run {ddmmyyTime(last.started_at)} failed: {last.error}</span>
-              : <>Last run {ddmmyyTime(last.started_at)}{last.finished_at ? "" : " (still running)"}: {n(last.companies_judged)} company pairs judged, {n(last.companies_merged)} merged; {n(last.molecules_judged)} ingredients judged, {n(last.molecules_matched)} matched.</>)}
+              : <>Last run {ddmmyyTime(last.started_at)}{last.finished_at ? "" : " (still running)"}: {n(last.companies_judged)} company pairs judged, {n(last.companies_merged)} merged; {n(last.groups_judged)} brand clusters judged, {n(last.groups_applied)} grouped; {n(last.molecules_judged)} ingredients judged, {n(last.molecules_matched)} matched.</>)}
           </p>
 
-          <Section title="Monthly registry updates" sub="Each refresh compares the new file with what's stored: new products, changed details (holder, status, strength), and products that disappeared (marked withdrawn, never deleted). Click a row to see them.">
+          {tab === "updates" && <Section title="Monthly registry updates" sub="Each refresh compares the new file with what's stored: new products, changed details (holder, status, strength), and products that disappeared (marked withdrawn, never deleted). Click a row to see them.">
             {!data.runs.length && <p className="text-sm text-surface-500">No refresh has run yet. The first monthly run fills this in.</p>}
             {data.runs.length > 0 && (
               <div className="overflow-x-auto rounded-xl border border-surface-200 bg-white">
@@ -206,9 +286,10 @@ export default function DataReviewPage() {
                 </table>
               </div>
             )}
-          </Section>
+          </Section>}
 
-          <Section title="Companies to check" sub="Pairs the AI wasn't sure about. Same company merges them (reversible: nothing is deleted); either answer is remembered.">
+          {tab === "companies" && <>
+          <Section title="Same company?" sub="Two spellings the AI wasn't sure are the same company (the same legal entity). Same company merges them (reversible: nothing is deleted); either answer is remembered.">
             {!data.company_pairs.length ? <p className="text-sm text-surface-500">Nothing to check.</p> : (
               <ul className="divide-y divide-surface-200 rounded-xl border border-surface-200 bg-white px-4">
                 {data.company_pairs.map((p) => (
@@ -219,7 +300,19 @@ export default function DataReviewPage() {
             )}
           </Section>
 
-          <Section title="Ingredients to check" sub="Ingredient names no rule or AI answer could match to a WHO molecule, most products first. Type the English INN (salt left off) or mark it as not a molecule.">
+          <Section title="Same group?" sub="Companies sharing a brand word, where the AI wasn't sure which belong to one parent company (Pfizer Hellas, Pfizer Romania … → Pfizer). Tick the ones that belong together and name the group. Groups only roll companies up in lists; nothing is merged.">
+            {!data.group_clusters.length ? <p className="text-sm text-surface-500">Nothing to check.</p> : (
+              <ul className="divide-y divide-surface-200 rounded-xl border border-surface-200 bg-white px-4">
+                {data.group_clusters.map((k) => (
+                  <GroupRow key={k.id} cluster={k}
+                    onDone={() => drop((d) => ({ ...d, group_clusters: d.group_clusters.filter((x) => x.id !== k.id) }))} />
+                ))}
+              </ul>
+            )}
+          </Section>
+          </>}
+
+          {tab === "molecules" && <Section title="Ingredients to check" sub="Ingredient names no rule or AI answer could match to a WHO molecule, most products first. Type the English INN (salt left off) or mark it as not a molecule.">
             {!data.molecules.length ? <p className="text-sm text-surface-500">Nothing to check.</p> : (
               <ul className="divide-y divide-surface-200 rounded-xl border border-surface-200 bg-white px-4">
                 {data.molecules.map((m) => (
@@ -228,7 +321,7 @@ export default function DataReviewPage() {
                 ))}
               </ul>
             )}
-          </Section>
+          </Section>}
         </>
       )}
     </main>

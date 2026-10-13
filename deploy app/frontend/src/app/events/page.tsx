@@ -44,6 +44,11 @@ function PortfolioModal({ exhibitor, onClose }: { exhibitor: EventExhibitor; onC
                 {plural(data.company.molecules, "molecule")} · registered in {data.company.countries.map(country).join(", ")}
               </p>
             )}
+            {data?.company?.entities && data.company.entities.length > 1 && (
+              <p className="mt-0.5 text-xs text-surface-400" title={data.company.entities.join("\n")}>
+                Whole group: {data.company.entities.length} companies
+              </p>
+            )}
           </div>
           <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-surface-500 hover:bg-surface-100"><X className="h-5 w-5" /></button>
         </div>
