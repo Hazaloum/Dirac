@@ -17,15 +17,20 @@ from __future__ import annotations
 
 from supabase_client import get_service_client
 
-LIST_COLUMNS = "dha_id,name,profession,grade,specialty,facility,nationality,license_type,account_id"
 
 
 def _db():
     return get_service_client()
 
 
+_facets: dict = {}
+
+
 def facets() -> dict:
-    return _db().rpc("hcp_facets", {}).execute().data or {}
+    """Counts for the filters; the register only changes on a re-import, so cached per process."""
+    if not _facets:
+        _facets.update(_db().rpc("hcp_facets", {}).execute().data or {})
+    return _facets
 
 
 def search(q: str = "", profession: str | None = None, specialty: str | None = None, grade: str | None = None,
@@ -72,6 +77,14 @@ def add_to_field_force(dha_id: str, area_id: int | None = None) -> dict:
         raise ValueError("No professional with that DHA ID")
     if p["account_id"]:
         return {"account_id": p["account_id"], "created": False}
+    if (p["specialty"] or "").lower().startswith("pharmacist") and p["facility"]:
+        # A pharmacist leads to their pharmacy: the client is the pharmacy (found by name, else created).
+        hit = db.table("accounts").select("id").eq("type", "pharmacy").ilike("name", p["facility"]).limit(1).execute().data
+        account_id = hit[0]["id"] if hit else db.table("accounts").insert({
+            "type": "pharmacy", "name": p["facility"], "area_id": area_id,
+            "phone": p["phones"][0] if p["phones"] else None, "created_by": None}).execute().data[0]["id"]
+        db.table("hcp_professionals").update({"account_id": account_id}).eq("dha_id", dha_id).execute()
+        return {"account_id": account_id, "created": not hit, "type": "pharmacy"}
     parent = None
     if p["facility"]:
         hit = db.table("accounts").select("id").eq("type", "hospital").ilike("name", p["facility"]).limit(1).execute().data
@@ -87,4 +100,4 @@ def add_to_field_force(dha_id: str, area_id: int | None = None) -> dict:
         "created_by": None,
     }).execute().data[0]
     db.table("hcp_professionals").update({"account_id": account["id"]}).eq("dha_id", dha_id).execute()
-    return {"account_id": account["id"], "created": True}
+    return {"account_id": account["id"], "created": True, "type": "doctor"}

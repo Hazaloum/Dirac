@@ -1024,6 +1024,41 @@ def registry_review_company(body: CompanyDecision):
         raise HTTPException(400, str(e))
 
 
+class DoctorAdd(BaseModel):
+    area_id: Optional[int] = None
+
+
+@app.get("/api/doctors/facets")
+def doctors_facets():
+    import doctors
+    return doctors.facets()
+
+
+@app.get("/api/doctors")
+def doctors_search(q: str = "", profession: Optional[str] = None, specialty: Optional[str] = None,
+                   grade: Optional[str] = None, with_contact: bool = False, offset: int = 0, limit: int = 50):
+    import doctors
+    return doctors.search(q, profession, specialty, grade, with_contact, offset, limit)
+
+
+@app.get("/api/doctors/{dha_id}")
+def doctors_detail(dha_id: str):
+    import doctors
+    d = doctors.detail(dha_id)
+    if not d:
+        raise HTTPException(404, "Not found")
+    return d
+
+
+@app.post("/api/doctors/{dha_id}/field-force")
+def doctors_add(dha_id: str, body: DoctorAdd):
+    import doctors
+    try:
+        return doctors.add_to_field_force(dha_id, body.area_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 class GroupDecision(BaseModel):
     cluster_id: int
     groups: list[dict]          # [{name, member_ids}]; [] = none of these belong together

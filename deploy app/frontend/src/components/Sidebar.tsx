@@ -16,6 +16,7 @@ import {
   Ship,
   Database,
   ClipboardCheck,
+  Stethoscope,
 } from "lucide-react";
 
 const groups = [
@@ -44,6 +45,7 @@ const groups = [
     name: "Data",
     pages: [
       { name: "Registries", href: "/registries", icon: Database },
+      { name: "Doctors", href: "/doctors", icon: Stethoscope },
       { name: "Review", href: "/data-review", icon: ClipboardCheck },
     ],
   },

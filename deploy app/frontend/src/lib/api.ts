@@ -232,6 +232,18 @@ export const api = {
   cancelOrder: (kind: OrderKind, id: number) => req(`/api/inventory/orders/${kind}/${id}/cancel`, { method: "POST" }),
 
   // Field force (medical rep CRM) — setup + dashboard
+  getDoctorFacets: () => req<DoctorFacets>("/api/doctors/facets"),
+  searchDoctors: (p: { q: string; profession?: string; specialty?: string; grade?: string; withContact?: boolean; offset: number }) => {
+    const qs = new URLSearchParams({ q: p.q, offset: String(p.offset), limit: "50", with_contact: String(!!p.withContact) });
+    if (p.profession) qs.set("profession", p.profession);
+    if (p.specialty) qs.set("specialty", p.specialty);
+    if (p.grade) qs.set("grade", p.grade);
+    return req<DoctorSearch>(`/api/doctors?${qs}`);
+  },
+  getDoctor: (dhaId: string) => req<DoctorProfile>(`/api/doctors/${encodeURIComponent(dhaId)}`),
+  addDoctorToFieldForce: (dhaId: string, areaId: number | null) =>
+    req<{ account_id: number; created: boolean; type: "doctor" | "pharmacy" }>(`/api/doctors/${encodeURIComponent(dhaId)}/field-force`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ area_id: areaId }) }),
   getFieldForceSetup: () => req<FieldForceSetup>("/api/field-force/setup"),
   createRep: (payload: { name: string; email: string; password: string; role: RepRole; area_ids: number[] }) =>
     req<FieldRep>("/api/field-force/reps", {
@@ -761,6 +773,33 @@ export interface FieldRep {
   role: RepRole;
   active: boolean;
   area_ids: number[];
+}
+
+// ─── Doctors (DHA professional register) ─────────────────────────────────────
+
+export interface DoctorFacets {
+  total: number;
+  snapshot: string | null;
+  professions: { profession: string; n: number }[];
+  specialties: { profession: string; specialty: string; n: number }[];
+  grades: { profession: string; grade: string; n: number }[];
+}
+
+export interface DoctorRow {
+  dha_id: string; name: string; profession: string | null; grade: string | null; specialty: string | null;
+  facility: string | null; nationality: string | null; license_type: string | null;
+  has_email: boolean; has_mobile: boolean; account_id: number | null;
+}
+
+export interface DoctorSearch { total: number; offset: number; rows: DoctorRow[] }
+
+export interface DoctorProfile {
+  dha_id: string; name: string; profession: string | null; grade: string | null; specialty: string | null;
+  category_raw: string | null; facility: string | null; nationality: string | null; license_type: string | null;
+  profile_status: string | null; profile_url: string | null; linkedin: string | null; twitter: string | null;
+  account_id: number | null; snapshot_date: string | null;
+  emails: string[]; phones: string[]; specialties: string[]; licensed_facilities: string[];
+  experience: [string, string][]; qualifications: string[]; education: string[]; languages: string[];
 }
 
 export interface FieldForceSetup {
