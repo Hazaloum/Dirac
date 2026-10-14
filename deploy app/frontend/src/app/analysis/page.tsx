@@ -255,8 +255,7 @@ export default function AnalysisPage() {
 
       setResult(res);
       setPhase("portfolio");
-      // Score in the background; cards pick up scores when the report lands.
-      runPhase2(res, false);
+      // The AI evaluation only runs from the portfolio's "Generate AI Report" button.
     } catch (e: unknown) {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {

@@ -200,7 +200,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Three input modes: `upload` (catalogue file), `craft` (type molecules), `molecule` (single lookup)
 - Phase `input` → Phase `portfolio` (after Phase 1) → Phase `report` (after Phase 2)
 - Portfolio phase: grid or treemap view, shortlist/disqualify per molecule (CheckCircle2 / XCircle), MOHAP + UPP counts shown on card
-- Stats bar buttons: **Save Portfolio** (manual Supabase save), view toggle, Generate AI Report / View Report
+- Stats bar buttons: **Save Portfolio** (manual Supabase save), view toggle, Generate AI Report / View Report — the AI evaluation (Phase 2) never starts on its own after an upload/enrich, only from Generate AI Report
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
 - History sidebar: lists saved runs, click to reload
 
