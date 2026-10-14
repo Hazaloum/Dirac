@@ -166,18 +166,19 @@ def market_discovery_competitors(atc4: str, molecule: str):
 @app.post("/api/analysis/upload")
 async def analysis_upload(file: UploadFile = File(...), company: str = Form(...),
                           company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
-    """Upload a catalogue (PDF/CSV/Excel) → extract molecules + enrich. With a registry company: check the molecules
-    against its registry portfolio and add the missing ones to the 'uploaded' registry."""
+    """Upload a catalogue (PDF/CSV/Excel) → keyword extraction + enrich. With a registry company: a read-only check
+    of the molecules against its registry portfolio. (Analysis uses /upload-stream, which reads with AI first.)"""
     from agent_runner import extract_and_enrich
     content = await file.read()
     try:
         result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    result["extraction"] = {"method": "keyword"}
     if company_id:
-        from registry import check_upload
+        from registry import check_catalogue
         try:
-            check_upload(result, company_id, whole_group, file.filename or "upload")
+            check_catalogue(result, company_id, whole_group)
         except Exception as e:
             result["registry_check"] = {"error": str(e)}
     return result
@@ -186,34 +187,74 @@ async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)
 @app.post("/api/analysis/upload-stream")
 async def analysis_upload_stream(file: UploadFile = File(...), company: str = Form(...),
                                  company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
-    """/api/analysis/upload as SSE, for the progress pop-up: {molecule, count} per molecule found and enriched,
-    {stage: "registry"} before the registry check, then {result}. Ends with [DONE]."""
-    from agent_runner import extract_and_enrich_steps
+    """Upload a catalogue as SSE, for the progress pop-up. Claude reads the products first (catalogue_ai); if that
+    fails, keyword matching (extract_and_enrich_steps) takes over. Events: {stage: "reading", pages, image_pages},
+    {molecule, count} per molecule found, {stage: "fallback", reason}, {stage: "registry"}, then {result}.
+    The registry check is read-only; the review screen writes via POST /api/registry/uploaded. Ends with [DONE]."""
+    from agent_runner import ai_extract_and_enrich_steps, extract_and_enrich_steps
     content = await file.read()
     filename = file.filename or "upload"
+    send = lambda obj: f"data: {json.dumps(obj)}\n\n"
 
     def generate():
         try:
             result, count = None, 0
-            for kind, data in extract_and_enrich_steps(content, filename, company, _state["dfs"]):
-                if kind == "molecule":
-                    count += 1
-                    yield f"data: {json.dumps({'molecule': data, 'count': count})}\n\n"
-                else:
-                    result = data
+            try:
+                for kind, data in ai_extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                    if kind == "pages":
+                        yield send({"stage": "reading", **data})
+                    elif kind == "molecule":
+                        count += 1
+                        yield send({"molecule": data, "count": count})
+                    else:
+                        result = data
+            except Exception as e:
+                reason = str(e) or type(e).__name__
+                print(f"AI catalogue reading failed, using keyword matching: {reason}")
+                yield send({"stage": "fallback", "reason": reason})
+                result, count = None, 0
+                for kind, data in extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                    if kind == "molecule":
+                        count += 1
+                        yield send({"molecule": data, "count": count})
+                    else:
+                        result = data
+                result["extraction"] = {"method": "keyword", "reason": reason}
             if company_id:
-                from registry import check_upload
-                yield f"data: {json.dumps({'stage': 'registry'})}\n\n"
+                from registry import check_catalogue
+                yield send({"stage": "registry"})
                 try:
-                    check_upload(result, company_id, whole_group, filename)
+                    check_catalogue(result, company_id, whole_group)
                 except Exception as e:
                     result["registry_check"] = {"error": str(e)}
-            yield f"data: {json.dumps({'result': result})}\n\n"
+            yield send({"result": result})
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield send({"error": str(e)})
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+class UploadedItem(BaseModel):
+    name: str
+    form: Optional[str] = None
+    strengths: Optional[str] = None
+    catalogue_status: Optional[str] = None
+
+
+class UploadedRequest(BaseModel):
+    company_id: int
+    source: str = ""
+    items: list[UploadedItem]
+
+
+@app.post("/api/registry/uploaded")
+def registry_add_uploaded(body: UploadedRequest):
+    """Review screen → add the confirmed catalogue products to the 'uploaded' registry under the company."""
+    from registry import add_uploaded
+    if not body.items:
+        raise HTTPException(status_code=422, detail="Nothing selected")
+    return add_uploaded(body.company_id, [i.model_dump() for i in body.items], body.source)
 
 
 class EnrichRequest(BaseModel):

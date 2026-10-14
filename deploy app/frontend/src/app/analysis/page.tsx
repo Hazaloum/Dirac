@@ -10,6 +10,7 @@ import {
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
+import { ExtractionNote, RegistryReview } from "@/components/CatalogueReview";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 
@@ -135,7 +136,7 @@ export default function AnalysisPage() {
   const [file,           setFile]           = useState<File | null>(null);
   const [companyName,    setCompanyName]     = useState("");
   const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
-  const [uploadProgress, setUploadProgress]  = useState<{ count: number; molecule?: string; registry?: boolean } | null>(null);
+  const [uploadProgress, setUploadProgress]  = useState<{ count: number; line?: string } | null>(null);
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
   const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
@@ -242,9 +243,13 @@ export default function AnalysisPage() {
         if (!file) throw new Error("Please select a file");
         setUploadProgress({ count: 0 });
         res = await uploadCatalogueStream(file, companyName, companyPick, (p: UploadProgress) =>
-          setUploadProgress((prev) => "molecule" in p
-            ? { count: p.count, molecule: p.molecule }
-            : { count: prev?.count ?? 0, molecule: prev?.molecule, registry: true }));
+          setUploadProgress((prev) => {
+            if ("molecule" in p) return { count: p.count, line: p.molecule };
+            if (p.stage === "reading")
+              return { count: 0, line: `Reading ${p.pages} page${p.pages === 1 ? "" : "s"} with AI${p.image_pages ? ` (${p.image_pages} as images)` : ""}…` };
+            if (p.stage === "fallback") return { count: 0, line: "AI reading failed: using keyword matching…" };
+            return { count: prev?.count ?? 0, line: `Checking ${companyName}'s registries…` };
+          }));
       } else if (mode === "craft") {
         if (!craftMolecules.length) throw new Error("Add at least one molecule");
         res = await api.enrichMolecules(craftMolecules, companyName || "Portfolio");
@@ -691,6 +696,23 @@ export default function AnalysisPage() {
       )}
 
       {/* ── PORTFOLIO + REPORT VIEW (shared with My Portfolio) ── */}
+      {(phase === "portfolio" || phase === "report") && result && (result.extraction || result.registry_check?.company_id) && (
+        <div className="space-y-3 mb-6">
+          <ExtractionNote result={result} />
+          {result.registry_check?.company_id && (
+            <RegistryReview
+              key={`${result.registry_check.company_id}:${file?.name ?? ""}`}
+              result={result}
+              company={companyName}
+              source={file?.name ?? ""}
+              onAdded={(names) => setResult((r) => r && {
+                ...r,
+                molecules: r.molecules.map((m) => names.includes(m.molecule) ? { ...m, registry_status: "already_uploaded" } : m),
+              })}
+            />
+          )}
+        </div>
+      )}
       {(phase === "portfolio" || phase === "report") && result && (
         <PortfolioView
           result={result}
@@ -747,9 +769,7 @@ export default function AnalysisPage() {
               Found {uploadProgress.count} molecule{uploadProgress.count === 1 ? "" : "s"}
             </p>
             <p className="text-xs text-surface-500 h-4 truncate w-full">
-              {uploadProgress.registry
-                ? `Checking ${companyName}'s registries…`
-                : uploadProgress.molecule ?? "Reading the catalogue…"}
+              {uploadProgress.line ?? "Reading the catalogue…"}
             </p>
           </div>
         </div>

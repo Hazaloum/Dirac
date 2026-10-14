@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AnalysisResult, MoleculeCard } from "@/lib/api";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
+import { CatalogueLine } from "@/components/CatalogueReview";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 
 /**
@@ -46,9 +47,12 @@ const fmtAed = (v?: number | null) => {
 function RegistryTag({ status }: { status?: MoleculeCard["registry_status"] }) {
   if (status === "in_registry")
     return <span title="Already in this company's registry portfolio" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">In registries</span>;
-  if (status === "added" || status === "already_uploaded")
-    return <span title={status === "added" ? "Not in this company's registries: added to its dataset (Uploaded registry)" : "Not in this company's registries: added by an earlier upload (Uploaded registry)"}
-      className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0 font-medium">New</span>;
+  if (status === "already_uploaded")
+    return <span title="Not in this company's registries: added from a catalogue (Uploaded registry)" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">Uploaded</span>;
+  if (status === "new")
+    return <span title="Not in this company's registries yet: add it from the review above" className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0 font-medium">New</span>;
+  if (status === "unmatched")
+    return <span title="No registry molecule matches this name" className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">Unmatched</span>;
   return null;
 }
 
@@ -125,12 +129,12 @@ export function PortfolioView({
             {result.registry_check.error ? (
               <p className="text-xs text-rose-700 max-w-xs">Registry check failed: {result.registry_check.error}</p>
             ) : (
-              <div title="Checked against this company's registry portfolio. New molecules were added to its dataset under the 'Uploaded' registry.">
+              <div title="Checked against this company's registry portfolio. Add the new ones from the review above.">
                 <p className="text-xs text-surface-500">In its registries</p>
                 <p className="text-xl font-bold text-surface-900">
                   {result.registry_check.in_registry ?? 0}
                   <span className="ml-2 text-xs font-medium text-emerald-700">
-                    +{(result.registry_check.added ?? 0) + (result.registry_check.already_uploaded ?? 0)} new
+                    +{(result.registry_check.new ?? 0) + (result.registry_check.unmatched ?? 0)} new
                   </span>
                 </p>
               </div>
@@ -306,6 +310,7 @@ export function PortfolioView({
                               {mol.atc4_class && (
                                 <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
                               )}
+                              {mol.catalogue && <CatalogueLine info={mol.catalogue} />}
                               {mol.in_iqvia && (
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2 pt-2 border-t border-surface-200/30">
                                   {mol.market_value_aed != null && mol.market_value_aed > 0 && (

@@ -194,6 +194,13 @@ export const api = {
   searchRegistryMolecules: (q: string) => req<RegistryMolecule[]>(`/api/registry/molecules?q=${encodeURIComponent(q)}`),
   getCompanyPortfolio: (companyId: number, wholeGroup = true) =>
     req<ExhibitorPortfolio>(`/api/registry/company-portfolio/${companyId}?whole_group=${wholeGroup}`),
+  addToRegistry: (body: { company_id: number; source: string;
+                          items: { name: string; form?: string; strengths?: string; catalogue_status?: string }[] }) =>
+    req<{ added: number; updated: number }>("/api/registry/uploaded", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
   searchRegistryCompanies: (q: string) => req<RegistryCompany[]>(`/api/registry/companies?q=${encodeURIComponent(q)}`),
   getMoleculeHolders: (molecule: string) =>
     req<MoleculeHolders>(`/api/registry/molecule-companies?molecule=${encodeURIComponent(molecule)}`),
@@ -299,6 +306,8 @@ export const api = {
 
 export type UploadProgress =
   | { molecule: string; count: number }
+  | { stage: "reading"; pages: number; image_pages: number }
+  | { stage: "fallback"; reason: string }
   | { stage: "registry" };
 
 /** Upload catalogue with progress: onProgress per molecule found (running count), then the registry check. */
@@ -470,11 +479,35 @@ export interface MoleculeCard {
   atc3_value_rank?: string;
   atc3_value_pct?: number;
   /** Upload catalogue only: vs the picked company's registry portfolio. in_registry = it already holds it;
-   *  added = new, now in the 'uploaded' registry; already_uploaded = added by an earlier upload. */
-  registry_status?: "in_registry" | "added" | "already_uploaded" | null;
+   *  already_uploaded = added from an earlier catalogue; new = not in its registries; unmatched = no registry
+   *  molecule found for the name. Nothing is written until the review screen's "Add to registries". */
+  registry_status?: "in_registry" | "already_uploaded" | "new" | "unmatched" | null;
+  /** Upload catalogue: the ingredients as the catalogue wrote them (the registry check's name). */
+  registry_name?: string;
+  /** Upload catalogue read by AI: the catalogue's products for this molecule. */
+  catalogue?: CatalogueInfo;
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
+}
+
+export interface CatalogueProduct {
+  brand: string;
+  dosage_form: string;
+  /** in_uae: whether the UAE market (IQVIA) sells this strength; null when the molecule isn't in IQVIA. */
+  strengths: { label: string; in_uae: boolean | null }[];
+  countries: string[];
+  status: "approved" | "submitted" | "unknown";
+  expected_date: string;
+  pages: number[];
+  from_image: boolean;
+}
+
+export interface CatalogueInfo {
+  status: "approved" | "submitted" | "unknown";
+  products: CatalogueProduct[];
+  /** Strengths the UAE market sells that the catalogue doesn't offer. */
+  uae_only: string[];
 }
 
 export interface MarketDiscoveryNode {
@@ -559,8 +592,11 @@ export interface AnalysisResult {
   atc4_context: string;
   stats: { total: number; matched_iqvia: number };
   /** Upload catalogue with a registry company: the check against its registry portfolio. */
-  registry_check?: { company_id?: number; whole_group?: boolean; in_registry?: number; added?: number;
-                     already_uploaded?: number; error?: string };
+  registry_check?: { company_id?: number; whole_group?: boolean; in_registry?: number; already_uploaded?: number;
+                     new?: number; unmatched?: number; error?: string };
+  /** Upload catalogue: how the products were read. keyword = the AI failed (reason) and keyword matching ran. */
+  extraction?: { method: "ai" | "keyword"; model?: string; pages?: number; image_pages?: number;
+                 products?: number; dropped?: number; reason?: string };
 }
 
 export interface ManufacturerBreakdown {

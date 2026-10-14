@@ -25,7 +25,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
 
 MODELS = {
-    "haiku":       ("anthropic", "claude-haiku-4-5-20251001", 0.0008,  0.004),
+    "haiku":       ("anthropic", "claude-haiku-5-5",          0.0001,  0.0005),
     "sonnet":      ("anthropic", "claude-sonnet-4-6",         0.003,   0.015),
     "gpt-5.6-luna": ("openai",   "gpt-5.6-luna",              0.0002,  0.0012),
 }
@@ -180,6 +180,95 @@ def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str
     enriched_data = format_enriched_data(companies, lookups)
 
     yield "result", _build_response(companies, lookups, enriched_data, atc4_context, contexts)
+
+
+def ai_extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+    """extract_and_enrich_steps with Claude reading the catalogue (catalogue_ai) instead of keyword matching:
+    ("pages", info), ("molecule", name) per new product, then ("result", dict). Each card gets `catalogue`
+    (products with form, strengths vs the UAE, countries, approved/submitted, pages) and `registry_name`
+    (ingredients as written, for the registry check). Raises on failure, so the caller can fall back."""
+    import re
+    from catalogue_ai import MODEL, read_catalogue, merge_products, strength_key, uae_strengths
+    from data_processing.molecule_normalizer import strip_salt_forms
+
+    raw, seen, info, dropped = [], set(), {}, 0
+    for kind, data in read_catalogue(file_bytes, filename, company_name):
+        if kind == "pages":
+            info = data
+            yield "pages", data
+        elif kind == "products":
+            raw += data
+            for p in data:
+                key = " + ".join(sorted(i.upper() for i in p["ingredients"]))
+                if key not in seen:
+                    seen.add(key)
+                    yield "molecule", " + ".join(p["ingredients"])
+        else:
+            dropped = data["dropped"]
+    products = merge_products(raw)
+    if not products:
+        raise RuntimeError("the AI found no products in the catalogue")
+
+    # Ingredients → IQVIA molecule name (order-free), via salt stripping, else the registry's INN.
+    known = {" + ".join(sorted(p.strip() for p in m.split("+"))): m
+             for m in dfs["iqvia"]["Molecule Combination"].dropna().unique()}
+    clean = lambda i: re.sub(r"\s+base$", "", i.strip(), flags=re.IGNORECASE)
+    inns: dict[str, str] = {}
+    try:
+        from supabase_client import get_client
+        names = sorted({clean(i) for p in products for i in p["ingredients"]})
+        for r in get_client().rpc("registry_resolve_inns", {"p_names": names}).execute().data or []:
+            if r.get("inn"):
+                inns[r["name"].lower()] = r["inn"].upper()
+    except Exception:
+        pass
+
+    by_molecule: dict[str, dict] = {}
+    for p in products:
+        parts = [clean(i) for i in p["ingredients"]]
+        salt_free = " + ".join(sorted(strip_salt_forms(x) for x in parts))
+        iqvia = known.get(salt_free)
+        if not iqvia and all(x.lower() in inns for x in parts):
+            iqvia = known.get(" + ".join(sorted(inns[x.lower()] for x in parts)))
+        name = iqvia or salt_free
+        entry = by_molecule.setdefault(name, {"registry_name": " + ".join(parts), "iqvia": iqvia, "products": []})
+        entry["products"].append(p)
+
+    lookups, contexts = {}, {}
+    for name, entry in by_molecule.items():
+        lookups[name.lower()] = lookup_molecule(name, dfs)
+        contexts[name] = entry["products"][0].get("source", "")
+    atc4_context = _build_atc4_context(lookups, dfs["iqvia"])
+    companies = [{"name": company_name, "molecules": list(by_molecule)}]
+    result = _build_response(companies, lookups, format_enriched_data(companies, lookups), atc4_context, contexts)
+
+    rank = {"approved": 0, "submitted": 1, "unknown": 2}
+    for card in result["molecules"]:
+        entry = by_molecule.get(card["molecule"])
+        if not entry:
+            continue
+        uae = uae_strengths(dfs["iqvia"], entry["iqvia"]) if entry["iqvia"] else {}
+        offered: set[tuple] = set()
+        items = []
+        for p in entry["products"]:
+            strengths = []
+            for s in p.get("strengths") or []:
+                k = strength_key(s)
+                offered.add(k)
+                strengths.append({"label": s, "in_uae": (k in uae) if uae else None})
+            items.append({"brand": p.get("brand") or "", "dosage_form": p.get("dosage_form") or "",
+                          "strengths": strengths, "countries": p.get("countries") or [],
+                          "status": p.get("status") or "unknown", "expected_date": p.get("expected_date") or "",
+                          "pages": p.get("pages") or [], "from_image": bool(p.get("from_image"))})
+        card["registry_name"] = entry["registry_name"]
+        card["catalogue"] = {
+            "status": min((i["status"] for i in items), key=lambda s: rank.get(s, 2)),
+            "products": items,
+            "uae_only": [label for k, label in sorted(uae.items(), key=lambda kv: kv[1]) if k not in offered],
+        }
+    result["extraction"] = {"method": "ai", "model": MODEL, "pages": info.get("pages"),
+                            "image_pages": info.get("image_pages"), "products": len(products), "dropped": dropped}
+    yield "result", result
 
 
 def enrich_molecules(molecules: list[str], company_name: str, dfs: dict) -> dict:
