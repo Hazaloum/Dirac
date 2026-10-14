@@ -21,7 +21,7 @@ def search_companies(q: str, limit: int = 15) -> list[dict]:
     q = (q or "").strip()
     if len(q) < 2:
         return []
-    return get_client().rpc("registry_search_company_groups", {"p_q": q, "p_limit": limit}).execute().data or []
+    return get_client().rpc("registry_search_company_groups_v4", {"p_q": q, "p_limit": limit}).execute().data or []
 
 
 def check_upload(result: dict, company_id: int, whole_group: bool, source: str) -> dict:
