@@ -140,15 +140,21 @@ def exhibitor_portfolio(exhibitor_id: int, dfs: dict | None = None) -> dict | No
     company_id = rows[0]["company_id"]
     if not company_id:
         return {"matched": False, "company": None, "groups": [], "iqvia_year": None}
-    # The whole company group's portfolio (all its subsidiaries), named after the group.
+    return company_portfolio(company_id, dfs)
+
+
+def company_portfolio(company_id: int, dfs: dict | None = None, whole_group: bool = True) -> dict:
+    """A registry company's portfolio, by default its whole company group's (all subsidiaries), named after the group."""
+    client = get_client()
     company = client.table("company_group_of").select("company_id,group_name,group_id").eq("company_id", company_id).execute().data
     company = company[0] if company else {"company_id": company_id, "group_name": None, "group_id": None}
-    if company["group_id"]:
+    if whole_group and company["group_id"]:
         members = client.table("companies").select("id,name").eq("group_id", company["group_id"]).is_("merged_into", "null").execute().data
     else:
         members = client.table("companies").select("id,name").eq("id", company_id).execute().data
     ids = [m["id"] for m in members]
-    company = {"id": company_id, "name": company["group_name"] or (members[0]["name"] if members else ""),
+    name = company["group_name"] if whole_group else None
+    company = {"id": company_id, "name": name or (members[0]["name"] if members else ""),
                "entities": sorted(m["name"] for m in members)}
     regs, start = [], 0
     while True:

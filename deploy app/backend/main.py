@@ -983,6 +983,18 @@ def registry_companies(q: str = ""):
     return search_companies(q)
 
 
+@app.get("/api/registry/molecules")
+def registry_molecules(q: str = ""):
+    from registry import search_molecules
+    return search_molecules(q)
+
+
+@app.get("/api/registry/company-portfolio/{company_id}")
+def registry_company_portfolio(company_id: int, whole_group: bool = True):
+    from registry import company_portfolio
+    return company_portfolio(company_id, _state.get("dfs"), whole_group)
+
+
 @app.get("/api/registry/registries")
 def registry_list():
     from registry import list_registries

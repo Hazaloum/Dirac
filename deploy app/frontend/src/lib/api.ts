@@ -187,6 +187,9 @@ export const api = {
   getRegistries: () => req<RegistrySource[]>("/api/registry/registries"),
   searchRegistry: (registry: string, q: string, status: string, offset: number, limit = 50) =>
     req<RegistrySearch>(`/api/registry/search?registry=${encodeURIComponent(registry)}&q=${encodeURIComponent(q)}&status=${status}&offset=${offset}&limit=${limit}`),
+  searchRegistryMolecules: (q: string) => req<RegistryMolecule[]>(`/api/registry/molecules?q=${encodeURIComponent(q)}`),
+  getCompanyPortfolio: (companyId: number, wholeGroup = true) =>
+    req<ExhibitorPortfolio>(`/api/registry/company-portfolio/${companyId}?whole_group=${wholeGroup}`),
   searchRegistryCompanies: (q: string) => req<RegistryCompany[]>(`/api/registry/companies?q=${encodeURIComponent(q)}`),
   getMoleculeHolders: (molecule: string) =>
     req<MoleculeHolders>(`/api/registry/molecule-companies?molecule=${encodeURIComponent(molecule)}`),
@@ -955,6 +958,8 @@ export interface EventDetail extends EventSummary {
 }
 
 // ─── Master registry ─────────────────────────────────────────────────────────
+
+export interface RegistryMolecule { combo_key: string; products: number; companies: number; countries: number; in_uae: boolean }
 
 export interface RegistryCompanyMember { id: number; name: string; products: number; countries: string[] }
 

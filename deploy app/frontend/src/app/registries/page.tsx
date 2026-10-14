@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Database, ExternalLink, Loader2, Search } from "lucide-react";
 import { api, type RegistryRow, type RegistrySearch, type RegistrySource } from "@/lib/api";
 import { ddmmyy } from "@/lib/dates";
+import { AllRegistriesSearch } from "@/components/AllRegistriesSearch";
 
 const COUNTRY: Record<string, string> = {
   AE: "UAE", BE: "Belgium", BG: "Bulgaria", CZ: "Czechia", ES: "Spain", FR: "France", HU: "Hungary", IE: "Ireland",
@@ -55,6 +56,10 @@ export default function RegistriesPage() {
         <Database className="h-7 w-7 text-pharma-700" />
         <h1 className="text-3xl font-semibold text-surface-900">Registries</h1>
       </div>
+
+      <AllRegistriesSearch />
+
+      <h2 className="mb-3 text-lg font-semibold text-surface-900">Browse one registry</h2>
 
       {error && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {!sources && !error && <p className="text-surface-500">Loading registries…</p>}

@@ -280,6 +280,7 @@ def run_review(trigger: str) -> dict:
         result.update(review_companies(db))
         result.update(review_groups(db))
         result.update(review_molecules(db))
+        db.rpc("registry_refresh_molecule_index", {}).execute()     # molecule search on the Registries page
         db.table("registry_review_log").update({**result, "finished_at": datetime.now(timezone.utc).isoformat()}).eq("id", log["id"]).execute()
         last_review.clear()
         last_review.update({"ok": True, **result})

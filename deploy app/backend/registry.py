@@ -70,3 +70,17 @@ def search_registry(registry: str, q: str = "", status: str = "active", offset: 
     for r in rows:
         r.pop("total", None)
     return {"total": total, "offset": offset, "rows": rows}
+
+
+def search_molecules(q: str, limit: int = 15) -> list[dict]:
+    """Molecules and combinations in the registries (combo keys, e.g. amlodipine+valsartan), single molecules first."""
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+    return get_client().rpc("registry_search_molecules", {"p_q": q, "p_limit": limit}).execute().data or []
+
+
+def company_portfolio(company_id: int, dfs: dict | None, whole_group: bool = True) -> dict:
+    from events import company_portfolio as portfolio
+    return portfolio(company_id, dfs, whole_group)
+
