@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { api, type CompanyPick, type RegistryCompany } from "@/lib/api";
 
 /** Pick a company from the master-registry company directory. Results are company groups (Pfizer = all its
@@ -18,15 +18,18 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) { setOptions([]); return; }
+    if (q.length < 2) { setOptions([]); setLoading(false); return; }
     let cancelled = false;
+    setLoading(true);
     const t = setTimeout(() => {
       api.searchRegistryCompanies(q)
         .then((rows) => { if (!cancelled) { setOptions(rows); setActive(0); setExpanded(null); } })
-        .catch(() => { if (!cancelled) setOptions([]); });
+        .catch(() => { if (!cancelled) setOptions([]); })
+        .finally(() => { if (!cancelled) setLoading(false); });
     }, 200);
     return () => { cancelled = true; clearTimeout(t); };
   }, [query]);
@@ -78,6 +81,11 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
       />
       {open && rows > 0 && (
         <ul className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-white border border-surface-200 rounded-xl shadow-lg py-1">
+          {loading && (
+            <li className="px-4 py-2 text-xs text-surface-500 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching the company directory…
+            </li>
+          )}
           {options.map((c, i) => (
             <li key={c.group_key}>
               <div className={`flex items-center ${i === active ? "bg-pharma-50" : ""}`} onMouseEnter={() => setActive(i)}>
@@ -121,7 +129,7 @@ export function CompanyPicker({ value, onChange, placeholder, className }: {
               onMouseEnter={() => setActive(options.length)}
               className={`w-full text-left px-4 py-2 text-xs text-surface-500 ${active === options.length ? "bg-pharma-50" : ""}`}
             >
-              {options.length ? "Not in the list?" : "No registered company found."} Use &ldquo;{typed}&rdquo; as a new company
+              {options.length || loading ? "Not in the list?" : "No registered company found."} Use &ldquo;{typed}&rdquo; as a new company
             </button>
           </li>
         </ul>
