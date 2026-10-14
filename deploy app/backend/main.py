@@ -183,6 +183,39 @@ async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)
     return result
 
 
+@app.post("/api/analysis/upload-stream")
+async def analysis_upload_stream(file: UploadFile = File(...), company: str = Form(...),
+                                 company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
+    """/api/analysis/upload as SSE, for the progress pop-up: {molecule, count} per molecule found and enriched,
+    {stage: "registry"} before the registry check, then {result}. Ends with [DONE]."""
+    from agent_runner import extract_and_enrich_steps
+    content = await file.read()
+    filename = file.filename or "upload"
+
+    def generate():
+        try:
+            result, count = None, 0
+            for kind, data in extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                if kind == "molecule":
+                    count += 1
+                    yield f"data: {json.dumps({'molecule': data, 'count': count})}\n\n"
+                else:
+                    result = data
+            if company_id:
+                from registry import check_upload
+                yield f"data: {json.dumps({'stage': 'registry'})}\n\n"
+                try:
+                    check_upload(result, company_id, whole_group, filename)
+                except Exception as e:
+                    result["registry_check"] = {"error": str(e)}
+            yield f"data: {json.dumps({'result': result})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 class EnrichRequest(BaseModel):
     molecules: list[str]
     company: Optional[str] = "Portfolio"

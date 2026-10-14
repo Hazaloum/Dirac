@@ -157,18 +157,29 @@ def format_enriched_data(companies: list, lookups: dict) -> str:
 
 def extract_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs: dict) -> dict:
     """Extract molecules from uploaded file and enrich with market data."""
+    for kind, data in extract_and_enrich_steps(file_bytes, filename, company_name, dfs):
+        if kind == "result":
+            return data
+    raise RuntimeError("extraction produced no result")
+
+
+def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+    """extract_and_enrich as steps, for progress: ("molecule", name) after each molecule is enriched, then ("result", dict)."""
     from data_processing.molecule_normalizer import smart_molecule_search
 
     text = _extract_text(file_bytes, filename)
     known_molecules = set(dfs["iqvia"]["Molecule Combination"].dropna().unique())
     found_molecules, contexts = smart_molecule_search(text, known_molecules)
 
-    lookups = {mol.lower(): lookup_molecule(mol, dfs) for mol in found_molecules}
+    lookups = {}
+    for mol in found_molecules:
+        lookups[mol.lower()] = lookup_molecule(mol, dfs)
+        yield "molecule", mol
     atc4_context = _build_atc4_context(lookups, dfs["iqvia"])
     companies = [{"name": company_name, "molecules": found_molecules}]
     enriched_data = format_enriched_data(companies, lookups)
 
-    return _build_response(companies, lookups, enriched_data, atc4_context, contexts)
+    yield "result", _build_response(companies, lookups, enriched_data, atc4_context, contexts)
 
 
 def enrich_molecules(molecules: list[str], company_name: str, dfs: dict) -> dict:

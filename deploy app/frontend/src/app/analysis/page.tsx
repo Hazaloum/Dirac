@@ -8,7 +8,7 @@ import {
   History, Trash2, ChevronRight, TrendingUp, Check, Save,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
-import { api, streamScore, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
+import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
@@ -135,6 +135,7 @@ export default function AnalysisPage() {
   const [file,           setFile]           = useState<File | null>(null);
   const [companyName,    setCompanyName]     = useState("");
   const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
+  const [uploadProgress, setUploadProgress]  = useState<{ count: number; molecule?: string; registry?: boolean } | null>(null);
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
   const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
@@ -239,7 +240,11 @@ export default function AnalysisPage() {
       if (mode === "upload") {
         if (!companyName) throw new Error("Pick the company this catalogue is from");
         if (!file) throw new Error("Please select a file");
-        res = await api.uploadCatalogue(file, companyName, companyPick);
+        setUploadProgress({ count: 0 });
+        res = await uploadCatalogueStream(file, companyName, companyPick, (p: UploadProgress) =>
+          setUploadProgress((prev) => "molecule" in p
+            ? { count: p.count, molecule: p.molecule }
+            : { count: prev?.count ?? 0, molecule: prev?.molecule, registry: true }));
       } else if (mode === "craft") {
         if (!craftMolecules.length) throw new Error("Add at least one molecule");
         res = await api.enrichMolecules(craftMolecules, companyName || "Portfolio");
@@ -256,6 +261,7 @@ export default function AnalysisPage() {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setEnrichLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -731,6 +737,23 @@ export default function AnalysisPage() {
             </div>
           )}
         />
+      )}
+
+      {/* ── Upload progress pop-up: molecules counted as they're found ── */}
+      {uploadProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-900/30 backdrop-blur-[1px]">
+          <div className="w-72 rounded-2xl bg-white shadow-xl border border-surface-200 px-6 py-6 flex flex-col items-center gap-3 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-pharma-900" />
+            <p className="text-lg font-semibold text-surface-900 tabular-nums">
+              Found {uploadProgress.count} molecule{uploadProgress.count === 1 ? "" : "s"}
+            </p>
+            <p className="text-xs text-surface-500 h-4 truncate w-full">
+              {uploadProgress.registry
+                ? `Checking ${companyName}'s registries…`
+                : uploadProgress.molecule ?? "Reading the catalogue…"}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* ── Molecule detail drawer ── */}

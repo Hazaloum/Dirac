@@ -297,6 +297,48 @@ export const api = {
 
 // ─── SSE helpers ─────────────────────────────────────────────────────────────
 
+export type UploadProgress =
+  | { molecule: string; count: number }
+  | { stage: "registry" };
+
+/** Upload catalogue with progress: onProgress per molecule found (running count), then the registry check. */
+export async function uploadCatalogueStream(
+  file: File,
+  company: string,
+  pick: CompanyPick | null,
+  onProgress: (p: UploadProgress) => void,
+): Promise<AnalysisResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("company", company);
+  if (pick) {
+    form.append("company_id", String(pick.company_id));
+    form.append("whole_group", String(pick.whole_group));
+  }
+  const res = await fetch(`${API}/api/analysis/upload-stream`, { method: "POST", credentials: "include", body: form });
+  if (!res.ok || !res.body) throw new Error(`Upload failed (${res.status})`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (raw === "[DONE]") continue;
+      const msg = JSON.parse(raw);
+      if (msg.error) throw new Error(msg.error);
+      if (msg.result) return msg.result as AnalysisResult;
+      onProgress(msg);
+    }
+  }
+  throw new Error("The upload ended without a result");
+}
+
 export function streamScore(
   payload: ScorePayload,
   onChunk: (text: string) => void,

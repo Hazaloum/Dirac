@@ -108,6 +108,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read ref
 | GET | `/api/auth/me` | Returns `{authenticated: bool}` |
 | GET | `/api/molecules` | Full IQVIA molecule list for autocomplete |
 | POST | `/api/analysis/upload` | Upload catalogue (PDF/CSV/Excel) → extract + enrich |
+| POST | `/api/analysis/upload-stream` | **SSE stream** — same as upload, used by Analysis: `{molecule, count}` per molecule enriched (the "Found N molecules" pop-up), `{stage: "registry"}`, then `{result}` |
 | POST | `/api/analysis/enrich` | Enrich a typed molecule list (craft/single mode) |
 | POST | `/api/analysis/score` | **SSE stream** — Pass 2 AI scoring |
 | POST | `/api/analysis/history` | Save an analysis run to Supabase |
