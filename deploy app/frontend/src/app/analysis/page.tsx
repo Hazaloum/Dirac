@@ -8,7 +8,7 @@ import {
   History, Trash2, ChevronRight, TrendingUp, Check, Save,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
-import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
+import { api, streamScore, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
@@ -134,6 +134,7 @@ export default function AnalysisPage() {
   // Input state
   const [file,           setFile]           = useState<File | null>(null);
   const [companyName,    setCompanyName]     = useState("");
+  const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
   const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
@@ -238,7 +239,7 @@ export default function AnalysisPage() {
       if (mode === "upload") {
         if (!companyName) throw new Error("Pick the company this catalogue is from");
         if (!file) throw new Error("Please select a file");
-        res = await api.uploadCatalogue(file, companyName);
+        res = await api.uploadCatalogue(file, companyName, companyPick);
       } else if (mode === "craft") {
         if (!craftMolecules.length) throw new Error("Add at least one molecule");
         res = await api.enrichMolecules(craftMolecules, companyName || "Portfolio");
@@ -547,7 +548,7 @@ export default function AnalysisPage() {
               {mode === "upload" ? (
                 <CompanyPicker
                   value={companyName}
-                  onChange={setCompanyName}
+                  onChange={(name, pick) => { setCompanyName(name); setCompanyPick(pick); }}
                   placeholder="Search the company directory, e.g. Adalvo"
                   className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
                 />

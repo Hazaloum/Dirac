@@ -47,10 +47,14 @@ export const api = {
     req<MarketDiscoveryResponse>(`/api/market-discovery/competitors?atc4=${encodeURIComponent(atc4)}&molecule=${encodeURIComponent(molecule)}`),
 
   // Analysis
-  uploadCatalogue: (file: File, company: string) => {
+  uploadCatalogue: (file: File, company: string, pick?: CompanyPick | null) => {
     const form = new FormData();
     form.append("file", file);
     form.append("company", company);
+    if (pick) {
+      form.append("company_id", String(pick.company_id));
+      form.append("whole_group", String(pick.whole_group));
+    }
     return req<AnalysisResult>("/api/analysis/upload", { method: "POST", body: form });
   },
 
@@ -423,6 +427,9 @@ export interface MoleculeCard {
   atc3_molecule_count?: number;
   atc3_value_rank?: string;
   atc3_value_pct?: number;
+  /** Upload catalogue only: vs the picked company's registry portfolio. in_registry = it already holds it;
+   *  added = new, now in the 'uploaded' registry; already_uploaded = added by an earlier upload. */
+  registry_status?: "in_registry" | "added" | "already_uploaded" | null;
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
@@ -509,6 +516,9 @@ export interface AnalysisResult {
   enriched_data: string;
   atc4_context: string;
   stats: { total: number; matched_iqvia: number };
+  /** Upload catalogue with a registry company: the check against its registry portfolio. */
+  registry_check?: { company_id?: number; whole_group?: boolean; in_registry?: number; added?: number;
+                     already_uploaded?: number; error?: string };
 }
 
 export interface ManufacturerBreakdown {
@@ -960,6 +970,9 @@ export interface EventDetail extends EventSummary {
 // ─── Master registry ─────────────────────────────────────────────────────────
 
 export interface RegistryMolecule { combo_key: string; products: number; companies: number; countries: number; in_uae: boolean }
+
+/** The registry company a catalogue belongs to: a whole group (validated against all its companies), or one company. */
+export interface CompanyPick { company_id: number; whole_group: boolean }
 
 export interface RegistryCompanyMember { id: number; name: string; products: number; countries: string[] }
 

@@ -42,6 +42,16 @@ const fmtAed = (v?: number | null) => {
   return v.toFixed(0);
 };
 
+/** Upload catalogue: whether the company's registry portfolio already had this molecule. */
+function RegistryTag({ status }: { status?: MoleculeCard["registry_status"] }) {
+  if (status === "in_registry")
+    return <span title="Already in this company's registry portfolio" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">In registries</span>;
+  if (status === "added" || status === "already_uploaded")
+    return <span title={status === "added" ? "Not in this company's registries: added to its dataset (Uploaded registry)" : "Not in this company's registries: added by an earlier upload (Uploaded registry)"}
+      className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0 font-medium">New</span>;
+  return null;
+}
+
 export function PortfolioView({
   result,
   cards,
@@ -109,6 +119,24 @@ export function PortfolioView({
           <p className="text-xs text-surface-500">Therapy Areas</p>
           <p className="text-xl font-bold text-surface-900">{Object.keys(result.molecules_by_atc1).length}</p>
         </div>
+        {result.registry_check && (
+          <>
+            <div className="w-px h-8 bg-surface-100" />
+            {result.registry_check.error ? (
+              <p className="text-xs text-rose-700 max-w-xs">Registry check failed: {result.registry_check.error}</p>
+            ) : (
+              <div title="Checked against this company's registry portfolio. New molecules were added to its dataset under the 'Uploaded' registry.">
+                <p className="text-xs text-surface-500">In its registries</p>
+                <p className="text-xl font-bold text-surface-900">
+                  {result.registry_check.in_registry ?? 0}
+                  <span className="ml-2 text-xs font-medium text-emerald-700">
+                    +{(result.registry_check.added ?? 0) + (result.registry_check.already_uploaded ?? 0)} new
+                  </span>
+                </p>
+              </div>
+            )}
+          </>
+        )}
         <div className="flex-1" />
 
         {actions}
@@ -273,6 +301,7 @@ export function PortfolioView({
                                 {!mol.in_iqvia && (
                                   <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">Not in IQVIA</span>
                                 )}
+                                <RegistryTag status={mol.registry_status} />
                               </div>
                               {mol.atc4_class && (
                                 <p className="text-[11px] text-surface-500 truncate mb-1 pl-9">{mol.atc4_class}</p>
@@ -382,6 +411,7 @@ export function PortfolioView({
                                 </div>
                                 <span className="text-sm font-medium text-surface-800 group-hover:text-pharma-800 flex-1 truncate">{mol.molecule}</span>
                                 {!mol.in_iqvia && <span className="text-[10px] bg-surface-100 text-surface-500 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">Not in IQVIA</span>}
+                                <RegistryTag status={mol.registry_status} />
                               </div>
                             </button>
                           </div>

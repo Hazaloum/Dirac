@@ -3,6 +3,10 @@ registry.py — read-only lookups on the master registry (Supabase `registration
 
 - search_companies(q): company groups for the company picker (most registrations first), each with its member
   companies. A company with no group is its own one-member group.
+- check_upload(result, company_id, whole_group, source): validate an uploaded catalogue against the company's
+  registry portfolio (whole group, or just that company). Tags each molecule card `registry_status`
+  (in_registry / added / already_uploaded) and adds the missing ones to the 'uploaded' registry under the company
+  (SQL registry_upload_portfolio).
 - molecule_companies(name): every company holding a registration for a molecule or combination
   (IQVIA-style name, e.g. "AMLODIPINE + VALSARTAN"), via SQL registry_molecule_holders: match "exact" = the same
   molecule / combination; "combination" = a combination that contains it (amlodipine -> amlodipine + valsartan).
@@ -18,6 +22,21 @@ def search_companies(q: str, limit: int = 15) -> list[dict]:
     if len(q) < 2:
         return []
     return get_client().rpc("registry_search_company_groups", {"p_q": q, "p_limit": limit}).execute().data or []
+
+
+def check_upload(result: dict, company_id: int, whole_group: bool, source: str) -> dict:
+    names = [m["molecule"] for m in result.get("molecules", [])]
+    rows = get_client().rpc("registry_upload_portfolio", {"p_company_id": company_id, "p_whole_group": whole_group,
+                                                         "p_names": names, "p_source": source}).execute().data or []
+    status = {r["name"].lower(): r["status"] for r in rows}
+    for m in result.get("molecules", []):
+        m["registry_status"] = status.get(m["molecule"].strip().lower())
+    counts = {s: sum(1 for v in status.values() if v == s) for s in ("in_registry", "added", "already_uploaded")}
+    result["registry_check"] = {"company_id": company_id, "whole_group": whole_group, **counts}
+    if counts["added"]:
+        import threading
+        threading.Thread(target=lambda: get_client().rpc("registry_refresh_molecule_index", {}).execute(), daemon=True).start()
+    return result
 
 
 def _by_group(rows: list[dict]) -> list[dict]:

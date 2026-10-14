@@ -164,14 +164,23 @@ def market_discovery_competitors(atc4: str, molecule: str):
 
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
 @app.post("/api/analysis/upload")
-async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)):
-    """Upload a catalogue (PDF/CSV/Excel) → extract molecules + enrich."""
+async def analysis_upload(file: UploadFile = File(...), company: str = Form(...),
+                          company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
+    """Upload a catalogue (PDF/CSV/Excel) → extract molecules + enrich. With a registry company: check the molecules
+    against its registry portfolio and add the missing ones to the 'uploaded' registry."""
     from agent_runner import extract_and_enrich
     content = await file.read()
     try:
-        return extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
+        result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    if company_id:
+        from registry import check_upload
+        try:
+            check_upload(result, company_id, whole_group, file.filename or "upload")
+        except Exception as e:
+            result["registry_check"] = {"error": str(e)}
+    return result
 
 
 class EnrichRequest(BaseModel):
