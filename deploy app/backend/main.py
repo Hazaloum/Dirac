@@ -311,6 +311,7 @@ class SaveAnalysisRequest(BaseModel):
     model:       str = ""
     result:      dict
     report:      str = ""
+    run_id:      Optional[str] = None   # update this run instead of adding one
 
 @app.post("/api/analysis/history")
 def save_analysis(body: SaveAnalysisRequest):
@@ -321,6 +322,7 @@ def save_analysis(body: SaveAnalysisRequest):
         result=body.result,
         report=body.report,
         model=body.model,
+        run_id=body.run_id,
     )
     return {"run_id": run_id}
 

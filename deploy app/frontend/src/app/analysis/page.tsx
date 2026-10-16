@@ -161,6 +161,9 @@ export default function AnalysisPage() {
   // Manual save
   const [isSaving, setIsSaving] = useState(false);
   const [savedOk,  setSavedOk]  = useState(false);
+  // History entry for the catalogue on screen: created on upload, updated by the report / review / Save.
+  const [runId, setRunId] = useState<string | null>(null);
+  const runIdRef = useRef<string | null>(null);
 
   // Drawer — open with full MoleculeCard object
   const [drawerMolecule, setDrawerMolecule] = useState<MolCardType | null>(null);
@@ -209,6 +212,8 @@ export default function AnalysisPage() {
     setCompanyPick(saved.companyPick);
     setScoringModel(saved.scoringModel);
     setResult(saved.result);
+    runIdRef.current = saved.runId ?? null;
+    setRunId(saved.runId ?? null);
     setReportText(done ? saved.reportText : "");
     setReportDone(done);
     if (done) setScoredMolecules(parseScores(saved.reportText));
@@ -218,8 +223,23 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (!restoredRef.current || !result || phase === "input" || reportStreaming) return;
     writeAnalysisSession({ mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone,
-                           savedAt: new Date().toISOString() });
-  }, [mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone, reportStreaming]);
+                           runId, savedAt: new Date().toISOString() });
+  }, [mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone, reportStreaming, runId]);
+
+  /** Save the catalogue to History: the first call adds a run, later ones update it. */
+  const persistRun = useCallback(async (res: AnalysisResult, report: string, sourceType: string = mode) => {
+    const name = companyName || "Portfolio";
+    const d = await api.saveAnalysis({ source_name: name, source_type: sourceType, model: scoringModel,
+                                       result: res, report, run_id: runIdRef.current });
+    runIdRef.current = d.run_id;
+    setRunId(d.run_id);
+    const entry: AnalysisRun = {
+      run_id: d.run_id, source_name: name, source_type: sourceType, model: scoringModel,
+      saved_at: new Date().toISOString().slice(0, 16).replace("T", " "), has_report: !!report, stats: res.stats,
+    };
+    setHistory((prev) => [entry, ...prev.filter((r) => r.run_id !== d.run_id)]);
+    return d.run_id;
+  }, [companyName, mode, scoringModel]);
 
   // Load molecule list for craft/single modes
   useEffect(() => {
@@ -287,6 +307,10 @@ export default function AnalysisPage() {
       setResult(res);
       setPhase("portfolio");
       // The AI evaluation only runs from the portfolio's "Generate AI Report" button.
+      // Every upload / crafted list goes straight into History (a single-molecule lookup doesn't).
+      runIdRef.current = null;
+      setRunId(null);
+      if (mode !== "molecule") persistRun(res, "").catch(() => {});
     } catch (e: unknown) {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -331,26 +355,11 @@ export default function AnalysisPage() {
         fromHistoryRef.current = false;
         return;
       }
-      api.saveAnalysis({
-        source_name: companyName || "Portfolio",
-        source_type: mode,
-        model:       scoringModel,
-        result,
-        report:      reportText,
-      }).then((d) => {
-        // Prepend to local history list
-        setHistory((prev) => [{
-          run_id:      d.run_id,
-          source_name: companyName || "Portfolio",
-          source_type: mode,
-          model:       scoringModel,
-          saved_at:    new Date().toISOString().slice(0, 16).replace("T", " "),
-          has_report:  true,
-          stats:       result.stats,
-        }, ...prev]);
-      }).catch(() => {});
+      persistRun(result, reportText).catch(() => {});
     }
-  }, [companyName, mode, reportDone, reportText, result, scoringModel]);
+    // Only when a report finishes (persistRun changes with the company name / model).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportDone, reportText]);
 
   // Merge scores into molecule cards
   const scoredCards: MolCardType[] = result?.molecules.map((m) => {
@@ -362,6 +371,8 @@ export default function AnalysisPage() {
   const reset = () => {
     abortRef.current?.abort();
     writeAnalysisSession(null);
+    runIdRef.current = null;
+    setRunId(null);
     setPhase("input");
     setResult(null);
     setReportText("");
@@ -380,6 +391,8 @@ export default function AnalysisPage() {
     fromHistoryRef.current = true;   // tell the save effect to skip
     try {
       const entry = await api.getHistoryRun(runId);
+      runIdRef.current = runId;
+      setRunId(runId);
       setResult(entry.result);
       setCompanyName(entry.source_name);
       setMode(entry.source_type as Mode);
@@ -418,22 +431,7 @@ export default function AnalysisPage() {
     if (!result) return;
     setIsSaving(true);
     try {
-      const saved = await api.saveAnalysis({
-        source_name: companyName || "Portfolio",
-        source_type: mode === "upload" ? "upload" : "craft",
-        model:       scoringModel,
-        result,
-        report:      reportText,
-      });
-      setHistory(prev => [{
-        run_id:      saved.run_id,
-        source_name: companyName || "Portfolio",
-        source_type: mode === "upload" ? "upload" : "craft",
-        model:       scoringModel,
-        saved_at:    new Date().toISOString().slice(0, 16).replace("T", " "),
-        stats:       result.stats,
-        has_report:  false,
-      }, ...prev]);
+      await persistRun(result, reportDone ? reportText : "", mode === "upload" ? "upload" : "craft");
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
     } catch { /* ignore */ } finally {
@@ -732,10 +730,12 @@ export default function AnalysisPage() {
               result={result}
               company={companyName}
               source={file?.name ?? ""}
-              onAdded={(names) => setResult((r) => r && {
-                ...r,
-                molecules: r.molecules.map((m) => names.includes(m.molecule) ? { ...m, registry_status: "already_uploaded" } : m),
-              })}
+              onAdded={(names) => {
+                const next = { ...result, molecules: result.molecules.map((m) =>
+                  names.includes(m.molecule) ? { ...m, registry_status: "already_uploaded" as const } : m) };
+                setResult(next);
+                if (runIdRef.current) persistRun(next, reportDone ? reportText : "").catch(() => {});
+              }}
             />
           )}
         </div>

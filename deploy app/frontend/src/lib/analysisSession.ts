@@ -13,6 +13,7 @@ export interface AnalysisSession {
   result: AnalysisResult;
   reportText: string;
   reportDone: boolean;
+  runId?: string | null;   // its History entry
   savedAt: string;
 }
 

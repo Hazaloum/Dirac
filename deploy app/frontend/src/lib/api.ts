@@ -104,6 +104,7 @@ export const api = {
     model: string;
     result: AnalysisResult;
     report: string;
+    run_id?: string | null;   // update this run instead of adding one
   }) => req<{ run_id: string }>("/api/analysis/history", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

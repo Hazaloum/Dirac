@@ -20,12 +20,12 @@ def save_analysis(
     result: dict,
     report: str = "",
     model: str = "",
+    run_id: str | None = None,
 ) -> str:
-    """Persist an analysis run. Returns the new run_id."""
-    run_id = str(uuid.uuid4())[:8]
+    """Persist an analysis run. Returns its run_id. With the run_id of an existing run, that run is
+    updated instead (the Analysis page saves on upload, then again when the report or ticks change)."""
     client = get_client()
-    client.table("analysis_runs").insert({
-        "run_id": run_id,
+    row = {
         "source_name": source_name,
         "source_type": source_type,
         "model": model,
@@ -34,7 +34,12 @@ def save_analysis(
         "result": json.dumps(result),
         "report": report,
         "has_report": int(bool(report)),
-    }).execute()
+    }
+    if run_id and client.table("analysis_runs").select("run_id").eq("run_id", run_id).execute().data:
+        client.table("analysis_runs").update(row).eq("run_id", run_id).execute()
+        return run_id
+    run_id = str(uuid.uuid4())[:8]
+    client.table("analysis_runs").insert({"run_id": run_id, **row}).execute()
 
     # Keep at most 100 runs — prune oldest beyond the limit
     rows = (

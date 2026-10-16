@@ -112,7 +112,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read ref
 | POST | `/api/registry/uploaded` | Review panel → add confirmed catalogue products to the `uploaded` registry |
 | POST | `/api/analysis/enrich` | Enrich a typed molecule list (craft/single mode) |
 | POST | `/api/analysis/score` | **SSE stream** — Pass 2 AI scoring |
-| POST | `/api/analysis/history` | Save an analysis run to Supabase |
+| POST | `/api/analysis/history` | Save an analysis run to Supabase (with `run_id`: update that run) |
 | GET | `/api/analysis/history` | List saved analysis runs |
 | GET | `/api/analysis/history/{run_id}` | Get full run (result + report) |
 | DELETE | `/api/analysis/history/{run_id}` | Delete run |
@@ -203,7 +203,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Portfolio phase: grid or treemap view, shortlist/disqualify per molecule (CheckCircle2 / XCircle), MOHAP + UPP counts shown on card
 - Stats bar buttons: **Save Portfolio** (manual Supabase save), view toggle, Generate AI Report / View Report — the AI evaluation (Phase 2) never starts on its own after an upload/enrich, only from Generate AI Report
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
-- History sidebar: lists saved runs, click to reload
+- History sidebar: lists saved runs, click to reload. **Every upload / crafted list is saved to History automatically** (not single-molecule lookups); the same run is then updated (`POST /api/analysis/history` with `run_id`) when the AI report finishes, molecules are added to registries, or Save is pressed — one History entry per catalogue.
 - The working state (result, company, report) is kept in localStorage (`src/lib/analysisSession.ts`, key `comix_analysis_session`) so leaving the page or reloading brings the last catalogue back; "New analysis" (reset) clears it. A finished report restored this way isn't saved to history again.
 
 **Molecule search (`/search`)**
