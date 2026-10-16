@@ -140,8 +140,9 @@ function SplitBar({ label, pct }: { label: string; pct: number | null }) {
   );
 }
 
-function MarketFacts({ p }: { p: MoleculeProfile }) {
+function MarketFacts({ p, fallbackCompetitors }: { p: MoleculeProfile; fallbackCompetitors?: number | null }) {
   const m = p.market;
+  const competitors = m.competitors ?? fallbackCompetitors;
   const since = m.value_cagr_since ?? m.units_cagr_since;
   return (
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -157,12 +158,14 @@ function MarketFacts({ p }: { p: MoleculeProfile }) {
       </div>
       <div className="rounded-xl bg-surface-50 p-4">
         <p className="text-[10px] uppercase tracking-wider text-surface-400">Competitors on IQVIA</p>
-        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{m.competitors}</p>
-        <p className="mt-2 text-[11px] text-surface-500">
-          {m.competitors_selling === m.competitors
-            ? `manufacturer${m.competitors === 1 ? "" : "s"} selling it`
-            : `${m.competitors_selling} with sales in ${m.end_year}`}
-        </p>
+        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{competitors ?? "—"}</p>
+        {competitors != null && (
+          <p className="mt-2 text-[11px] text-surface-500">
+            {m.competitors_selling == null || m.competitors_selling === competitors
+              ? `manufacturer${competitors === 1 ? "" : "s"} on IQVIA`
+              : `${m.competitors_selling} with sales in ${m.end_year}`}
+          </p>
+        )}
       </div>
       <div className="rounded-xl bg-surface-50 p-4">
         <p className="mb-3 text-[10px] uppercase tracking-wider text-surface-400">
@@ -367,7 +370,7 @@ export default function SearchPage() {
               {slices?.profile && (
                 <div className="mt-7 space-y-3">
                   <MoleculeFacts p={slices.profile} />
-                  <MarketFacts p={slices.profile} />
+                  <MarketFacts p={slices.profile} fallbackCompetitors={result.num_competitors} />
                 </div>
               )}
             </div>

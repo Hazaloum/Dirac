@@ -644,8 +644,8 @@ export interface MoleculeProfile {
   first_generic: (ProfileCompany & { date: string }) | null;  // earliest launch by another corporation
   market: {
     end_year: number;
-    competitors: number;          // IQVIA manufacturers (same as num_competitors)
-    competitors_selling: number;  // … with end-year sales
+    competitors?: number;          // IQVIA manufacturers (same as num_competitors)
+    competitors_selling?: number;  // … with end-year sales
     value: number;
     value_cagr: number | null;
     value_cagr_since: number | null;
