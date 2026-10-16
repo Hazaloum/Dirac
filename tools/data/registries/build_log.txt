@@ -1,4 +1,12 @@
 
-######## ro_anm
-GET https://nomenclator.anm.ro/files/nomenclator.xlsx -> 200 2,233,357 bytes
-ro_anm: 7,687 rows in 1 parts (7,686 with ingredients); sample: [{"record_key": "7321/2015|50mg/ml|CONC. PT. SOL. INJ./PERF.", "registration_no": "7321/2015", "product_name": "5 - FLUOROURACIL EBEWE 50mg/ml", "company_raw": "EBEWE PHARMA GES.M.B.H. NFG. KG", "ingredients": "FLUOROURACILUM", "strength_raw": "50mg/ml", "form_raw": "CONC. PT. SOL. INJ./PERF.", "atc": "L01BC02", "status": "active"}, {"record_key": "15483/2024|300mg|COMPR. FILM.", "registration_no": "15483/2024", "product_name": "ABACAVIR AUROBINDO 300 mg", "company_raw": "AUROBINDO PHARMA (MALTA) LIMITED", "ingredients": "ABACAVIRUM", "strength_raw": "300mg", "form_raw": "COMPR. FILM.", "atc":
+######## bh_nhra
+bh file: NHRA_registered_medicine_price_list_2026-06-14.xlsx
+bh_nhra: 5,372 rows in 1 parts (5,372 with ingredients); sample: [{"record_key": "DRN-08306/13|TRAJENTA|5 MG|FILM COATED TABLET", "registration_no": "DRN-08306/13", "product_name": "TRAJENTA", "company_raw": "BOEHRINGER INGELHEIM INTERNATIONAL GMBH", "ingredients": "LINAGLIPTIN", "strength_raw": "5 MG", "form_raw": "FILM COATED TABLET", "atc": "", "status": "active"}, {"record_key": "DRN-08325/13|JEVTANA|60 MG|CONCENTRATE AND SOLVENT FOR SOLUTION FOR INFUSION", "registration_no": "DRN-08325/13", "product_name": "JEVTANA", "company_raw": "SANOFI WINTHROP INDUSTRIE", "ingredients": "CABAZITAXEL", "strength_raw": "60 MG", "form_raw": "CONCENTRATE AND SOLVENT F
+
+######## ae_doh
+ae_doh file: doh_drugs_snapshot_2026-05-06.jsonl.gz
+ae_doh: 19,988 rows in 3 parts (19,988 with ingredients); sample: [{"record_key": "ALDURAZYME|100 U/ML|CONCENTRATE FOR SOLUTION FOR INFUSION|GENZYME EUROPE B.V.", "registration_no": "F45-0170-08630-04", "product_name": "ALDURAZYME", "company_raw": "Genzyme Europe B.V.", "ingredients": "Laronidase", "strength_raw": "100 U/ml", "form_raw": "Concentrate For Solution For Infusion", "atc": "", "status": "active"}, {"record_key": "CEREZYME|400 U|CONCENTRATE FOR DILUTION FOR INFUSION|GENZYME EUROPE B.V.", "registration_no": "F45-0891-06197-01", "product_name": "CEREZYME", "company_raw": "Genzyme Europe B.V.", "ingredients": "Imiglucerase", "strength_raw": "400 U", 
+
+######## uk_mhra
+uk file: MHRA_additional_monitoring_2026-07.xlsx
+uk_mhra: 498 rows in 1 parts (498 with ingredients); sample: [{"record_key": "PL 27959/0001", "registration_no": "PL 27959/0001", "product_name": "RADELUMIN (ALSO KNOWN AS PROSTALUMIN)", "company_raw": "ABX ADVANCED BIOCHEMICAL COMPOUNDS BIOMEDIZINISCHE FORSCHUNGSREAGENZIEN GMBH", "ingredients": "(3s,10s,14s)-1-[4-[[(2s)-4-CARBOXY-2-[(2s)-4-CARBOXY-2-(6-[18f] FLUOROPYRIDIN-3-AMIDO) BUTANAMIDO] BUTANAMIDO] METHYL] PHENYL-3-[(NAPHTHALEN-2-YL)METHYL]-1,4,12-TRIOXO-2,5,11,13-TETRAAZAHEXADECANE-10,14,16-TRICARBOXYLIC ACID", "strength_raw": "", "form_raw": "", "atc": "", "status": "active"}, {"record_key": "PL 45726/0001", "registration_no": "PL 45726/0001", 

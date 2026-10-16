@@ -142,5 +142,32 @@
   "snapshot_date": "2026-10-12",
   "parts": 3,
   "rows": 16821
+ },
+ "bh_nhra": {
+  "country": "BH",
+  "name": "NHRA Bahrain registered medicine price list (uploaded file)",
+  "source_url": "https://www.nhra.bh/Departments/PPR/",
+  "company_field": "MAH NAME (holder)",
+  "snapshot_date": "2026-10-16",
+  "parts": 1,
+  "rows": 5372
+ },
+ "ae_doh": {
+  "country": "AE",
+  "name": "DoH Abu Dhabi drug list (uploaded snapshot)",
+  "source_url": "https://www.doh.gov.ae/en/Shafafiya/dictionary",
+  "company_field": "manufacturer_name (manufacturer)",
+  "snapshot_date": "2026-10-16",
+  "parts": 3,
+  "rows": 19988
+ },
+ "uk_mhra": {
+  "country": "GB",
+  "name": "MHRA additional monitoring list (partial: black-triangle medicines only)",
+  "source_url": "https://www.gov.uk/government/publications/list-of-medicines-under-additional-monitoring",
+  "company_field": "MAH (holder)",
+  "snapshot_date": "2026-10-16",
+  "parts": 1,
+  "rows": 498
  }
 }
