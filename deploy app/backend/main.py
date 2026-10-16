@@ -976,6 +976,12 @@ def create_deal(body: DealCreateRequest):
     return _deal_or_404(row["id"])
 
 
+@app.get("/api/deals/by-molecule/{molecule}")
+def deal_by_molecule(molecule: str):
+    from deals import deal_for_molecule
+    return {"deal": deal_for_molecule(molecule)}
+
+
 @app.get("/api/deals/{deal_id}")
 def get_deal(deal_id: int):
     return _deal_or_404(deal_id)

@@ -213,6 +213,8 @@ export const api = {
   // Deal Tracker
   getDeals: () => req<DealBoard>("/api/deals"),
   getDeal: (id: number) => req<DealDetail>(`/api/deals/${id}`),
+  getDealForMolecule: (molecule: string) =>
+    req<{ deal: DealRef | null }>(`/api/deals/by-molecule/${encodeURIComponent(molecule)}`),
   createDeal: (body: { molecule: string; partner?: string; stage?: string }) =>
     req<DealDetail>("/api/deals", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -1002,6 +1004,8 @@ export interface DealDetail extends Deal {
   document_list: DealDocument[];
   events: DealEvent[];
 }
+
+export interface DealRef { id: number; stage: string; stage_name: string; partner: string; status: string }
 
 export interface DealBoard { stages: DealStage[]; reasons: string[]; deals: Deal[] }
 

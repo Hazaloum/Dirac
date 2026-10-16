@@ -21,6 +21,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import { AddToDeal } from "@/components/AddToDeal";
 import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProfileCompany } from "@/lib/api";
@@ -344,9 +345,12 @@ export default function SearchPage() {
                     </span>
                   )}
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                <AddToDeal molecule={result.molecule} />
                 <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
                   <FlaskConical className="h-4 w-4" /> Open full molecule view
                 </button>
+                </div>
               </div>
 
               {slices?.profile && (

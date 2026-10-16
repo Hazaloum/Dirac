@@ -207,6 +207,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 
 **Molecule search (`/search`)**
 - Header card from `GET /api/analysis/trend/{molecule}` → `profile` (`agent_runner._molecule_profile`, whole molecule, unfiltered): **leading brand** (highest end-year value) with manufacturer · parent (MIDAS Corporation), **first launch** (earliest IQVIA Launch Date, MM/YYYY; its corporation = originator), **first generic** (earliest launch by another corporation, or "No generic yet"); and the market in plain text: value + CAGR, units + CAGR, private / LPO % by value and by units (end year = `years[-2]`).
+- **Add to Deal Tracker** (`components/AddToDeal.tsx`): `GET /api/deals/by-molecule/{molecule}` (`deals.deal_for_molecule`) → if the molecule has a deal, a link "In Deal Tracker · <stage>" to `/deal-tracker?deal=<id>` (opens its drawer); else the button asks for an optional partner and creates it in Shortlisted (`POST /api/deals`).
 - Market breakdown chart (`MarketBreakdownChart`, bar stacks) below, with **NFC3 and strength filters** that apply in every lens, including By competitor (`?nfc3=&strength=` on the trend endpoint; `options` lists the forms, and the strengths within the chosen form). The ATC cascade visual was removed.
 
 **Forecast (`/forecast`)**

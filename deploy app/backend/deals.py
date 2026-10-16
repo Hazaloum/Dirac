@@ -258,6 +258,18 @@ def get_deal(deal_id: int, dfs: dict) -> dict | None:
             "document_list": docs, "events": events}
 
 
+def deal_for_molecule(molecule: str) -> dict | None:
+    """The molecule's deal (id, stage key + name), or None — for "Add to Deal Tracker" buttons."""
+    rows = (get_client().table("deals").select("id, stage, partner, status")
+            .eq("molecule", molecule.strip().upper()).execute().data)
+    if not rows:
+        return None
+    row = rows[0]
+    stage = LEGACY_STAGES.get(row["stage"], row["stage"])
+    name = next((s["name"] for s in STAGES if s["key"] == stage), stage)
+    return {"id": row["id"], "stage": stage, "stage_name": name, "partner": row["partner"] or "", "status": row["status"]}
+
+
 def create_deal(molecule: str, partner: str, stage: str) -> dict:
     molecule = molecule.strip().upper()
     if not molecule:
