@@ -8,6 +8,7 @@ import {
   History, Trash2, ChevronRight, TrendingUp, Check, Save,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
+import { readAnalysisSession, writeAnalysisSession } from "@/lib/analysisSession";
 import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { ExtractionNote, RegistryReview } from "@/components/CatalogueReview";
@@ -194,6 +195,31 @@ export default function AnalysisPage() {
 
   const abortRef        = useRef<AbortController | null>(null);
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
+  const restoredRef     = useRef(false);   // the stored working session has been read
+
+  // Leaving the page (or a reload) brings the last catalogue back instead of losing it.
+  useEffect(() => {
+    const saved = readAnalysisSession();
+    restoredRef.current = true;
+    if (!saved?.result) return;
+    const done = saved.reportDone && !!saved.reportText;
+    if (done) fromHistoryRef.current = true;   // already saved to history when it finished
+    setMode(saved.mode);
+    setCompanyName(saved.companyName);
+    setCompanyPick(saved.companyPick);
+    setScoringModel(saved.scoringModel);
+    setResult(saved.result);
+    setReportText(done ? saved.reportText : "");
+    setReportDone(done);
+    if (done) setScoredMolecules(parseScores(saved.reportText));
+    setPhase(done && saved.phase === "report" ? "report" : "portfolio");
+  }, []);
+
+  useEffect(() => {
+    if (!restoredRef.current || !result || phase === "input" || reportStreaming) return;
+    writeAnalysisSession({ mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone,
+                           savedAt: new Date().toISOString() });
+  }, [mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone, reportStreaming]);
 
   // Load molecule list for craft/single modes
   useEffect(() => {
@@ -335,6 +361,7 @@ export default function AnalysisPage() {
 
   const reset = () => {
     abortRef.current?.abort();
+    writeAnalysisSession(null);
     setPhase("input");
     setResult(null);
     setReportText("");

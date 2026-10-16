@@ -204,6 +204,7 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Stats bar buttons: **Save Portfolio** (manual Supabase save), view toggle, Generate AI Report / View Report — the AI evaluation (Phase 2) never starts on its own after an upload/enrich, only from Generate AI Report
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
 - History sidebar: lists saved runs, click to reload
+- The working state (result, company, report) is kept in localStorage (`src/lib/analysisSession.ts`, key `comix_analysis_session`) so leaving the page or reloading brings the last catalogue back; "New analysis" (reset) clears it. A finished report restored this way isn't saved to history again.
 
 **Molecule search (`/search`)**
 - Header card from `GET /api/analysis/trend/{molecule}` → `profile` (`agent_runner._molecule_profile`, whole molecule, unfiltered): **leading brand** (highest end-year value) with manufacturer · parent (MIDAS Corporation) and its % of the molecule's value, **first launch** (earliest IQVIA Launch Date, MM/YYYY; its corporation = originator), **first generic** (earliest launch by another corporation, or "No generic yet"); and the market in plain text: value + CAGR, units + CAGR, competitors on IQVIA (manufacturer count = `num_competitors`, plus how many sold in the end year), private / LPO % by value and by units. The verdict chips were removed (end year = `years[-2]`).
