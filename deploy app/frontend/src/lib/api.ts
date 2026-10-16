@@ -68,8 +68,13 @@ export const api = {
   getManufacturers: (molecule: string) =>
     req<ManufacturerBreakdown>(`/api/analysis/manufacturers/${encodeURIComponent(molecule)}`),
 
-  getMoleculeTrend: (molecule: string) =>
-    req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
+  getMoleculeTrend: (molecule: string, filters: { nfc3?: string | null; strength?: string | null } = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.nfc3) qs.set("nfc3", filters.nfc3);
+    if (filters.strength) qs.set("strength", filters.strength);
+    const q = qs.toString();
+    return req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}${q ? `?${q}` : ""}`);
+  },
 
   getMoleculeLineage: (molecule: string) =>
     req<MoleculeLineage>(`/api/analysis/lineage/${encodeURIComponent(molecule)}`),
@@ -620,6 +625,32 @@ export interface MoleculeSlices {
   partial_year: number;
   competitor: Record<"total" | "private" | "lpo", SliceMetrics>;
   dims: Partial<Record<"channel" | "product" | "strength" | "nfc3", SliceMetrics>>;
+  filters: { nfc3: string | null; strength: string | null };
+  options: { nfc3: string[]; strength: string[] };   // strengths narrowed to the chosen NFC3
+  profile: MoleculeProfile;                           // always the whole molecule, unfiltered
+}
+
+export interface ProfileCompany {
+  product: string;
+  manufacturer: string | null;
+  corporation: string | null;   // IQVIA MIDAS Corporation (parent)
+}
+
+export interface MoleculeProfile {
+  leading_brand: ProfileCompany | null;                       // highest end-year value
+  first_launch: (ProfileCompany & { date: string }) | null;   // date MM/YYYY
+  first_generic: (ProfileCompany & { date: string }) | null;  // earliest launch by another corporation
+  market: {
+    end_year: number;
+    value: number;
+    value_cagr: number | null;
+    value_cagr_since: number | null;
+    units: number;
+    units_cagr: number | null;
+    units_cagr_since: number | null;
+    private_value_pct: number | null;
+    private_units_pct: number | null;
+  };
 }
 
 export interface LineageLevel {

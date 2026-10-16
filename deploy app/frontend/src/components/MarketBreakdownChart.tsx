@@ -77,24 +77,62 @@ function Pills<T extends string>({ value, options, onChange }: {
   );
 }
 
-export function MarketBreakdownChart({ molecule }: { molecule: string }) {
-  const [slices, setSlices] = useState<MoleculeSlices | null>(null);
-  const [loading, setLoading] = useState(true);
+function FilterSelect({ value, all, options, onChange }: {
+  value: string;
+  all: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`max-w-[220px] rounded-full border bg-white px-3 py-1.5 text-xs transition-colors hover:border-surface-300 focus:outline-none ${
+        value ? "border-pharma-300 font-semibold text-pharma-900" : "border-surface-200 text-surface-600"
+      }`}
+    >
+      <option value="">{all}</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+/** `initial` = the unfiltered slices if the page already fetched them (the search page does, for its header). */
+export function MarketBreakdownChart({ molecule, initial }: { molecule: string; initial?: MoleculeSlices | null }) {
+  const [slices, setSlices] = useState<MoleculeSlices | null>(initial ?? null);
+  const [loading, setLoading] = useState(!initial);
+  const [refreshing, setRefreshing] = useState(false);
+  const [nfc3, setNfc3] = useState("");
+  const [strength, setStrength] = useState("");
   const [byCompetitor, setByCompetitor] = useState(true);
   const [market, setMarket] = useState<Market>("total");
   const [split, setSplit] = useState<Split>("channel");
   const [metric, setMetric] = useState<Metric>("value");
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
+  // A new molecule starts unfiltered.
   useEffect(() => {
-    setLoading(true);
-    setSlices(null);
+    setNfc3("");
+    setStrength("");
     setHidden(new Set());
-    api.getMoleculeTrend(molecule)
-      .then((data) => setSlices(data.found ? data : null))
-      .catch(() => setSlices(null))
-      .finally(() => setLoading(false));
   }, [molecule]);
+
+  // NFC3 / strength filters refetch; the previous chart stays up while they load.
+  useEffect(() => {
+    if (!nfc3 && !strength && initial && initial.molecule === molecule.toUpperCase()) {
+      setSlices(initial);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const first = !nfc3 && !strength;
+    if (first) { setLoading(true); setSlices(null); } else setRefreshing(true);
+    api.getMoleculeTrend(molecule, { nfc3, strength })
+      .then((data) => { if (!cancelled) setSlices(data.found ? data : null); })
+      .catch(() => { if (!cancelled && first) setSlices(null); })
+      .finally(() => { if (!cancelled) { setLoading(false); setRefreshing(false); } });
+    return () => { cancelled = true; };
+  }, [molecule, nfc3, strength, initial]);
 
   const lens = byCompetitor ? `mfr:${market}` : `dim:${split}`;
   const keyOf = (name: string) => `${lens}:${name}`;
@@ -131,7 +169,7 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
       </div>
     );
   }
-  if (!slices || !series.length) return null;
+  if (!slices) return null;
 
   const { years, partial_year } = slices;
   const hasPartial = series.some((s) => s.partial > 0);
@@ -215,13 +253,29 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
           <Pills value={split} options={availableSplits.map((s) => [s, SPLIT_LABELS[s]] as [Split, string])} onChange={setSplit} />
         )}
         <Pills value={metric} options={[["value", "Value"], ["units", "Units"]]} onChange={setMetric} />
+        {(slices.options?.nfc3.length ?? 0) > 1 || nfc3 ? (
+          <FilterSelect value={nfc3} all="All forms (NFC3)" options={slices.options.nfc3}
+            onChange={(v) => { setNfc3(v); setStrength(""); }} />
+        ) : null}
+        {(slices.options?.strength.length ?? 0) > 1 || strength ? (
+          <FilterSelect value={strength} all="All strengths" options={slices.options.strength} onChange={setStrength} />
+        ) : null}
+        {(nfc3 || strength) && (
+          <button type="button" onClick={() => { setNfc3(""); setStrength(""); }}
+            className="text-xs text-surface-500 underline underline-offset-2 hover:text-surface-800">Clear filters</button>
+        )}
+        {refreshing && <Loader2 className="h-4 w-4 animate-spin text-pharma-900" />}
       </div>
+
+      {!series.length ? (
+        <p className="py-10 text-center text-sm text-surface-500">No UAE sales for this form and strength.</p>
+      ) : (<>
 
       {/* KPI row — always describes exactly what the chart shows */}
       <div className="mb-2 flex flex-wrap items-baseline gap-x-6 gap-y-2">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-surface-400">
-            {byCompetitor ? MARKET_LABELS[market] : "Total"} {metric} {endYear}
+            {byCompetitor ? MARKET_LABELS[market] : "Total"} {metric} {endYear}{nfc3 || strength ? ` · ${[nfc3, strength].filter(Boolean).join(" · ")}` : ""}
           </p>
           <p className="mt-0.5 font-serif text-4xl font-medium tracking-tight text-surface-900">
             {metric === "value" ? "AED " : ""}{fmt(series.reduce((sum, s) => sum + s.values[s.values.length - 1], 0))}{metric === "units" ? " units" : ""}
@@ -341,6 +395,7 @@ export function MarketBreakdownChart({ molecule }: { molecule: string }) {
           </tbody>
         </table>
       </div>
+      </>)}
     </div>
   );
 }

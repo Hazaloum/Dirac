@@ -16,10 +16,9 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { AtcCascade } from "@/components/AtcCascade";
 import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { api, type MoleculeCard } from "@/lib/api";
+import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProfileCompany } from "@/lib/api";
 
 const shortcuts = [
   { href: "/analysis", icon: BookOpenText, title: "Evaluate a Catalogue", blurb: "Upload a supplier list and score every molecule" },
@@ -29,10 +28,86 @@ const shortcuts = [
   { href: "/outreach", icon: Radar, title: "Find Manufacturers", blurb: "Source partners and BD contacts by country" },
 ];
 
+function fmtAed(v: number) {
+  if (v >= 1_000_000_000) return `AED ${(v / 1_000_000_000).toFixed(2)}B`;
+  if (v >= 1_000_000) return `AED ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `AED ${(v / 1_000).toFixed(0)}K`;
+  return `AED ${Math.round(v)}`;
+}
+
+function fmtUnits(v: number) {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M packs`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k packs`;
+  return `${Math.round(v)} packs`;
+}
+
+const fmtCagr = (v: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
+
+// Manufacturer, with the parent corporation when it's a different name (Janssen · Johnson & Johnson).
+function Company({ c }: { c: ProfileCompany }) {
+  const mfr = c.manufacturer ?? "";
+  const corp = c.corporation ?? "";
+  const same = !corp || mfr.toLowerCase().startsWith(corp.toLowerCase()) || corp.toLowerCase().startsWith(mfr.toLowerCase());
+  return (
+    <>
+      {mfr || corp}
+      {!same && <span className="text-surface-400"> · {corp}</span>}
+    </>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-surface-500">{label}</dt>
+      <dd className="min-w-0 text-surface-900">{children}</dd>
+    </>
+  );
+}
+
+function MoleculeFacts({ p }: { p: MoleculeProfile }) {
+  return (
+    <dl className="grid grid-cols-[130px_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm">
+      <Row label="Leading brand">
+        {p.leading_brand ? <>{p.leading_brand.product} <span className="text-surface-500">— <Company c={p.leading_brand} /></span></> : "—"}
+      </Row>
+      <Row label="First launch">
+        {p.first_launch ? <>{p.first_launch.date} <span className="text-surface-500">· {p.first_launch.product}</span></> : "—"}
+      </Row>
+      <Row label="First generic">
+        {p.first_generic
+          ? <>{p.first_generic.product} <span className="text-surface-500">— <Company c={p.first_generic} /> · {p.first_generic.date}</span></>
+          : <span className="text-surface-500">No generic yet</span>}
+      </Row>
+    </dl>
+  );
+}
+
+function MarketFacts({ p }: { p: MoleculeProfile }) {
+  const m = p.market;
+  const split = (pct: number | null) => (pct == null ? "—" : `${Math.round(pct)}% / ${Math.round(100 - pct)}%`);
+  const since = m.value_cagr_since ?? m.units_cagr_since;
+  return (
+    <div>
+      <p className="matthew-eyebrow mb-3 text-surface-500">Market · UAE {m.end_year}</p>
+      <dl className="grid grid-cols-[170px_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm">
+        <Row label="Market value">{fmtAed(m.value)} <span className="text-surface-500">· CAGR {fmtCagr(m.value_cagr)}</span></Row>
+        <Row label="Units">{fmtUnits(m.units)} <span className="text-surface-500">· CAGR {fmtCagr(m.units_cagr)}</span></Row>
+        <Row label="Private / LPO by value">{split(m.private_value_pct)}</Row>
+        <Row label="Private / LPO by units">{split(m.private_units_pct)}</Row>
+      </dl>
+      <p className="mt-3 text-[11px] text-surface-400">
+        UAE IQVIA · CAGR {since ?? ""}–{m.end_year} · launch dates are month-level
+      </p>
+    </div>
+  );
+}
+
 export default function SearchPage() {
   const [allMolecules, setAllMolecules] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<MoleculeCard | null>(null);
+  const [slices, setSlices] = useState<MoleculeSlices | null>(null);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,9 +151,13 @@ export default function SearchPage() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.enrichMolecules([molecule], molecule);
+      const [response, trend] = await Promise.all([
+        api.enrichMolecules([molecule], molecule),
+        api.getMoleculeTrend(molecule).catch(() => null),
+      ]);
       const match = response.molecules.find((item) => item.molecule.toUpperCase() === molecule.toUpperCase());
       if (!match) throw new Error("No market record was returned for that molecule.");
+      setSlices(trend?.found ? trend : null);
       setResult(match);
     } catch (searchError: unknown) {
       setResult(null);
@@ -91,6 +170,7 @@ export default function SearchPage() {
   const clearSearch = () => {
     setQuery("");
     setResult(null);
+    setSlices(null);
     setError("");
     setShowSuggestions(false);
   };
@@ -194,9 +274,13 @@ export default function SearchPage() {
                 <h2 className="mt-3 font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl">{result.molecule}</h2>
                 <p className="mt-2 text-sm text-surface-500">
                   {result.atc4_class || result.atc3_class || "UAE pharmaceutical market"}
-                  {result.launch_year ? ` · launched ${result.launch_year}` : ""}
                 </p>
-                <div className="mt-4">
+                {slices?.profile && (
+                  <div className="mt-5">
+                    <MoleculeFacts p={slices.profile} />
+                  </div>
+                )}
+                <div className="mt-5">
                   <VerdictStrip molecule={result} />
                 </div>
                 <div className="mt-auto pt-5">
@@ -205,10 +289,10 @@ export default function SearchPage() {
                   </button>
                 </div>
               </div>
-              {result.in_iqvia && <AtcCascade molecule={result.molecule} />}
+              {slices?.profile && <MarketFacts p={slices.profile} />}
             </div>
 
-            <MoleculeDashboard molecule={result} />
+            <MoleculeDashboard molecule={result} slices={slices} />
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pharma-200 bg-pharma-50/70 px-5 py-4 text-sm text-pharma-950">
               <span>One-time lookup complete. No portfolio or scoring workflow was started.</span>

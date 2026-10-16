@@ -4,7 +4,7 @@ import {
   AlertTriangle, BarChart2, Building2, Check,
 } from "lucide-react";
 import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
-import type { MoleculeCard } from "@/lib/api";
+import type { MoleculeCard, MoleculeSlices } from "@/lib/api";
 
 function fmtAed(v?: number | null) {
   if (v == null) return "N/A";
@@ -105,7 +105,7 @@ function Panel({ title, icon, children }: {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 // The molecule's front page: trajectory → competitors → channel → context.
 
-export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
+export function MoleculeDashboard({ molecule: m, slices }: { molecule: MoleculeCard; slices?: MoleculeSlices | null }) {
   const registeredNotSelling =
     m.mohap_manufacturers != null && m.num_competitors != null
       ? Math.max(0, m.mohap_manufacturers - m.num_competitors)
@@ -127,7 +127,7 @@ export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
             </span>
             {m.top3_company_share != null && <span>Top 3 hold {m.top3_company_share.toFixed(1)}%</span>}
           </div>
-          <MarketBreakdownChart molecule={m.molecule} />
+          <MarketBreakdownChart molecule={m.molecule} initial={slices} />
         </Panel>
       )}
 

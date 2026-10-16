@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Generator
@@ -513,13 +514,82 @@ def _clean_nfc3(s: str) -> str:
     return parts[1].title() if len(parts) == 2 else str(s).title()
 
 
-def get_molecule_slices(molecule: str, df_iqvia) -> dict:
+def _launch_ym(v) -> tuple | None:
+    """IQVIA Launch Date (YYYYMM, maybe a float) → (year, month)."""
+    digits = re.sub(r"\D", "", str(v).split(".")[0])
+    if len(digits) < 6:
+        return None
+    year, month = int(digits[:4]), int(digits[4:6])
+    return (year, month) if 1900 < year < 2100 and 1 <= month <= 12 else None
+
+
+def _molecule_profile(df, years: list, num_molecules: int) -> dict:
+    """Search-page header: leading brand, first launch, first generic, and the market headline
+    (value, units, CAGRs, private/LPO split) for the whole molecule, unfiltered.
+
+    Leading brand = the product with the highest end-year value. First launch = the earliest
+    Launch Date; its MIDAS Corporation is the originator. First generic = the earliest launch by
+    another corporation."""
+    end = years[-1]
+    corp_col = "MIDAS Corporation" if "MIDAS Corporation" in df.columns else "Corporation"
+
+    def company(rows) -> dict:
+        mfr = rows["Manufacturer"].mode()
+        corp = rows[corp_col].mode() if corp_col in rows.columns else []
+        return {"manufacturer": str(mfr.iloc[0]).title() if len(mfr) else None,
+                "corporation": str(corp.iloc[0]).rstrip("*").strip().title() if len(corp) else None}
+
+    by_product = df.groupby("Product")[f"{end} LC Value"].sum().sort_values(ascending=False)
+    leading = None
+    if len(by_product) and by_product.iloc[0] > 0:
+        name = by_product.index[0]
+        leading = {"product": str(name).title(), **company(df[df["Product"] == name])}
+
+    first_launch = first_generic = None
+    if "Launch Date" in df.columns:
+        launches = []
+        for product, rows in df.groupby("Product"):
+            dates = [d for d in (_launch_ym(v) for v in rows["Launch Date"]) if d]
+            if dates:
+                launches.append((min(dates), product, rows))
+        launches.sort(key=lambda t: t[0])
+        if launches:
+            (y, m), product, rows = launches[0]
+            first_launch = {"product": str(product).title(), "date": f"{m:02d}/{y}", **company(rows)}
+            originator = first_launch["corporation"]
+            for (y, m), product, rows in launches[1:]:
+                c = company(rows)
+                if c["corporation"] != originator:
+                    first_generic = {"product": str(product).title(), "date": f"{m:02d}/{y}", **c}
+                    break
+
+    def totals(frame, suffix):
+        return {y: float(frame[f"{y} {suffix}"].sum()) / num_molecules for y in years}
+
+    private = df[df["Market"].str.contains("PRIVATE", na=False)]
+    market = {"end_year": end}
+    for key, suffix in [("value", "LC Value"), ("units", "Units")]:
+        series = totals(df, suffix)
+        cagr, since = _series_cagr(series)
+        market[key] = round(series[end], 0)
+        market[f"{key}_cagr"] = cagr
+        market[f"{key}_cagr_since"] = since
+        priv = totals(private, suffix)[end]
+        market[f"private_{key}_pct"] = round(priv / series[end] * 100, 1) if series[end] > 0 else None
+
+    return {"leading_brand": leading, "first_launch": first_launch, "first_generic": first_generic,
+            "market": market}
+
+
+def get_molecule_slices(molecule: str, df_iqvia, nfc3: str | None = None, strength: str | None = None) -> dict:
     """
     Slice cube for the unified market-breakdown chart.
 
     competitor: manufacturer stack (top 4 + Other) per market (total/private/lpo)
                 per metric (value/units) — market filter applies only here.
     dims:       channel / product / strength / nfc3 stacks, total market only.
+    nfc3 / strength: optional filters (cleaned names, as in `options`) applied to every lens.
+    profile:    the search-page header, always for the whole molecule.
 
     Each series carries full-year values plus the trailing partial year
     separately (years[-2] rule). All sums divided by num_molecules.
@@ -533,6 +603,27 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
     years = all_years[:-1]
     partial_year = all_years[-1]
     metrics = {"value": "LC Value", "units": "Units"}
+    end_col = f"{years[-1]} LC Value"
+
+    profile = _molecule_profile(df, years, num_molecules)
+
+    # Filter options, biggest first; strengths narrowed to the chosen form.
+    has_nfc3, has_strength = "NFC3" in df.columns, "Strength" in df.columns
+    if has_nfc3:
+        df["_nfc3"] = df["NFC3"].apply(_clean_nfc3)
+    if has_strength:
+        df["_strength"] = df["Strength"].apply(_clean_strength)
+
+    def ranked(frame, col):
+        g = frame.groupby(col)[end_col].sum().sort_values(ascending=False)
+        return [str(k) for k in g.index]
+
+    options = {"nfc3": ranked(df, "_nfc3") if has_nfc3 else []}
+    if has_nfc3 and nfc3:
+        df = df[df["_nfc3"] == nfc3]
+    options["strength"] = ranked(df, "_strength") if has_strength else []
+    if has_strength and strength:
+        df = df[df["_strength"] == strength]
 
     def stack(frame, group_col, suffix, rename=None):
         """All series over full years, sorted by end-year value; partial year
@@ -588,6 +679,9 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
         "partial_year": partial_year,
         "competitor": competitor,
         "dims": dims,
+        "filters": {"nfc3": nfc3 or None, "strength": strength or None},
+        "options": options,
+        "profile": profile,
     }
 
 

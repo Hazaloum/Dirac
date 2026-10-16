@@ -367,10 +367,10 @@ def forecast_molecules(body: ForecastRequest):
 
 # ─── Yearly slice cube (molecule dashboard) ───────────────────────────────────
 @app.get("/api/analysis/trend/{molecule}")
-def get_trend(molecule: str):
+def get_trend(molecule: str, nfc3: str | None = None, strength: str | None = None):
     from agent_runner import get_molecule_slices
     try:
-        return get_molecule_slices(molecule.upper(), _state["dfs"]["iqvia"])
+        return get_molecule_slices(molecule.upper(), _state["dfs"]["iqvia"], nfc3=nfc3, strength=strength)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
