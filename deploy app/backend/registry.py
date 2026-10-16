@@ -78,7 +78,7 @@ def _by_group(rows: list[dict]) -> list[dict]:
 
 
 def molecule_companies(name: str) -> dict:
-    rows = get_client().rpc("registry_molecule_holders_g", {"p_name": name}).execute().data or []
+    rows = get_client().rpc("registry_molecule_holders_g2", {"p_name": name}).execute().data or []
     exact = _by_group([r for r in rows if r["match"] == "exact"])
     combos = _by_group([r for r in rows if r["match"] == "combination"])
     return {
