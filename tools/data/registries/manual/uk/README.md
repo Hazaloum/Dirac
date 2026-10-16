@@ -1,0 +1,1 @@
+Upload MHRA's monthly "list of medicines under additional monitoring" (xlsx, sheets Current list and Removals) here. The newest file by name is loaded. This is a partial UK list (black-triangle medicines only), not the full MHRA register. Current file: July 2026.

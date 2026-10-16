@@ -570,47 +570,114 @@ def at():
                 company_field="Holder (MAH)"), rows
 
 
+def _manual(folder, exts):
+    """Newest file (by name) in tools/data/registries/manual/<folder>/."""
+    files = sorted(f for f in Path(f"tools/data/registries/manual/{folder}").glob("*.*") if f.name.lower().endswith(exts))
+    if not files:
+        raise RuntimeError(f"no file in tools/data/registries/manual/{folder}/ yet")
+    log(f"{folder} file:", files[-1].name)
+    return files[-1]
+
+
+def strip_country(name):
+    """'BOEHRINGER INGELHEIM INTERNATIONAL GMBH, GERMANY.' -> 'BOEHRINGER INGELHEIM INTERNATIONAL GMBH'
+    (a trailing ', <country>' of at most three words; GCC lists append it to every company)."""
+    t = s(name).rstrip(" .")
+    return re.sub(r",\s*[A-Za-z][A-Za-z .&'()-]{1,30}$", "", t) if t.count(",") and len(t.rsplit(",", 1)[1].split()) <= 3 else t
+
+
 def bh():
     """NHRA Bahrain refuses requests from outside Bahrain, so its price list is uploaded by hand to
-    tools/data/registries/manual/bh/ (any .xlsx/.xls/.csv; the last by file name is used, so keep the date in the name)."""
-    files = sorted(Path("tools/data/registries/manual/bh").glob("*.*"))
-    files = [f for f in files if f.suffix.lower() in (".xlsx", ".xls", ".csv")]
-    if not files:
-        raise RuntimeError("no file in tools/data/registries/manual/bh/ yet")
-    f = files[-1]
+    tools/data/registries/manual/bh/ (.xlsx/.xls/.csv; the last by file name is used, so keep the date in the name).
+    Columns of the NHRA "Registered Medicine Price List": DRUG REGISTRATION NUMBER, MEDICINE NAME, STRENGTH,
+    UNIT OF STRENGTH, PHARMACEUTICAL FORM, ACTIVE SUBSTANCES, AGENT NAME, MAH NAME, BATCH RELEASING SITE NAME, ..."""
+    f = _manual("bh", (".xlsx", ".xls", ".csv"))
     df = pd.read_csv(f, dtype=str) if f.suffix.lower() == ".csv" else pd.read_excel(f, dtype=str)
-    # header row may sit below a title: use the first row that mentions a name-like column
-    if not any(re.search(r"name|trade|generic", str(c), re.I) for c in df.columns):
-        for i in range(min(10, len(df))):
-            if any(re.search(r"name|trade|generic", str(v), re.I) for v in df.iloc[i].values):
-                df.columns = [s(v) for v in df.iloc[i].values]
-                df = df.iloc[i + 1:]
-                break
-    log("bh file:", f.name, "columns:", list(df.columns))
-    pick = lambda *pats: next((c for c in df.columns if any(re.search(p, str(c), re.I) for p in pats)), None)
-    c_reg, c_trade = pick(r"reg"), pick(r"trade|brand|product|name")
-    c_gen = pick(r"generic|scientific|active|ingredient|composition|inn")
-    c_comp = pick(r"manufactur|company|mah|holder|licen") or pick(r"agent")
-    c_str, c_form = pick(r"strength|dose"), pick(r"form")
-    load_inns()
+    df.columns = [s(c).upper() for c in df.columns]
+    need = {"DRUG REGISTRATION NUMBER", "MEDICINE NAME", "ACTIVE SUBSTANCES", "MAH NAME"}
+    if not need <= set(df.columns):
+        raise RuntimeError(f"unexpected NHRA columns: {list(df.columns)}")
     rows = []
     for _, r in df.iterrows():
-        trade = s(r.get(c_trade)) if c_trade else ""
+        trade, reg = s(r["MEDICINE NAME"]), s(r["DRUG REGISTRATION NUMBER"])
         if not trade:
             continue
-        key = "|".join(x for x in (s(r.get(c_reg)) if c_reg else "", trade, s(r.get(c_str)) if c_str else "", s(r.get(c_form)) if c_form else "") if x)
-        gen = s(r.get(c_gen)) if c_gen else ""
-        rows.append(row(key, r.get(c_reg) if c_reg else "", trade, r.get(c_comp) if c_comp else "", gen,
-                        r.get(c_str) if c_str else "", r.get(c_form) if c_form else "", ""))
+        strength = " ".join(x for x in (s(r.get("STRENGTH")), s(r.get("UNIT OF STRENGTH"))) if x)
+        form = s(r.get("PHARMACEUTICAL FORM"))
+        rows.append(row("|".join(x for x in (reg, trade, strength, form) if x), reg, trade, strip_country(r["MAH NAME"]),
+                        s(r["ACTIVE SUBSTANCES"]), strength, form, ""))
     return dict(country="BH", name="NHRA Bahrain registered medicine price list (uploaded file)", source_url="https://www.nhra.bh/Departments/PPR/",
-                company_field=str(c_comp)), rows
+                company_field="MAH NAME (holder)"), rows
+
+
+def ae_doh():
+    """Abu Dhabi DoH (Shafafiya drug list). The site resets connections from outside the UAE, so a JSON-lines snapshot
+    (.jsonl / .jsonl.gz, one object per presentation) is uploaded to tools/data/registries/manual/ae_doh/.
+    Packs collapse to product x strength x form x manufacturer; status Active/Grace -> active, Deleted -> withdrawn."""
+    import gzip
+    f = _manual("ae_doh", (".jsonl", ".jsonl.gz"))
+    opener = gzip.open if f.name.endswith(".gz") else open
+    latest: dict[str, dict] = {}
+    with opener(f, "rt", encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            code = s(r.get("drug_code")) or s(r.get("id"))
+            if code not in latest or s(r.get("ingested_at")) >= s(latest[code].get("ingested_at")):
+                latest[code] = r
+    products: dict[str, dict] = {}
+    for code, r in latest.items():
+        name, strength, form = s(r.get("package_name")), s(r.get("strength")), s(r.get("dosage_form"))
+        company = strip_country(r.get("manufacturer_name"))
+        if not name:
+            continue
+        key = "|".join((name, strength, form, company)).upper()
+        active = s(r.get("status")).lower() in ("active", "grace")
+        p = products.get(key)
+        if p is None:
+            products[key] = {"code": code, "name": name, "company": company, "generic": s(r.get("generic_name")),
+                             "strength": strength, "form": form, "active": active}
+        else:
+            p["active"] = p["active"] or active
+    rows = [row(k, p["code"], p["name"], p["company"], p["generic"], p["strength"], p["form"], "",
+                "active" if p["active"] else "withdrawn") for k, p in products.items()]
+    return dict(country="AE", name="DoH Abu Dhabi drug list (uploaded snapshot)", source_url="https://www.doh.gov.ae/en/Shafafiya/dictionary",
+                company_field="manufacturer_name (manufacturer)"), rows
+
+
+def uk_mhra():
+    """UK: MHRA's monthly list of medicines under additional monitoring (black triangle), uploaded to
+    tools/data/registries/manual/uk/. A partial UK list (newer medicines only), not the full MHRA register.
+    Products on the Removals sheet left the monitoring list but are still authorised, so they stay active."""
+    f = _manual("uk", (".xlsx", ".xls"))
+    xl = pd.ExcelFile(f)
+    rows = []
+    for sheet in xl.sheet_names:
+        raw = pd.read_excel(xl, sheet, header=None, dtype=str)
+        head = next((i for i in range(min(30, len(raw))) if "active substance" in " ".join(s(v).lower() for v in raw.iloc[i].values)), None)
+        if head is None:
+            continue
+        df = raw.iloc[head + 1:].copy()
+        df.columns = [s(v).lower().rstrip("*") for v in raw.iloc[head].values]
+        col = lambda pat: next((c for c in df.columns if re.search(pat, c)), None)
+        c_sub, c_brand, c_ma, c_mah = col(r"active substance"), col(r"brand"), col(r"^ma number"), col(r"^mah")
+        for _, r in df.iterrows():
+            sub, brand = s(r.get(c_sub)), s(r.get(c_brand))
+            if not sub or not brand or sub.lower() == "active substance":
+                continue
+            ma = s(r.get(c_ma)) if c_ma else ""
+            rows.append(row(ma or f"{brand}|{sub}", ma, brand, s(r.get(c_mah)) if c_mah else "", sub))
+    return dict(country="GB", name="MHRA additional monitoring list (partial: black-triangle medicines only)",
+                source_url="https://www.gov.uk/government/publications/list-of-medicines-under-additional-monitoring",
+                company_field="MAH (holder)"), rows
 
 
 def s_lines(v):
     return [p.strip() for p in str(v or "").split("\n") if p.strip()]
 
 
-ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be, "at_basg": at, "bh_nhra": bh}
+ALL = {"nl_cbg": nl, "pl_urpl": pl, "ro_anm": ro, "hu_ogyei": hu, "es_aemps": es, "cz_sukl": cz, "sk_sukl": sk, "se_lv": se, "us_fda": us, "it_aifa": it, "fr_ansm": fr, "ie_hpra": ie, "bg_bda": bg, "om_moh": om, "be_famhp": be, "at_basg": at, "bh_nhra": bh, "ae_doh": ae_doh, "uk_mhra": uk_mhra}
 
 
 def write(key, meta, rows):
