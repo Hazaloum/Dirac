@@ -8,12 +8,17 @@ page alone) read in parallel by Claude Haiku 5.5 with a strict JSON schema → c
 Each product cites its page and a short `source` quote. A product from a text page whose quote isn't on the
 page is dropped (an invented product); one from an image page can't be checked and is marked `from_image`.
 
+Each chunk's result is cached in Supabase `catalogue_ai_cache` (key = hash of model, prompt, schema, company
+and the chunk's pages), so re-uploading the same file — e.g. after a dropped connection or a backend
+redeploy mid-read — reuses the chunks already read instead of paying for them again.
+
 read_catalogue(...) is a generator: ("pages", {...}) once, ("products", [...]) per chunk as it finishes, then
 ("done", {...}). Raises on any failure so the caller can fall back to keyword matching.
 """
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
 import os
@@ -162,6 +167,46 @@ def _read_chunk(client, chunk: list[dict], company: str) -> tuple[list[dict], in
     return kept, dropped
 
 
+def _cache_key(chunk: list[dict], company: str) -> str:
+    h = hashlib.sha256()
+    for part in (MODEL, SYSTEM, json.dumps(SCHEMA, sort_keys=True), company):
+        h.update(part.encode())
+        h.update(b"\0")
+    for p in chunk:
+        h.update(f"{p['page']}\0".encode())
+        h.update((p.get("text") or p.get("image") or "").encode())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _cache_get(key: str):
+    try:
+        from supabase_client import get_client
+        rows = get_client().table("catalogue_ai_cache").select("products, dropped").eq("key", key).execute().data
+        return (json.loads(rows[0]["products"]), rows[0]["dropped"]) if rows else None
+    except Exception:
+        return None       # the cache is an optimisation: never fail the read over it
+
+
+def _cache_put(key: str, products: list[dict], dropped: int) -> None:
+    try:
+        from supabase_client import get_client
+        get_client().table("catalogue_ai_cache").upsert(
+            {"key": key, "products": json.dumps(products), "dropped": dropped}).execute()
+    except Exception:
+        pass
+
+
+def _read_chunk_cached(client, chunk: list[dict], company: str) -> tuple[list[dict], int]:
+    key = _cache_key(chunk, company)
+    hit = _cache_get(key)
+    if hit is not None:
+        return hit
+    products, dropped = _read_chunk(client, chunk, company)
+    _cache_put(key, products, dropped)
+    return products, dropped
+
+
 def read_catalogue(content: bytes, filename: str, company: str):
     key = os.getenv("ANTHROPIC_API_KEY", "")
     if not key:
@@ -177,7 +222,7 @@ def read_catalogue(content: bytes, filename: str, company: str):
 
     dropped = 0
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        futures = [pool.submit(_read_chunk, client, c, company) for c in chunks]
+        futures = [pool.submit(_read_chunk_cached, client, c, company) for c in chunks]
         for f in as_completed(futures):
             products, n = f.result()      # any failure propagates → keyword fallback
             dropped += n

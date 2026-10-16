@@ -331,13 +331,27 @@ export async function uploadCatalogueStream(
     form.append("company_id", String(pick.company_id));
     form.append("whole_group", String(pick.whole_group));
   }
-  const res = await fetch(`${API}/api/analysis/upload-stream`, { method: "POST", credentials: "include", body: form });
+  const dropped = "The connection to the server dropped (it may be restarting). Upload the file again in a minute: " +
+    "pages already read are reused, so they aren't paid for twice.";
+  let res: Response;
+  try {
+    res = await fetch(`${API}/api/analysis/upload-stream`, { method: "POST", credentials: "include", body: form });
+  } catch {
+    throw new Error(dropped);
+  }
+  if (res.status === 502 || res.status === 503 || res.status === 504) throw new Error(dropped);
   if (!res.ok || !res.body) throw new Error(`Upload failed (${res.status})`);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {
-    const { done, value } = await reader.read();
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch {
+      throw new Error(dropped);
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
@@ -352,7 +366,7 @@ export async function uploadCatalogueStream(
       onProgress(msg);
     }
   }
-  throw new Error("The upload ended without a result");
+  throw new Error(dropped);
 }
 
 export function streamScore(
