@@ -639,11 +639,13 @@ export interface ProfileCompany {
 }
 
 export interface MoleculeProfile {
-  leading_brand: ProfileCompany | null;                       // highest end-year value
+  leading_brand: (ProfileCompany & { share_pct: number | null }) | null;  // highest end-year value; share of the molecule's value
   first_launch: (ProfileCompany & { date: string }) | null;   // date MM/YYYY
   first_generic: (ProfileCompany & { date: string }) | null;  // earliest launch by another corporation
   market: {
     end_year: number;
+    competitors: number;          // IQVIA manufacturers (same as num_competitors)
+    competitors_selling: number;  // … with end-year sales
     value: number;
     value_cagr: number | null;
     value_cagr_since: number | null;

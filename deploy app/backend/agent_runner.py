@@ -554,7 +554,9 @@ def _molecule_profile(df, years: list, num_molecules: int) -> dict:
     leading = None
     if len(by_product) and by_product.iloc[0] > 0:
         name = by_product.index[0]
-        leading = {"product": str(name).title(), **company(df[df["Product"] == name])}
+        total = float(by_product.sum())
+        leading = {"product": str(name).title(), **company(df[df["Product"] == name]),
+                   "share_pct": round(float(by_product.iloc[0]) / total * 100, 1) if total > 0 else None}
 
     first_launch = first_generic = None
     if "Launch Date" in df.columns:
@@ -578,7 +580,9 @@ def _molecule_profile(df, years: list, num_molecules: int) -> dict:
         return {y: float(frame[f"{y} {suffix}"].sum()) / num_molecules for y in years}
 
     private = df[df["Market"].str.contains("PRIVATE", na=False)]
-    market = {"end_year": end}
+    # Same count as num_competitors elsewhere (every IQVIA manufacturer), plus those still selling.
+    by_mfr = df.groupby("Manufacturer")[f"{end} LC Value"].sum()
+    market = {"end_year": end, "competitors": int(by_mfr.size), "competitors_selling": int((by_mfr > 0).sum())}
     for key, suffix in [("value", "LC Value"), ("units", "Units")]:
         series = totals(df, suffix)
         cagr, since = _series_cagr(series)

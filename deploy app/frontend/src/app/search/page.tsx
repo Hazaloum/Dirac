@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { AddToDeal } from "@/components/AddToDeal";
-import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
+import { MoleculeDashboard } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProfileCompany } from "@/lib/api";
 
@@ -103,7 +103,9 @@ function MoleculeFacts({ p }: { p: MoleculeProfile }) {
       <FactTile icon={Crown} label="Leading brand"
         title={p.leading_brand?.product ?? "—"}
         sub={p.leading_brand && <Company c={p.leading_brand} />}
-        foot={`Highest value in ${p.market.end_year}`} />
+        foot={p.leading_brand?.share_pct != null
+          ? <><span className="font-semibold text-pharma-900">{p.leading_brand.share_pct.toFixed(0)}%</span> of the market by value in {p.market.end_year}</>
+          : `Highest value in ${p.market.end_year}`} />
       <FactTile icon={Rocket} label="First launch"
         title={p.first_launch?.date ?? "—"}
         sub={p.first_launch && <>{p.first_launch.product} · <Company c={p.first_launch} /></>}
@@ -142,7 +144,7 @@ function MarketFacts({ p }: { p: MoleculeProfile }) {
   const m = p.market;
   const since = m.value_cagr_since ?? m.units_cagr_since;
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-xl bg-surface-50 p-4">
         <p className="text-[10px] uppercase tracking-wider text-surface-400">Market value {m.end_year}</p>
         <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{fmtAed(m.value)}</p>
@@ -154,6 +156,15 @@ function MarketFacts({ p }: { p: MoleculeProfile }) {
         <div className="mt-2"><CagrChip v={m.units_cagr} /></div>
       </div>
       <div className="rounded-xl bg-surface-50 p-4">
+        <p className="text-[10px] uppercase tracking-wider text-surface-400">Competitors on IQVIA</p>
+        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{m.competitors}</p>
+        <p className="mt-2 text-[11px] text-surface-500">
+          {m.competitors_selling === m.competitors
+            ? `manufacturer${m.competitors === 1 ? "" : "s"} selling it`
+            : `${m.competitors_selling} with sales in ${m.end_year}`}
+        </p>
+      </div>
+      <div className="rounded-xl bg-surface-50 p-4">
         <p className="mb-3 text-[10px] uppercase tracking-wider text-surface-400">
           <span className="text-pharma-900">Private</span> / LPO
         </p>
@@ -162,7 +173,7 @@ function MarketFacts({ p }: { p: MoleculeProfile }) {
           <SplitBar label="By units" pct={m.private_units_pct} />
         </div>
       </div>
-      <p className="text-[11px] text-surface-400 md:col-span-3">
+      <p className="text-[11px] text-surface-400 md:col-span-2 lg:col-span-4">
         UAE IQVIA · CAGR {since ?? ""}–{m.end_year} · launch dates are month-level
       </p>
     </div>
@@ -359,10 +370,6 @@ export default function SearchPage() {
                   <MarketFacts p={slices.profile} />
                 </div>
               )}
-
-              <div className="mt-5 border-t border-surface-100 pt-5">
-                <VerdictStrip molecule={result} />
-              </div>
             </div>
 
             <MoleculeDashboard molecule={result} slices={slices} />
