@@ -592,8 +592,64 @@ def _molecule_profile(df, years: list, num_molecules: int) -> dict:
         priv = totals(private, suffix)[end]
         market[f"private_{key}_pct"] = round(priv / series[end] * 100, 1) if series[end] > 0 else None
 
+    originator = first_launch["corporation"] if first_launch else None
     return {"leading_brand": leading, "first_launch": first_launch, "first_generic": first_generic,
-            "market": market}
+            "market": market, "competition": _competition(df, years, num_molecules, originator, corp_col)}
+
+
+def _competition(df, years: list, num_molecules: int, originator: str | None, corp_col: str) -> dict:
+    """Competition panel: one row per manufacturer (share of end-year value, CAGR, private share, main
+    product, first launch, originator or generic), HHI, top-3 / generic shares and exits (sold in the
+    first year, nothing in the end year)."""
+    start, end = years[0], years[-1]
+    rows = []
+    for mfr, g in df.groupby("Manufacturer"):
+        series = {y: float(g[f"{y} LC Value"].sum()) / num_molecules for y in years}
+        by_product = g.groupby("Product")[[f"{end} LC Value", f"{start} LC Value"]].sum()
+        main = by_product.sort_values([f"{end} LC Value", f"{start} LC Value"], ascending=False).index[0]
+        dates = [d for d in (_launch_ym(v) for v in g["Launch Date"])] if "Launch Date" in g.columns else []
+        dates = [d for d in dates if d]
+        launch = min(dates) if dates else None
+        corp = g[corp_col].mode()
+        corp = str(corp.iloc[0]).rstrip("*").strip().title() if len(corp) else None
+        private = float(g.loc[g["Market"].str.contains("PRIVATE", na=False), f"{end} LC Value"].sum()) / num_molecules
+        cagr, since = _series_cagr(series)
+        rows.append({
+            "manufacturer": _untruncate(str(mfr)).title(),
+            "product": str(main).title(),
+            "originator": bool(originator) and corp == originator,
+            "launch": f"{launch[1]:02d}/{launch[0]}" if launch else None,
+            "new": bool(launch) and launch[0] >= end - 1,
+            "value": round(series[end], 0),
+            "start_value": round(series[start], 0),
+            "units": round(float(g[f"{end} Units"].sum()) / num_molecules, 0),
+            "cagr": cagr if since == start else None,     # only over the full window
+            "private_pct": round(private / series[end] * 100, 0) if series[end] > 0 else None,
+        })
+    total = sum(r["value"] for r in rows)
+    for r in rows:
+        r["share_pct"] = round(r["value"] / total * 100, 2) if total > 0 else 0.0
+    rows.sort(key=lambda r: (-r["value"], -r["start_value"]))
+    selling = [r for r in rows if r["value"] > 0]
+    generics = [r for r in rows if not r["originator"]]
+    shares = [r["share_pct"] for r in selling]
+    cum, to80 = 0.0, None
+    for i, sh in enumerate(shares, start=1):
+        cum += sh
+        if to80 is None and cum >= 80:
+            to80 = i
+    return {
+        "end_year": end, "start_year": start,
+        "manufacturers": selling,
+        "hhi": round(sum(sh ** 2 for sh in shares)) if shares else None,
+        "top3_pct": round(sum(shares[:3]), 1) if shares else None,
+        "generic_pct": round(sum(r["share_pct"] for r in selling if not r["originator"]), 1) if originator else None,
+        "generics_selling": sum(1 for r in selling if not r["originator"]),
+        "generics_ever": len(generics),
+        "to_80_pct": to80,
+        "exits": [{"manufacturer": r["manufacturer"], "product": r["product"], "last_value": r["start_value"]}
+                  for r in rows if r["value"] <= 0 and r["start_value"] > 0],
+    }
 
 
 def get_molecule_slices(molecule: str, df_iqvia, nfc3: str | None = None, strength: str | None = None) -> dict:

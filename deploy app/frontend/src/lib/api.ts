@@ -638,7 +638,35 @@ export interface ProfileCompany {
   corporation: string | null;   // IQVIA MIDAS Corporation (parent)
 }
 
+export interface CompetitorRow {
+  manufacturer: string;
+  product: string;           // its biggest product
+  originator: boolean;       // same corporation as the first launch
+  launch: string | null;     // MM/YYYY
+  new: boolean;              // launched in the last two years
+  value: number;             // end year
+  start_value: number;       // first year
+  units: number;
+  cagr: number | null;       // over the full window only
+  private_pct: number | null;
+  share_pct: number;
+}
+
+export interface Competition {
+  end_year: number;
+  start_year: number;
+  manufacturers: CompetitorRow[];   // selling in the end year, biggest first
+  hhi: number | null;
+  top3_pct: number | null;
+  generic_pct: number | null;
+  generics_selling: number;
+  generics_ever: number;
+  to_80_pct: number | null;          // manufacturers needed to reach 80% of value
+  exits: { manufacturer: string; product: string; last_value: number }[];
+}
+
 export interface MoleculeProfile {
+  competition?: Competition;
   leading_brand: (ProfileCompany & { share_pct: number | null }) | null;  // highest end-year value; share of the molecule's value
   first_launch: (ProfileCompany & { date: string }) | null;   // date MM/YYYY
   first_generic: (ProfileCompany & { date: string }) | null;  // earliest launch by another corporation

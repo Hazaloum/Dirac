@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  AlertTriangle, BarChart2, Building2,
+  AlertTriangle, BarChart2, Building2, Users,
 } from "lucide-react";
+import { CompetitionPanel } from "@/components/CompetitionPanel";
 import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
 import type { MoleculeCard, MoleculeSlices } from "@/lib/api";
 
@@ -55,6 +56,12 @@ export function MoleculeDashboard({ molecule: m, slices }: { molecule: MoleculeC
             {m.top3_company_share != null && <span>Top 3 hold {m.top3_company_share.toFixed(1)}%</span>}
           </div>
           <MarketBreakdownChart molecule={m.molecule} initial={slices} />
+        </Panel>
+      )}
+
+      {slices?.profile?.competition && (
+        <Panel title="Competition" icon={<Users className="h-4 w-4" />}>
+          <CompetitionPanel c={slices.profile.competition} />
         </Panel>
       )}
 
