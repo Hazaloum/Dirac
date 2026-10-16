@@ -523,6 +523,17 @@ def _launch_ym(v) -> tuple | None:
     return (year, month) if 1900 < year < 2100 and 1 <= month <= 12 else None
 
 
+# IQVIA cuts manufacturer names at ~18 characters ("TABUK PHARMACEUTI.").
+_TRUNCATED = [(re.compile(r"\bPHARMAC\w*\.$"), "PHARMACEUTICALS"), (re.compile(r"\bLAB\w*\.$"), "LABORATORIES"),
+              (re.compile(r"\bINDUST\w*\.$"), "INDUSTRIES"), (re.compile(r"\bINTERN\w*\.$"), "INTERNATIONAL")]
+
+
+def _untruncate(name: str) -> str:
+    for pattern, full in _TRUNCATED:
+        name = pattern.sub(full, name)
+    return name.rstrip(".")
+
+
 def _molecule_profile(df, years: list, num_molecules: int) -> dict:
     """Search-page header: leading brand, first launch, first generic, and the market headline
     (value, units, CAGRs, private/LPO split) for the whole molecule, unfiltered.
@@ -536,7 +547,7 @@ def _molecule_profile(df, years: list, num_molecules: int) -> dict:
     def company(rows) -> dict:
         mfr = rows["Manufacturer"].mode()
         corp = rows[corp_col].mode() if corp_col in rows.columns else []
-        return {"manufacturer": str(mfr.iloc[0]).title() if len(mfr) else None,
+        return {"manufacturer": _untruncate(str(mfr.iloc[0])).title() if len(mfr) else None,
                 "corporation": str(corp.iloc[0]).rstrip("*").strip().title() if len(corp) else None}
 
     by_product = df.groupby("Product")[f"{end} LC Value"].sum().sort_values(ascending=False)
