@@ -893,6 +893,7 @@ class PipelineDecisionRequest(BaseModel):
     molecule:    str
     decision:    str
     source_name: str = ""
+    source_type: str = "upload"   # Analysis mode: upload (a supplier's catalogue) | craft | molecule
     snapshot:    dict = Field(default_factory=dict)
 
 
@@ -921,7 +922,9 @@ def set_pipeline_decision(body: PipelineDecisionRequest):
         from deals import ensure_deal
         try:
             partner = body.source_name.strip()
-            saved["deal_created"] = ensure_deal(body.molecule, "" if partner in {"Catalogue", "Portfolio"} else partner)
+            in_portfolio = body.source_type == "upload"     # a typed list / single lookup has no supplier
+            saved["deal_created"] = ensure_deal(
+                body.molecule, "" if partner in {"Catalogue", "Portfolio"} or not in_portfolio else partner, in_portfolio)
         except Exception as e:
             print(f"Deal Tracker: couldn't open a deal for {body.molecule}: {e}")
     return saved
@@ -938,7 +941,7 @@ def remove_pipeline_decision(molecule: str):
 class DealCreateRequest(BaseModel):
     molecule: str
     partner:  str = ""
-    stage:    str = "shortlisted"
+    stage:    str = "interested"
 
 
 class DealUpdateRequest(BaseModel):

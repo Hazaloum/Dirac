@@ -298,6 +298,7 @@ export const api = {
   setPipelineDecision: (payload: {
     molecule: string;
     decision: PipelineDecisionValue;
+    source_type?: string;   // Analysis mode; "upload" = ticked in a supplier's catalogue
     source_name: string;
     snapshot: MoleculeCard;
   }) => req<PipelineDecision>("/api/pipeline", {

@@ -188,6 +188,7 @@ export default function AnalysisPage() {
       molecule: key,
       decision: next === "shortlisted" ? "yes" : next === "disqualified" ? "no" : "maybe",
       source_name: companyName || result?.companies[0]?.name || "Catalogue",
+      source_type: mode,
       snapshot: {
         ...base,
         ai_score: score?.score,
