@@ -70,6 +70,7 @@ export default function RegistriesPage() {
             className={`grid gap-0.5 rounded-xl border px-4 py-2 text-left transition-colors ${registry === s.key ? "border-pharma-700 bg-pharma-50" : "border-surface-300 bg-white hover:border-pharma-300"}`}>
             <span className="text-sm font-semibold text-surface-900">{COUNTRY[s.country] ?? s.country}</span>
             <span className="text-xs text-surface-500">{(s.row_count ?? 0).toLocaleString()} products</span>
+            {s.snapshot_date && <span className="text-xs text-surface-400">updated {ddmmyy(s.snapshot_date)}</span>}
           </button>
         ))}
       </div>
