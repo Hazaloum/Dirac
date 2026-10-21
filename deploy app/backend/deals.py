@@ -24,12 +24,17 @@ MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 
 # (key, label, type, source). type: text | longtext | date | choice:<a>|<b>… | dirac
 STAGES: list[dict] = [
-    {"key": "shortlisted", "name": "Shortlisted", "phase": "Find", "trigger": "Forecast sent to the company", "doc": "Forecast", "fields": [
+    # Shortlisted is two columns: molecules picked in the app with no supplier yet (molecule search, a typed
+    # list, "+ New deal") and molecules ticked in an uploaded catalogue, i.e. in a supplier's portfolio.
+    {"key": "interested", "name": "Shortlisted · Interested", "phase": "Find", "trigger": "Found in a supplier's portfolio", "fields": [
         ("market_value", "IQVIA market value", "dirac"),
         ("cagr", "Value / unit CAGR", "dirac"),
         ("competitors", "Competitor count", "dirac"),
         ("private_lpo", "Private / LPO split", "dirac"),
         ("registrations", "MOHAP / UPP registrations", "dirac"),
+        ("possible_partners", "Possible partners", "text"),
+    ]},
+    {"key": "shortlisted", "name": "Shortlisted · In portfolio", "phase": "Find", "trigger": "Forecast sent to the company", "doc": "Forecast", "fields": [
         ("ai_score", "AI score", "dirac"),
         ("forecast", "Y1–Y3 forecast", "dirac"),
         ("forecast_sent_date", "Forecast sent on", "date"),
@@ -258,6 +263,18 @@ def get_deal(deal_id: int, dfs: dict) -> dict | None:
             "document_list": docs, "events": events}
 
 
+def deal_for_molecule(molecule: str) -> dict | None:
+    """The molecule's deal (id, stage key + name), or None — for "Add to Deal Tracker" buttons."""
+    rows = (get_client().table("deals").select("id, stage, partner, status")
+            .eq("molecule", molecule.strip().upper()).execute().data)
+    if not rows:
+        return None
+    row = rows[0]
+    stage = LEGACY_STAGES.get(row["stage"], row["stage"])
+    name = next((s["name"] for s in STAGES if s["key"] == stage), stage)
+    return {"id": row["id"], "stage": stage, "stage_name": name, "partner": row["partner"] or "", "status": row["status"]}
+
+
 def create_deal(molecule: str, partner: str, stage: str) -> dict:
     molecule = molecule.strip().upper()
     if not molecule:
@@ -272,17 +289,28 @@ def create_deal(molecule: str, partner: str, stage: str) -> dict:
     return row
 
 
-def ensure_deal(molecule: str, partner: str = "") -> bool:
-    """Shortlisting (✓) a molecule opens its deal in Sourced. True if a deal was created.
+def ensure_deal(molecule: str, partner: str = "", in_portfolio: bool = True) -> bool:
+    """Shortlisting (✓) a molecule opens its deal: in "In portfolio" when ticked in an uploaded catalogue,
+    else in "Interested". True if a deal was created.
 
-    An existing deal is left as it is, wherever it is on the board; un-ticking
-    never removes a deal.
+    An existing deal stays where it is, except an Interested one ticked in a catalogue: it has now been
+    found in a supplier's portfolio, so it moves to In portfolio (taking that partner if it had none).
+    Un-ticking never removes a deal.
     """
     molecule = molecule.strip().upper()
-    if not molecule or get_client().table("deals").select("id").eq("molecule", molecule).execute().data:
+    if not molecule:
+        return False
+    client = get_client()
+    rows = client.table("deals").select("id, stage, partner").eq("molecule", molecule).execute().data
+    if rows:
+        row = rows[0]
+        if in_portfolio and row["stage"] == "interested":
+            move_deal(row["id"], "shortlisted")
+            if partner and not (row["partner"] or "").strip():
+                client.table("deals").update({"partner": partner.strip()}).eq("id", row["id"]).execute()
         return False
     try:
-        create_deal(molecule, partner, STAGE_KEYS[0])
+        create_deal(molecule, partner, "shortlisted" if in_portfolio else "interested")
     except ValueError:   # created by a concurrent request
         return False
     return True

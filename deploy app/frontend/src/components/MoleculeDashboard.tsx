@@ -1,87 +1,15 @@
 "use client";
 
 import {
-  AlertTriangle, BarChart2, Building2, Check,
+  AlertTriangle, BarChart2, Building2, Users,
 } from "lucide-react";
+import { CompetitionPanel } from "@/components/CompetitionPanel";
 import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
-import type { MoleculeCard } from "@/lib/api";
-
-function fmtAed(v?: number | null) {
-  if (v == null) return "N/A";
-  if (v >= 1_000_000_000) return `AED ${(v / 1_000_000_000).toFixed(2)}B`;
-  if (v >= 1_000_000)     return `AED ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)         return `AED ${(v / 1_000).toFixed(0)}K`;
-  return `AED ${v.toFixed(0)}`;
-}
+import type { MoleculeCard, MoleculeSlices } from "@/lib/api";
 
 function fmtPct(v?: number | null, showSign = false) {
   if (v == null) return "N/A";
   return `${showSign && v > 0 ? "+" : ""}${v.toFixed(1)}%`;
-}
-
-// ─── Verdict strip ────────────────────────────────────────────────────────────
-// The COMIX decision rules, evaluated visibly. Same thresholds as the scoring
-// prompt's hard disqualifiers — keep in sync with prompts/prompt_scoring.txt.
-
-type Verdict = { label: string; pass: boolean; hard?: boolean };
-
-function buildVerdicts(m: MoleculeCard): Verdict[] {
-  const verdicts: Verdict[] = [];
-  if (m.num_competitors != null) {
-    verdicts.push({
-      label: `${m.num_competitors} competitors ${m.num_competitors > 10 ? "> 10 — disqualifier" : "≤ 10"}`,
-      pass: m.num_competitors <= 10,
-      hard: true,
-    });
-  }
-  if (m.market_value_aed != null && m.value_cagr_pct != null) {
-    const small = m.market_value_aed < 5_000_000;
-    const slow = m.value_cagr_pct < 10;
-    verdicts.push({
-      label: small && slow
-        ? "< 5M AED and < 10% CAGR — disqualifier"
-        : `${fmtAed(m.market_value_aed)} · ${fmtPct(m.value_cagr_pct, true)} CAGR`,
-      pass: !(small && slow),
-      hard: true,
-    });
-  }
-  if (m.private_pct != null) {
-    verdicts.push({
-      label: `private ${m.private_pct.toFixed(0)}% ${m.private_pct >= 60 ? "≥" : "<"} 60% target`,
-      pass: m.private_pct >= 60,
-    });
-  }
-  if (m.top3_company_share != null) {
-    verdicts.push({
-      label: `top-3 hold ${m.top3_company_share.toFixed(0)}% ${m.top3_company_share > 80 ? "— concentrated" : ""}`.trim(),
-      pass: m.top3_company_share <= 80,
-    });
-  }
-  return verdicts;
-}
-
-export function VerdictStrip({ molecule }: { molecule: MoleculeCard }) {
-  const verdicts = buildVerdicts(molecule);
-  if (!verdicts.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {verdicts.map((v) => (
-        <span
-          key={v.label}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-            v.pass
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : v.hard
-              ? "border-rose-200 bg-rose-50 text-rose-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          {v.pass ? <Check className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-          {v.label}
-        </span>
-      ))}
-    </div>
-  );
 }
 
 // ─── Building blocks ──────────────────────────────────────────────────────────
@@ -105,7 +33,7 @@ function Panel({ title, icon, children }: {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 // The molecule's front page: trajectory → competitors → channel → context.
 
-export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
+export function MoleculeDashboard({ molecule: m, slices }: { molecule: MoleculeCard; slices?: MoleculeSlices | null }) {
   const registeredNotSelling =
     m.mohap_manufacturers != null && m.num_competitors != null
       ? Math.max(0, m.mohap_manufacturers - m.num_competitors)
@@ -127,7 +55,13 @@ export function MoleculeDashboard({ molecule: m }: { molecule: MoleculeCard }) {
             </span>
             {m.top3_company_share != null && <span>Top 3 hold {m.top3_company_share.toFixed(1)}%</span>}
           </div>
-          <MarketBreakdownChart molecule={m.molecule} />
+          <MarketBreakdownChart molecule={m.molecule} initial={slices} />
+        </Panel>
+      )}
+
+      {slices?.profile?.competition && (
+        <Panel title="Competition" icon={<Users className="h-4 w-4" />}>
+          <CompetitionPanel c={slices.profile.competition} />
         </Panel>
       )}
 

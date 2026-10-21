@@ -164,14 +164,97 @@ def market_discovery_competitors(atc4: str, molecule: str):
 
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
 @app.post("/api/analysis/upload")
-async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)):
-    """Upload a catalogue (PDF/CSV/Excel) → extract molecules + enrich."""
+async def analysis_upload(file: UploadFile = File(...), company: str = Form(...),
+                          company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
+    """Upload a catalogue (PDF/CSV/Excel) → keyword extraction + enrich. With a registry company: a read-only check
+    of the molecules against its registry portfolio. (Analysis uses /upload-stream, which reads with AI first.)"""
     from agent_runner import extract_and_enrich
     content = await file.read()
     try:
-        return extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
+        result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    result["extraction"] = {"method": "keyword"}
+    if company_id:
+        from registry import check_catalogue
+        try:
+            check_catalogue(result, company_id, whole_group)
+        except Exception as e:
+            result["registry_check"] = {"error": str(e)}
+    return result
+
+
+@app.post("/api/analysis/upload-stream")
+async def analysis_upload_stream(file: UploadFile = File(...), company: str = Form(...),
+                                 company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
+    """Upload a catalogue as SSE, for the progress pop-up. Claude reads the products first (catalogue_ai); if that
+    fails, keyword matching (extract_and_enrich_steps) takes over. Events: {stage: "reading", pages, image_pages},
+    {molecule, count} per molecule found, {stage: "fallback", reason}, {stage: "registry"}, then {result}.
+    The registry check is read-only; the review screen writes via POST /api/registry/uploaded. Ends with [DONE]."""
+    from agent_runner import ai_extract_and_enrich_steps, extract_and_enrich_steps
+    content = await file.read()
+    filename = file.filename or "upload"
+    send = lambda obj: f"data: {json.dumps(obj)}\n\n"
+
+    def generate():
+        try:
+            result, count = None, 0
+            try:
+                for kind, data in ai_extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                    if kind == "pages":
+                        yield send({"stage": "reading", **data})
+                    elif kind == "molecule":
+                        count += 1
+                        yield send({"molecule": data, "count": count})
+                    else:
+                        result = data
+            except Exception as e:
+                reason = str(e) or type(e).__name__
+                print(f"AI catalogue reading failed, using keyword matching: {reason}")
+                yield send({"stage": "fallback", "reason": reason})
+                result, count = None, 0
+                for kind, data in extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                    if kind == "molecule":
+                        count += 1
+                        yield send({"molecule": data, "count": count})
+                    else:
+                        result = data
+                result["extraction"] = {"method": "keyword", "reason": reason}
+            if company_id:
+                from registry import check_catalogue
+                yield send({"stage": "registry"})
+                try:
+                    check_catalogue(result, company_id, whole_group)
+                except Exception as e:
+                    result["registry_check"] = {"error": str(e)}
+            yield send({"result": result})
+        except Exception as e:
+            yield send({"error": str(e)})
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+class UploadedItem(BaseModel):
+    name: str
+    form: Optional[str] = None
+    strengths: Optional[str] = None
+    catalogue_status: Optional[str] = None
+
+
+class UploadedRequest(BaseModel):
+    company_id: int
+    source: str = ""
+    items: list[UploadedItem]
+
+
+@app.post("/api/registry/uploaded")
+def registry_add_uploaded(body: UploadedRequest):
+    """Review screen → add the confirmed catalogue products to the 'uploaded' registry under the company."""
+    from registry import add_uploaded
+    if not body.items:
+        raise HTTPException(status_code=422, detail="Nothing selected")
+    return add_uploaded(body.company_id, [i.model_dump() for i in body.items], body.source)
 
 
 class EnrichRequest(BaseModel):
@@ -228,6 +311,7 @@ class SaveAnalysisRequest(BaseModel):
     model:       str = ""
     result:      dict
     report:      str = ""
+    run_id:      Optional[str] = None   # update this run instead of adding one
 
 @app.post("/api/analysis/history")
 def save_analysis(body: SaveAnalysisRequest):
@@ -238,6 +322,7 @@ def save_analysis(body: SaveAnalysisRequest):
         result=body.result,
         report=body.report,
         model=body.model,
+        run_id=body.run_id,
     )
     return {"run_id": run_id}
 
@@ -284,10 +369,10 @@ def forecast_molecules(body: ForecastRequest):
 
 # ─── Yearly slice cube (molecule dashboard) ───────────────────────────────────
 @app.get("/api/analysis/trend/{molecule}")
-def get_trend(molecule: str):
+def get_trend(molecule: str, nfc3: str | None = None, strength: str | None = None):
     from agent_runner import get_molecule_slices
     try:
-        return get_molecule_slices(molecule.upper(), _state["dfs"]["iqvia"])
+        return get_molecule_slices(molecule.upper(), _state["dfs"]["iqvia"], nfc3=nfc3, strength=strength)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -808,6 +893,7 @@ class PipelineDecisionRequest(BaseModel):
     molecule:    str
     decision:    str
     source_name: str = ""
+    source_type: str = "upload"   # Analysis mode: upload (a supplier's catalogue) | craft | molecule
     snapshot:    dict = Field(default_factory=dict)
 
 
@@ -836,7 +922,9 @@ def set_pipeline_decision(body: PipelineDecisionRequest):
         from deals import ensure_deal
         try:
             partner = body.source_name.strip()
-            saved["deal_created"] = ensure_deal(body.molecule, "" if partner in {"Catalogue", "Portfolio"} else partner)
+            in_portfolio = body.source_type == "upload"     # a typed list / single lookup has no supplier
+            saved["deal_created"] = ensure_deal(
+                body.molecule, "" if partner in {"Catalogue", "Portfolio"} or not in_portfolio else partner, in_portfolio)
         except Exception as e:
             print(f"Deal Tracker: couldn't open a deal for {body.molecule}: {e}")
     return saved
@@ -853,7 +941,7 @@ def remove_pipeline_decision(molecule: str):
 class DealCreateRequest(BaseModel):
     molecule: str
     partner:  str = ""
-    stage:    str = "shortlisted"
+    stage:    str = "interested"
 
 
 class DealUpdateRequest(BaseModel):
@@ -891,6 +979,12 @@ def create_deal(body: DealCreateRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return _deal_or_404(row["id"])
+
+
+@app.get("/api/deals/by-molecule/{molecule}")
+def deal_by_molecule(molecule: str):
+    from deals import deal_for_molecule
+    return {"deal": deal_for_molecule(molecule)}
 
 
 @app.get("/api/deals/{deal_id}")

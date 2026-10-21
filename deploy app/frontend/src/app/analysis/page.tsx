@@ -8,8 +8,10 @@ import {
   History, Trash2, ChevronRight, TrendingUp, Check, Save,
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
-import { api, streamScore, type AnalysisResult, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
+import { readAnalysisSession, writeAnalysisSession } from "@/lib/analysisSession";
+import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
+import { ExtractionNote, RegistryReview } from "@/components/CatalogueReview";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 
@@ -134,6 +136,8 @@ export default function AnalysisPage() {
   // Input state
   const [file,           setFile]           = useState<File | null>(null);
   const [companyName,    setCompanyName]     = useState("");
+  const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
+  const [uploadProgress, setUploadProgress]  = useState<{ count: number; line?: string } | null>(null);
   const [craftMolecules, setCraftMolecules] = useState<string[]>([]);
   const [allMolecules,   setAllMolecules]   = useState<string[]>([]);
   const [scoringModel,   setScoringModel]   = useState("gpt-5.6-luna");
@@ -157,6 +161,9 @@ export default function AnalysisPage() {
   // Manual save
   const [isSaving, setIsSaving] = useState(false);
   const [savedOk,  setSavedOk]  = useState(false);
+  // History entry for the catalogue on screen: created on upload, updated by the report / review / Save.
+  const [runId, setRunId] = useState<string | null>(null);
+  const runIdRef = useRef<string | null>(null);
 
   // Drawer — open with full MoleculeCard object
   const [drawerMolecule, setDrawerMolecule] = useState<MolCardType | null>(null);
@@ -181,6 +188,7 @@ export default function AnalysisPage() {
       molecule: key,
       decision: next === "shortlisted" ? "yes" : next === "disqualified" ? "no" : "maybe",
       source_name: companyName || result?.companies[0]?.name || "Catalogue",
+      source_type: mode,
       snapshot: {
         ...base,
         ai_score: score?.score,
@@ -191,6 +199,48 @@ export default function AnalysisPage() {
 
   const abortRef        = useRef<AbortController | null>(null);
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
+  const restoredRef     = useRef(false);   // the stored working session has been read
+
+  // Leaving the page (or a reload) brings the last catalogue back instead of losing it.
+  useEffect(() => {
+    const saved = readAnalysisSession();
+    restoredRef.current = true;
+    if (!saved?.result) return;
+    const done = saved.reportDone && !!saved.reportText;
+    if (done) fromHistoryRef.current = true;   // already saved to history when it finished
+    setMode(saved.mode);
+    setCompanyName(saved.companyName);
+    setCompanyPick(saved.companyPick);
+    setScoringModel(saved.scoringModel);
+    setResult(saved.result);
+    runIdRef.current = saved.runId ?? null;
+    setRunId(saved.runId ?? null);
+    setReportText(done ? saved.reportText : "");
+    setReportDone(done);
+    if (done) setScoredMolecules(parseScores(saved.reportText));
+    setPhase(done && saved.phase === "report" ? "report" : "portfolio");
+  }, []);
+
+  useEffect(() => {
+    if (!restoredRef.current || !result || phase === "input" || reportStreaming) return;
+    writeAnalysisSession({ mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone,
+                           runId, savedAt: new Date().toISOString() });
+  }, [mode, phase, companyName, companyPick, scoringModel, result, reportText, reportDone, reportStreaming, runId]);
+
+  /** Save the catalogue to History: the first call adds a run, later ones update it. */
+  const persistRun = useCallback(async (res: AnalysisResult, report: string, sourceType: string = mode) => {
+    const name = companyName || "Portfolio";
+    const d = await api.saveAnalysis({ source_name: name, source_type: sourceType, model: scoringModel,
+                                       result: res, report, run_id: runIdRef.current });
+    runIdRef.current = d.run_id;
+    setRunId(d.run_id);
+    const entry: AnalysisRun = {
+      run_id: d.run_id, source_name: name, source_type: sourceType, model: scoringModel,
+      saved_at: new Date().toISOString().slice(0, 16).replace("T", " "), has_report: !!report, stats: res.stats,
+    };
+    setHistory((prev) => [entry, ...prev.filter((r) => r.run_id !== d.run_id)]);
+    return d.run_id;
+  }, [companyName, mode, scoringModel]);
 
   // Load molecule list for craft/single modes
   useEffect(() => {
@@ -238,7 +288,15 @@ export default function AnalysisPage() {
       if (mode === "upload") {
         if (!companyName) throw new Error("Pick the company this catalogue is from");
         if (!file) throw new Error("Please select a file");
-        res = await api.uploadCatalogue(file, companyName);
+        setUploadProgress({ count: 0 });
+        res = await uploadCatalogueStream(file, companyName, companyPick, (p: UploadProgress) =>
+          setUploadProgress((prev) => {
+            if ("molecule" in p) return { count: p.count, line: p.molecule };
+            if (p.stage === "reading")
+              return { count: 0, line: `Reading ${p.pages} page${p.pages === 1 ? "" : "s"} with AI${p.image_pages ? ` (${p.image_pages} as images)` : ""}…` };
+            if (p.stage === "fallback") return { count: 0, line: "AI reading failed: using keyword matching…" };
+            return { count: prev?.count ?? 0, line: `Checking ${companyName}'s registries…` };
+          }));
       } else if (mode === "craft") {
         if (!craftMolecules.length) throw new Error("Add at least one molecule");
         res = await api.enrichMolecules(craftMolecules, companyName || "Portfolio");
@@ -249,12 +307,16 @@ export default function AnalysisPage() {
 
       setResult(res);
       setPhase("portfolio");
-      // Score in the background; cards pick up scores when the report lands.
-      runPhase2(res, false);
+      // The AI evaluation only runs from the portfolio's "Generate AI Report" button.
+      // Every upload / crafted list goes straight into History (a single-molecule lookup doesn't).
+      runIdRef.current = null;
+      setRunId(null);
+      if (mode !== "molecule") persistRun(res, "").catch(() => {});
     } catch (e: unknown) {
       setEnrichError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setEnrichLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -294,26 +356,11 @@ export default function AnalysisPage() {
         fromHistoryRef.current = false;
         return;
       }
-      api.saveAnalysis({
-        source_name: companyName || "Portfolio",
-        source_type: mode,
-        model:       scoringModel,
-        result,
-        report:      reportText,
-      }).then((d) => {
-        // Prepend to local history list
-        setHistory((prev) => [{
-          run_id:      d.run_id,
-          source_name: companyName || "Portfolio",
-          source_type: mode,
-          model:       scoringModel,
-          saved_at:    new Date().toISOString().slice(0, 16).replace("T", " "),
-          has_report:  true,
-          stats:       result.stats,
-        }, ...prev]);
-      }).catch(() => {});
+      persistRun(result, reportText).catch(() => {});
     }
-  }, [companyName, mode, reportDone, reportText, result, scoringModel]);
+    // Only when a report finishes (persistRun changes with the company name / model).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportDone, reportText]);
 
   // Merge scores into molecule cards
   const scoredCards: MolCardType[] = result?.molecules.map((m) => {
@@ -324,6 +371,9 @@ export default function AnalysisPage() {
 
   const reset = () => {
     abortRef.current?.abort();
+    writeAnalysisSession(null);
+    runIdRef.current = null;
+    setRunId(null);
     setPhase("input");
     setResult(null);
     setReportText("");
@@ -342,6 +392,8 @@ export default function AnalysisPage() {
     fromHistoryRef.current = true;   // tell the save effect to skip
     try {
       const entry = await api.getHistoryRun(runId);
+      runIdRef.current = runId;
+      setRunId(runId);
       setResult(entry.result);
       setCompanyName(entry.source_name);
       setMode(entry.source_type as Mode);
@@ -380,22 +432,7 @@ export default function AnalysisPage() {
     if (!result) return;
     setIsSaving(true);
     try {
-      const saved = await api.saveAnalysis({
-        source_name: companyName || "Portfolio",
-        source_type: mode === "upload" ? "upload" : "craft",
-        model:       scoringModel,
-        result,
-        report:      reportText,
-      });
-      setHistory(prev => [{
-        run_id:      saved.run_id,
-        source_name: companyName || "Portfolio",
-        source_type: mode === "upload" ? "upload" : "craft",
-        model:       scoringModel,
-        saved_at:    new Date().toISOString().slice(0, 16).replace("T", " "),
-        stats:       result.stats,
-        has_report:  false,
-      }, ...prev]);
+      await persistRun(result, reportDone ? reportText : "", mode === "upload" ? "upload" : "craft");
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
     } catch { /* ignore */ } finally {
@@ -547,7 +584,7 @@ export default function AnalysisPage() {
               {mode === "upload" ? (
                 <CompanyPicker
                   value={companyName}
-                  onChange={setCompanyName}
+                  onChange={(name, pick) => { setCompanyName(name); setCompanyPick(pick); }}
                   placeholder="Search the company directory, e.g. Adalvo"
                   className="w-full bg-white border border-surface-300 rounded-xl px-4 py-2.5 text-sm text-surface-900 placeholder-zinc-600 focus:outline-none focus:border-pharma-300 transition-colors"
                 />
@@ -685,6 +722,25 @@ export default function AnalysisPage() {
       )}
 
       {/* ── PORTFOLIO + REPORT VIEW (shared with My Portfolio) ── */}
+      {(phase === "portfolio" || phase === "report") && result && (result.extraction || result.registry_check?.company_id) && (
+        <div className="space-y-3 mb-6">
+          <ExtractionNote result={result} />
+          {result.registry_check?.company_id && (
+            <RegistryReview
+              key={`${result.registry_check.company_id}:${file?.name ?? ""}`}
+              result={result}
+              company={companyName}
+              source={file?.name ?? ""}
+              onAdded={(names) => {
+                const next = { ...result, molecules: result.molecules.map((m) =>
+                  names.includes(m.molecule) ? { ...m, registry_status: "already_uploaded" as const } : m) };
+                setResult(next);
+                if (runIdRef.current) persistRun(next, reportDone ? reportText : "").catch(() => {});
+              }}
+            />
+          )}
+        </div>
+      )}
       {(phase === "portfolio" || phase === "report") && result && (
         <PortfolioView
           result={result}
@@ -730,6 +786,21 @@ export default function AnalysisPage() {
             </div>
           )}
         />
+      )}
+
+      {/* ── Upload progress pop-up: molecules counted as they're found ── */}
+      {uploadProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-900/30 backdrop-blur-[1px]">
+          <div className="w-72 rounded-2xl bg-white shadow-xl border border-surface-200 px-6 py-6 flex flex-col items-center gap-3 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-pharma-900" />
+            <p className="text-lg font-semibold text-surface-900 tabular-nums">
+              Found {uploadProgress.count} molecule{uploadProgress.count === 1 ? "" : "s"}
+            </p>
+            <p className="text-xs text-surface-500 h-4 truncate w-full">
+              {uploadProgress.line ?? "Reading the catalogue…"}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* ── Molecule detail drawer ── */}

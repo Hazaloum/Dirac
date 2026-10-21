@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Generator
@@ -25,7 +26,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
 
 MODELS = {
-    "haiku":       ("anthropic", "claude-haiku-4-5-20251001", 0.0008,  0.004),
+    "haiku":       ("anthropic", "claude-haiku-5-5",          0.0001,  0.0005),
     "sonnet":      ("anthropic", "claude-sonnet-4-6",         0.003,   0.015),
     "gpt-5.6-luna": ("openai",   "gpt-5.6-luna",              0.0002,  0.0012),
 }
@@ -157,18 +158,118 @@ def format_enriched_data(companies: list, lookups: dict) -> str:
 
 def extract_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs: dict) -> dict:
     """Extract molecules from uploaded file and enrich with market data."""
+    for kind, data in extract_and_enrich_steps(file_bytes, filename, company_name, dfs):
+        if kind == "result":
+            return data
+    raise RuntimeError("extraction produced no result")
+
+
+def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+    """extract_and_enrich as steps, for progress: ("molecule", name) after each molecule is enriched, then ("result", dict)."""
     from data_processing.molecule_normalizer import smart_molecule_search
 
     text = _extract_text(file_bytes, filename)
     known_molecules = set(dfs["iqvia"]["Molecule Combination"].dropna().unique())
     found_molecules, contexts = smart_molecule_search(text, known_molecules)
 
-    lookups = {mol.lower(): lookup_molecule(mol, dfs) for mol in found_molecules}
+    lookups = {}
+    for mol in found_molecules:
+        lookups[mol.lower()] = lookup_molecule(mol, dfs)
+        yield "molecule", mol
     atc4_context = _build_atc4_context(lookups, dfs["iqvia"])
     companies = [{"name": company_name, "molecules": found_molecules}]
     enriched_data = format_enriched_data(companies, lookups)
 
-    return _build_response(companies, lookups, enriched_data, atc4_context, contexts)
+    yield "result", _build_response(companies, lookups, enriched_data, atc4_context, contexts)
+
+
+def ai_extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+    """extract_and_enrich_steps with Claude reading the catalogue (catalogue_ai) instead of keyword matching:
+    ("pages", info), ("molecule", name) per new product, then ("result", dict). Each card gets `catalogue`
+    (products with form, strengths vs the UAE, countries, approved/submitted, pages) and `registry_name`
+    (ingredients as written, for the registry check). Raises on failure, so the caller can fall back."""
+    import re
+    from catalogue_ai import MODEL, read_catalogue, merge_products, strength_key, uae_strengths
+    from data_processing.molecule_normalizer import strip_salt_forms
+
+    raw, seen, info, dropped = [], set(), {}, 0
+    for kind, data in read_catalogue(file_bytes, filename, company_name):
+        if kind == "pages":
+            info = data
+            yield "pages", data
+        elif kind == "products":
+            raw += data
+            for p in data:
+                key = " + ".join(sorted(i.upper() for i in p["ingredients"]))
+                if key not in seen:
+                    seen.add(key)
+                    yield "molecule", " + ".join(p["ingredients"])
+        else:
+            dropped = data["dropped"]
+    products = merge_products(raw)
+    if not products:
+        raise RuntimeError("the AI found no products in the catalogue")
+
+    # Ingredients → IQVIA molecule name (order-free), via salt stripping, else the registry's INN.
+    known = {" + ".join(sorted(p.strip() for p in m.split("+"))): m
+             for m in dfs["iqvia"]["Molecule Combination"].dropna().unique()}
+    clean = lambda i: re.sub(r"\s+base$", "", i.strip(), flags=re.IGNORECASE)
+    inns: dict[str, str] = {}
+    try:
+        from supabase_client import get_client
+        names = sorted({clean(i) for p in products for i in p["ingredients"]})
+        for r in get_client().rpc("registry_resolve_inns", {"p_names": names}).execute().data or []:
+            if r.get("inn"):
+                inns[r["name"].lower()] = r["inn"].upper()
+    except Exception:
+        pass
+
+    by_molecule: dict[str, dict] = {}
+    for p in products:
+        parts = [clean(i) for i in p["ingredients"]]
+        salt_free = " + ".join(sorted(strip_salt_forms(x) for x in parts))
+        iqvia = known.get(salt_free)
+        if not iqvia and all(x.lower() in inns for x in parts):
+            iqvia = known.get(" + ".join(sorted(inns[x.lower()] for x in parts)))
+        name = iqvia or salt_free
+        entry = by_molecule.setdefault(name, {"registry_name": " + ".join(parts), "iqvia": iqvia, "products": []})
+        entry["products"].append(p)
+
+    lookups, contexts = {}, {}
+    for name, entry in by_molecule.items():
+        lookups[name.lower()] = lookup_molecule(name, dfs)
+        contexts[name] = entry["products"][0].get("source", "")
+    atc4_context = _build_atc4_context(lookups, dfs["iqvia"])
+    companies = [{"name": company_name, "molecules": list(by_molecule)}]
+    result = _build_response(companies, lookups, format_enriched_data(companies, lookups), atc4_context, contexts)
+
+    rank = {"approved": 0, "submitted": 1, "unknown": 2}
+    for card in result["molecules"]:
+        entry = by_molecule.get(card["molecule"])
+        if not entry:
+            continue
+        uae = uae_strengths(dfs["iqvia"], entry["iqvia"]) if entry["iqvia"] else {}
+        offered: set[tuple] = set()
+        items = []
+        for p in entry["products"]:
+            strengths = []
+            for s in p.get("strengths") or []:
+                k = strength_key(s)
+                offered.add(k)
+                strengths.append({"label": s, "in_uae": (k in uae) if uae else None})
+            items.append({"brand": p.get("brand") or "", "dosage_form": p.get("dosage_form") or "",
+                          "strengths": strengths, "countries": p.get("countries") or [],
+                          "status": p.get("status") or "unknown", "expected_date": p.get("expected_date") or "",
+                          "pages": p.get("pages") or [], "from_image": bool(p.get("from_image"))})
+        card["registry_name"] = entry["registry_name"]
+        card["catalogue"] = {
+            "status": min((i["status"] for i in items), key=lambda s: rank.get(s, 2)),
+            "products": items,
+            "uae_only": [label for k, label in sorted(uae.items(), key=lambda kv: kv[1]) if k not in offered],
+        }
+    result["extraction"] = {"method": "ai", "model": MODEL, "pages": info.get("pages"),
+                            "image_pages": info.get("image_pages"), "products": len(products), "dropped": dropped}
+    yield "result", result
 
 
 def enrich_molecules(molecules: list[str], company_name: str, dfs: dict) -> dict:
@@ -413,13 +514,153 @@ def _clean_nfc3(s: str) -> str:
     return parts[1].title() if len(parts) == 2 else str(s).title()
 
 
-def get_molecule_slices(molecule: str, df_iqvia) -> dict:
+def _launch_ym(v) -> tuple | None:
+    """IQVIA Launch Date (YYYYMM, maybe a float) → (year, month)."""
+    digits = re.sub(r"\D", "", str(v).split(".")[0])
+    if len(digits) < 6:
+        return None
+    year, month = int(digits[:4]), int(digits[4:6])
+    return (year, month) if 1900 < year < 2100 and 1 <= month <= 12 else None
+
+
+# IQVIA cuts manufacturer names at ~18 characters ("TABUK PHARMACEUTI.").
+_TRUNCATED = [(re.compile(r"\bPHARMAC\w*\.$"), "PHARMACEUTICALS"), (re.compile(r"\bLAB\w*\.$"), "LABORATORIES"),
+              (re.compile(r"\bINDUST\w*\.$"), "INDUSTRIES"), (re.compile(r"\bINTERN\w*\.$"), "INTERNATIONAL")]
+
+
+def _untruncate(name: str) -> str:
+    for pattern, full in _TRUNCATED:
+        name = pattern.sub(full, name)
+    return name.rstrip(".")
+
+
+def _molecule_profile(df, years: list, num_molecules: int) -> dict:
+    """Search-page header: leading brand, first launch, first generic, and the market headline
+    (value, units, CAGRs, private/LPO split) for the whole molecule, unfiltered.
+
+    Leading brand = the product with the highest end-year value. First launch = the earliest
+    Launch Date; its MIDAS Corporation is the originator. First generic = the earliest launch by
+    another corporation."""
+    end = years[-1]
+    corp_col = "MIDAS Corporation" if "MIDAS Corporation" in df.columns else "Corporation"
+
+    def company(rows) -> dict:
+        mfr = rows["Manufacturer"].mode()
+        corp = rows[corp_col].mode() if corp_col in rows.columns else []
+        return {"manufacturer": _untruncate(str(mfr.iloc[0])).title() if len(mfr) else None,
+                "corporation": str(corp.iloc[0]).rstrip("*").strip().title() if len(corp) else None}
+
+    by_product = df.groupby("Product")[f"{end} LC Value"].sum().sort_values(ascending=False)
+    leading = None
+    if len(by_product) and by_product.iloc[0] > 0:
+        name = by_product.index[0]
+        total = float(by_product.sum())
+        leading = {"product": str(name).title(), **company(df[df["Product"] == name]),
+                   "share_pct": round(float(by_product.iloc[0]) / total * 100, 1) if total > 0 else None}
+
+    first_launch = first_generic = None
+    if "Launch Date" in df.columns:
+        launches = []
+        for product, rows in df.groupby("Product"):
+            dates = [d for d in (_launch_ym(v) for v in rows["Launch Date"]) if d]
+            if dates:
+                launches.append((min(dates), product, rows))
+        launches.sort(key=lambda t: t[0])
+        if launches:
+            (y, m), product, rows = launches[0]
+            first_launch = {"product": str(product).title(), "date": f"{m:02d}/{y}", **company(rows)}
+            originator = first_launch["corporation"]
+            for (y, m), product, rows in launches[1:]:
+                c = company(rows)
+                if c["corporation"] != originator:
+                    first_generic = {"product": str(product).title(), "date": f"{m:02d}/{y}", **c}
+                    break
+
+    def totals(frame, suffix):
+        return {y: float(frame[f"{y} {suffix}"].sum()) / num_molecules for y in years}
+
+    private = df[df["Market"].str.contains("PRIVATE", na=False)]
+    # Same count as num_competitors elsewhere (every IQVIA manufacturer), plus those still selling.
+    by_mfr = df.groupby("Manufacturer")[f"{end} LC Value"].sum()
+    market = {"end_year": end, "competitors": int(by_mfr.size), "competitors_selling": int((by_mfr > 0).sum())}
+    for key, suffix in [("value", "LC Value"), ("units", "Units")]:
+        series = totals(df, suffix)
+        cagr, since = _series_cagr(series)
+        market[key] = round(series[end], 0)
+        market[f"{key}_cagr"] = cagr
+        market[f"{key}_cagr_since"] = since
+        priv = totals(private, suffix)[end]
+        market[f"private_{key}_pct"] = round(priv / series[end] * 100, 1) if series[end] > 0 else None
+
+    originator = first_launch["corporation"] if first_launch else None
+    return {"leading_brand": leading, "first_launch": first_launch, "first_generic": first_generic,
+            "market": market, "competition": _competition(df, years, num_molecules, originator, corp_col)}
+
+
+def _competition(df, years: list, num_molecules: int, originator: str | None, corp_col: str) -> dict:
+    """Competition panel: one row per manufacturer (share of end-year value, CAGR, private share, main
+    product, first launch, originator or generic), HHI, top-3 / generic shares and exits (sold in the
+    first year, nothing in the end year)."""
+    start, end = years[0], years[-1]
+    rows = []
+    for mfr, g in df.groupby("Manufacturer"):
+        series = {y: float(g[f"{y} LC Value"].sum()) / num_molecules for y in years}
+        by_product = g.groupby("Product")[[f"{end} LC Value", f"{start} LC Value"]].sum()
+        main = by_product.sort_values([f"{end} LC Value", f"{start} LC Value"], ascending=False).index[0]
+        dates = [d for d in (_launch_ym(v) for v in g["Launch Date"])] if "Launch Date" in g.columns else []
+        dates = [d for d in dates if d]
+        launch = min(dates) if dates else None
+        corp = g[corp_col].mode()
+        corp = str(corp.iloc[0]).rstrip("*").strip().title() if len(corp) else None
+        private = float(g.loc[g["Market"].str.contains("PRIVATE", na=False), f"{end} LC Value"].sum()) / num_molecules
+        cagr, since = _series_cagr(series)
+        rows.append({
+            "manufacturer": _untruncate(str(mfr)).title(),
+            "product": str(main).title(),
+            "originator": bool(originator) and corp == originator,
+            "launch": f"{launch[1]:02d}/{launch[0]}" if launch else None,
+            "new": bool(launch) and launch[0] >= end - 1,
+            "value": round(series[end], 0),
+            "start_value": round(series[start], 0),
+            "units": round(float(g[f"{end} Units"].sum()) / num_molecules, 0),
+            "cagr": cagr if since == start else None,     # only over the full window
+            "private_pct": round(private / series[end] * 100, 0) if series[end] > 0 else None,
+        })
+    total = sum(r["value"] for r in rows)
+    for r in rows:
+        r["share_pct"] = round(r["value"] / total * 100, 2) if total > 0 else 0.0
+    rows.sort(key=lambda r: (-r["value"], -r["start_value"]))
+    selling = [r for r in rows if r["value"] > 0]
+    generics = [r for r in rows if not r["originator"]]
+    shares = [r["share_pct"] for r in selling]
+    cum, to80 = 0.0, None
+    for i, sh in enumerate(shares, start=1):
+        cum += sh
+        if to80 is None and cum >= 80:
+            to80 = i
+    return {
+        "end_year": end, "start_year": start,
+        "manufacturers": selling,
+        "hhi": round(sum(sh ** 2 for sh in shares)) if shares else None,
+        "top3_pct": round(sum(shares[:3]), 1) if shares else None,
+        "generic_pct": round(sum(r["share_pct"] for r in selling if not r["originator"]), 1) if originator else None,
+        "generics_selling": sum(1 for r in selling if not r["originator"]),
+        "generics_ever": len(generics),
+        "to_80_pct": to80,
+        "exits": [{"manufacturer": r["manufacturer"], "product": r["product"], "last_value": r["start_value"]}
+                  for r in rows if r["value"] <= 0 and r["start_value"] > 0],
+    }
+
+
+def get_molecule_slices(molecule: str, df_iqvia, nfc3: str | None = None, strength: str | None = None) -> dict:
     """
     Slice cube for the unified market-breakdown chart.
 
     competitor: manufacturer stack (top 4 + Other) per market (total/private/lpo)
                 per metric (value/units) — market filter applies only here.
     dims:       channel / product / strength / nfc3 stacks, total market only.
+    nfc3 / strength: optional filters (cleaned names, as in `options`) applied to every lens.
+    profile:    the search-page header, always for the whole molecule.
 
     Each series carries full-year values plus the trailing partial year
     separately (years[-2] rule). All sums divided by num_molecules.
@@ -433,6 +674,27 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
     years = all_years[:-1]
     partial_year = all_years[-1]
     metrics = {"value": "LC Value", "units": "Units"}
+    end_col = f"{years[-1]} LC Value"
+
+    profile = _molecule_profile(df, years, num_molecules)
+
+    # Filter options, biggest first; strengths narrowed to the chosen form.
+    has_nfc3, has_strength = "NFC3" in df.columns, "Strength" in df.columns
+    if has_nfc3:
+        df["_nfc3"] = df["NFC3"].apply(_clean_nfc3)
+    if has_strength:
+        df["_strength"] = df["Strength"].apply(_clean_strength)
+
+    def ranked(frame, col):
+        g = frame.groupby(col)[end_col].sum().sort_values(ascending=False)
+        return [str(k) for k in g.index]
+
+    options = {"nfc3": ranked(df, "_nfc3") if has_nfc3 else []}
+    if has_nfc3 and nfc3:
+        df = df[df["_nfc3"] == nfc3]
+    options["strength"] = ranked(df, "_strength") if has_strength else []
+    if has_strength and strength:
+        df = df[df["_strength"] == strength]
 
     def stack(frame, group_col, suffix, rename=None):
         """All series over full years, sorted by end-year value; partial year
@@ -488,6 +750,9 @@ def get_molecule_slices(molecule: str, df_iqvia) -> dict:
         "partial_year": partial_year,
         "competitor": competitor,
         "dims": dims,
+        "filters": {"nfc3": nfc3 or None, "strength": strength or None},
+        "options": options,
+        "profile": profile,
     }
 
 

@@ -404,6 +404,10 @@ export default function DealTrackerPage() {
   useEffect(() => {
     api.getDeals().then(setBoard).catch((e) => setError(errorText(e)));
     api.getMolecules().then((r) => setMolecules(r.molecules)).catch(() => {});
+    // /deal-tracker?deal=12 (e.g. from the molecule search page) opens that deal.
+    const id = Number(new URLSearchParams(window.location.search).get("deal"));
+    if (id) void open(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDetail(null); };

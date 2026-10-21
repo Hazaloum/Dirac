@@ -3,6 +3,11 @@ registry.py — read-only lookups on the master registry (Supabase `registration
 
 - search_companies(q): company groups for the company picker (most registrations first), each with its member
   companies. A company with no group is its own one-member group.
+- check_catalogue(result, company_id, whole_group): read-only check of an uploaded catalogue against the company's
+  registry portfolio (whole group, or just that company), SQL registry_check_upload. Tags each card
+  `registry_status`: in_registry / already_uploaded / new / unmatched (no registry molecule found).
+- add_uploaded(company_id, items, source): the review screen's "Add to registries" — writes the confirmed products
+  to the 'uploaded' registry under the company (SQL registry_add_uploaded, with form, strengths, approved/submitted).
 - molecule_companies(name): every company holding a registration for a molecule or combination
   (IQVIA-style name, e.g. "AMLODIPINE + VALSARTAN"), via SQL registry_molecule_holders: match "exact" = the same
   molecule / combination; "combination" = a combination that contains it (amlodipine -> amlodipine + valsartan).
@@ -17,7 +22,36 @@ def search_companies(q: str, limit: int = 15) -> list[dict]:
     q = (q or "").strip()
     if len(q) < 2:
         return []
-    return get_client().rpc("registry_search_company_groups", {"p_q": q, "p_limit": limit}).execute().data or []
+    return get_client().rpc("registry_search_company_groups_v4", {"p_q": q, "p_limit": limit}).execute().data or []
+
+
+def check_catalogue(result: dict, company_id: int, whole_group: bool) -> dict:
+    cards = result.get("molecules", [])
+    names = [c.get("registry_name") or c["molecule"] for c in cards]
+    rows = get_client().rpc("registry_check_upload", {"p_company_id": company_id, "p_whole_group": whole_group,
+                                                     "p_names": names}).execute().data or []
+    found = {r["name"].lower(): r for r in rows}
+    counts = {"in_registry": 0, "already_uploaded": 0, "new": 0, "unmatched": 0}
+    for card, name in zip(cards, names):
+        r = found.get(name.strip().lower())
+        if not r:
+            continue
+        status = "unmatched" if r["status"] == "new" and not r["combo_key"] else r["status"]
+        card["registry_name"] = name
+        card["registry_status"] = status
+        counts[status] += 1
+    result["registry_check"] = {"company_id": company_id, "whole_group": whole_group, **counts}
+    return result
+
+
+def add_uploaded(company_id: int, items: list[dict], source: str) -> dict:
+    rows = get_client().rpc("registry_add_uploaded", {"p_company_id": company_id, "p_items": items,
+                                                     "p_source": source}).execute().data or []
+    if any(r["status"] == "added" for r in rows):
+        import threading
+        threading.Thread(target=lambda: get_client().rpc("registry_refresh_molecule_index", {}).execute(), daemon=True).start()
+    return {"rows": rows, "added": sum(r["status"] == "added" for r in rows),
+            "updated": sum(r["status"] == "updated" for r in rows)}
 
 
 def _by_group(rows: list[dict]) -> list[dict]:
@@ -44,7 +78,7 @@ def _by_group(rows: list[dict]) -> list[dict]:
 
 
 def molecule_companies(name: str) -> dict:
-    rows = get_client().rpc("registry_molecule_holders_g", {"p_name": name}).execute().data or []
+    rows = get_client().rpc("registry_molecule_holders_g2", {"p_name": name}).execute().data or []
     exact = _by_group([r for r in rows if r["match"] == "exact"])
     combos = _by_group([r for r in rows if r["match"] == "combination"])
     return {

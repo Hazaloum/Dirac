@@ -8,18 +8,23 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   ChevronDown,
+  Copy,
+  Crown,
   FlaskConical,
   Handshake,
   Loader2,
   Radar,
+  Rocket,
   Search as SearchIcon,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
   X,
 } from "lucide-react";
-import { AtcCascade } from "@/components/AtcCascade";
-import { MoleculeDashboard, VerdictStrip } from "@/components/MoleculeDashboard";
+import { AddToDeal } from "@/components/AddToDeal";
+import { MoleculeDashboard } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { api, type MoleculeCard } from "@/lib/api";
+import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProfileCompany } from "@/lib/api";
 
 const shortcuts = [
   { href: "/analysis", icon: BookOpenText, title: "Evaluate a Catalogue", blurb: "Upload a supplier list and score every molecule" },
@@ -29,10 +34,160 @@ const shortcuts = [
   { href: "/outreach", icon: Radar, title: "Find Manufacturers", blurb: "Source partners and BD contacts by country" },
 ];
 
+function fmtAed(v: number) {
+  if (v >= 1_000_000_000) return `AED ${(v / 1_000_000_000).toFixed(2)}B`;
+  if (v >= 1_000_000) return `AED ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `AED ${(v / 1_000).toFixed(0)}K`;
+  return `AED ${Math.round(v)}`;
+}
+
+function fmtUnits(v: number) {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M packs`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k packs`;
+  return `${Math.round(v)} packs`;
+}
+
+const fmtCagr = (v: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
+
+// Manufacturer, with the parent corporation when it's a different name (Janssen · Johnson & Johnson).
+function Company({ c }: { c: ProfileCompany }) {
+  const mfr = c.manufacturer ?? "";
+  const corp = c.corporation ?? "";
+  const same = !corp || mfr.toLowerCase().startsWith(corp.toLowerCase()) || corp.toLowerCase().startsWith(mfr.toLowerCase());
+  return (
+    <>
+      {mfr || corp}
+      {!same && <span className="text-surface-400"> · {corp}</span>}
+    </>
+  );
+}
+
+const years = (from?: string, to?: string) => {
+  const y = (d?: string) => (d ? Number(d.split("/")[1]) + (Number(d.split("/")[0]) - 1) / 12 : NaN);
+  const n = Math.round(y(to) - y(from));
+  return Number.isFinite(n) ? n : null;
+};
+
+function CagrChip({ v }: { v: number | null }) {
+  if (v == null) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${v < 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+      {v < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+      {fmtCagr(v)} / yr
+    </span>
+  );
+}
+
+function FactTile({ icon: Icon, label, title, sub, foot }: {
+  icon: typeof Crown; label: string; title: string; sub?: React.ReactNode; foot?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3.5 rounded-xl border border-surface-200 bg-white p-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-pharma-50 text-pharma-900">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wider text-surface-400">{label}</p>
+        <p className="mt-1 truncate font-serif text-2xl font-medium tracking-tight text-surface-900">{title}</p>
+        {sub && <p className="mt-0.5 truncate text-xs text-surface-600">{sub}</p>}
+        {foot && <p className="mt-2 text-[11px] text-surface-400">{foot}</p>}
+      </div>
+    </div>
+  );
+}
+
+function MoleculeFacts({ p }: { p: MoleculeProfile }) {
+  const gap = years(p.first_launch?.date, p.first_generic?.date);
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      <FactTile icon={Crown} label="Leading brand"
+        title={p.leading_brand?.product ?? "—"}
+        sub={p.leading_brand && <Company c={p.leading_brand} />}
+        foot={p.leading_brand?.share_pct != null
+          ? <><span className="font-semibold text-pharma-900">{p.leading_brand.share_pct.toFixed(0)}%</span> of the market by value in {p.market.end_year}</>
+          : `Highest value in ${p.market.end_year}`} />
+      <FactTile icon={Rocket} label="First launch"
+        title={p.first_launch?.date ?? "—"}
+        sub={p.first_launch && <>{p.first_launch.product} · <Company c={p.first_launch} /></>}
+        foot="Entry into the UAE market" />
+      {p.first_generic ? (
+        <FactTile icon={Copy} label="First generic"
+          title={p.first_generic.product}
+          sub={<><Company c={p.first_generic} /> · {p.first_generic.date}</>}
+          foot={gap != null ? `${gap} year${gap === 1 ? "" : "s"} after first launch` : undefined} />
+      ) : (
+        <FactTile icon={Copy} label="First generic" title="None yet" sub="Only the originator sells it" />
+      )}
+    </div>
+  );
+}
+
+function SplitBar({ label, pct }: { label: string; pct: number | null }) {
+  if (pct == null) return null;
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between text-xs">
+        <span className="text-surface-500">{label}</span>
+        <span className="font-mono text-[11px] text-surface-700">
+          <span className="font-semibold text-pharma-900">{Math.round(pct)}%</span>
+          <span className="text-surface-400"> / </span>{Math.round(100 - pct)}%
+        </span>
+      </div>
+      <div className="flex h-2 overflow-hidden rounded-full bg-surface-200">
+        <div className="rounded-full bg-pharma-900" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MarketFacts({ p, fallbackCompetitors }: { p: MoleculeProfile; fallbackCompetitors?: number | null }) {
+  const m = p.market;
+  const competitors = m.competitors ?? fallbackCompetitors;
+  const since = m.value_cagr_since ?? m.units_cagr_since;
+  return (
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="rounded-xl bg-surface-50 p-4">
+        <p className="text-[10px] uppercase tracking-wider text-surface-400">Market value {m.end_year}</p>
+        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{fmtAed(m.value)}</p>
+        <div className="mt-2"><CagrChip v={m.value_cagr} /></div>
+      </div>
+      <div className="rounded-xl bg-surface-50 p-4">
+        <p className="text-[10px] uppercase tracking-wider text-surface-400">Units {m.end_year}</p>
+        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{fmtUnits(m.units)}</p>
+        <div className="mt-2"><CagrChip v={m.units_cagr} /></div>
+      </div>
+      <div className="rounded-xl bg-surface-50 p-4">
+        <p className="text-[10px] uppercase tracking-wider text-surface-400">Competitors on IQVIA</p>
+        <p className="mt-1 font-serif text-4xl font-medium tracking-tight text-surface-900">{competitors ?? "—"}</p>
+        {competitors != null && (
+          <p className="mt-2 text-[11px] text-surface-500">
+            {m.competitors_selling == null || m.competitors_selling === competitors
+              ? `manufacturer${competitors === 1 ? "" : "s"} on IQVIA`
+              : `${m.competitors_selling} with sales in ${m.end_year}`}
+          </p>
+        )}
+      </div>
+      <div className="rounded-xl bg-surface-50 p-4">
+        <p className="mb-3 text-[10px] uppercase tracking-wider text-surface-400">
+          <span className="text-pharma-900">Private</span> / LPO
+        </p>
+        <div className="space-y-3">
+          <SplitBar label="By value" pct={m.private_value_pct} />
+          <SplitBar label="By units" pct={m.private_units_pct} />
+        </div>
+      </div>
+      <p className="text-[11px] text-surface-400 md:col-span-2 lg:col-span-4">
+        UAE IQVIA · CAGR {since ?? ""}–{m.end_year} · launch dates are month-level
+      </p>
+    </div>
+  );
+}
+
 export default function SearchPage() {
   const [allMolecules, setAllMolecules] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<MoleculeCard | null>(null);
+  const [slices, setSlices] = useState<MoleculeSlices | null>(null);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,9 +231,13 @@ export default function SearchPage() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.enrichMolecules([molecule], molecule);
+      const [response, trend] = await Promise.all([
+        api.enrichMolecules([molecule], molecule),
+        api.getMoleculeTrend(molecule).catch(() => null),
+      ]);
       const match = response.molecules.find((item) => item.molecule.toUpperCase() === molecule.toUpperCase());
       if (!match) throw new Error("No market record was returned for that molecule.");
+      setSlices(trend?.found ? trend : null);
       setResult(match);
     } catch (searchError: unknown) {
       setResult(null);
@@ -91,6 +250,7 @@ export default function SearchPage() {
   const clearSearch = () => {
     setQuery("");
     setResult(null);
+    setSlices(null);
     setError("");
     setShowSuggestions(false);
   };
@@ -185,30 +345,37 @@ export default function SearchPage() {
 
         {result && (
           <section className="animate-slide-up space-y-5">
-            <div className="grid gap-8 rounded-2xl border border-surface-200 bg-white p-6 shadow-sm sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
-              <div className="flex min-w-0 flex-col">
+            <div className="rounded-2xl border border-surface-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="matthew-eyebrow text-pharma-900">Molecule brief</span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-emerald-700">IQVIA matched</span>
+                  </div>
+                  <h2 className="mt-3 font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl">{result.molecule}</h2>
+                  {(result.atc4_class || result.atc3_class) && (
+                    <span className="mt-3 inline-block rounded-full border border-surface-200 bg-surface-50 px-3 py-1 text-xs text-surface-600">
+                      {result.atc4_class || result.atc3_class}
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="matthew-eyebrow text-pharma-900">Molecule brief</span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-emerald-700">IQVIA matched</span>
-                </div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl">{result.molecule}</h2>
-                <p className="mt-2 text-sm text-surface-500">
-                  {result.atc4_class || result.atc3_class || "UAE pharmaceutical market"}
-                  {result.launch_year ? ` · launched ${result.launch_year}` : ""}
-                </p>
-                <div className="mt-4">
-                  <VerdictStrip molecule={result} />
-                </div>
-                <div className="mt-auto pt-5">
-                  <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
-                    <FlaskConical className="h-4 w-4" /> Open full molecule view
-                  </button>
+                <AddToDeal molecule={result.molecule} />
+                <button type="button" onClick={() => setDrawerMolecule(result)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-surface-300 px-4 py-2.5 text-sm font-semibold text-surface-700 transition-colors hover:border-pharma-300 hover:bg-pharma-50 hover:text-pharma-900">
+                  <FlaskConical className="h-4 w-4" /> Open full molecule view
+                </button>
                 </div>
               </div>
-              {result.in_iqvia && <AtcCascade molecule={result.molecule} />}
+
+              {slices?.profile && (
+                <div className="mt-7 space-y-3">
+                  <MoleculeFacts p={slices.profile} />
+                  <MarketFacts p={slices.profile} fallbackCompetitors={result.num_competitors} />
+                </div>
+              )}
             </div>
 
-            <MoleculeDashboard molecule={result} />
+            <MoleculeDashboard molecule={result} slices={slices} />
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pharma-200 bg-pharma-50/70 px-5 py-4 text-sm text-pharma-950">
               <span>One-time lookup complete. No portfolio or scoring workflow was started.</span>

@@ -47,10 +47,14 @@ export const api = {
     req<MarketDiscoveryResponse>(`/api/market-discovery/competitors?atc4=${encodeURIComponent(atc4)}&molecule=${encodeURIComponent(molecule)}`),
 
   // Analysis
-  uploadCatalogue: (file: File, company: string) => {
+  uploadCatalogue: (file: File, company: string, pick?: CompanyPick | null) => {
     const form = new FormData();
     form.append("file", file);
     form.append("company", company);
+    if (pick) {
+      form.append("company_id", String(pick.company_id));
+      form.append("whole_group", String(pick.whole_group));
+    }
     return req<AnalysisResult>("/api/analysis/upload", { method: "POST", body: form });
   },
 
@@ -64,8 +68,13 @@ export const api = {
   getManufacturers: (molecule: string) =>
     req<ManufacturerBreakdown>(`/api/analysis/manufacturers/${encodeURIComponent(molecule)}`),
 
-  getMoleculeTrend: (molecule: string) =>
-    req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}`),
+  getMoleculeTrend: (molecule: string, filters: { nfc3?: string | null; strength?: string | null } = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.nfc3) qs.set("nfc3", filters.nfc3);
+    if (filters.strength) qs.set("strength", filters.strength);
+    const q = qs.toString();
+    return req<MoleculeSlices>(`/api/analysis/trend/${encodeURIComponent(molecule)}${q ? `?${q}` : ""}`);
+  },
 
   getMoleculeLineage: (molecule: string) =>
     req<MoleculeLineage>(`/api/analysis/lineage/${encodeURIComponent(molecule)}`),
@@ -95,6 +104,7 @@ export const api = {
     model: string;
     result: AnalysisResult;
     report: string;
+    run_id?: string | null;   // update this run instead of adding one
   }) => req<{ run_id: string }>("/api/analysis/history", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -190,6 +200,13 @@ export const api = {
   searchRegistryMolecules: (q: string) => req<RegistryMolecule[]>(`/api/registry/molecules?q=${encodeURIComponent(q)}`),
   getCompanyPortfolio: (companyId: number, wholeGroup = true) =>
     req<ExhibitorPortfolio>(`/api/registry/company-portfolio/${companyId}?whole_group=${wholeGroup}`),
+  addToRegistry: (body: { company_id: number; source: string;
+                          items: { name: string; form?: string; strengths?: string; catalogue_status?: string }[] }) =>
+    req<{ added: number; updated: number }>("/api/registry/uploaded", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
   searchRegistryCompanies: (q: string) => req<RegistryCompany[]>(`/api/registry/companies?q=${encodeURIComponent(q)}`),
   getMoleculeHolders: (molecule: string) =>
     req<MoleculeHolders>(`/api/registry/molecule-companies?molecule=${encodeURIComponent(molecule)}`),
@@ -197,6 +214,8 @@ export const api = {
   // Deal Tracker
   getDeals: () => req<DealBoard>("/api/deals"),
   getDeal: (id: number) => req<DealDetail>(`/api/deals/${id}`),
+  getDealForMolecule: (molecule: string) =>
+    req<{ deal: DealRef | null }>(`/api/deals/by-molecule/${encodeURIComponent(molecule)}`),
   createDeal: (body: { molecule: string; partner?: string; stage?: string }) =>
     req<DealDetail>("/api/deals", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -279,6 +298,7 @@ export const api = {
   setPipelineDecision: (payload: {
     molecule: string;
     decision: PipelineDecisionValue;
+    source_type?: string;   // Analysis mode; "upload" = ticked in a supplier's catalogue
     source_name: string;
     snapshot: MoleculeCard;
   }) => req<PipelineDecision>("/api/pipeline", {
@@ -292,6 +312,64 @@ export const api = {
 };
 
 // ─── SSE helpers ─────────────────────────────────────────────────────────────
+
+export type UploadProgress =
+  | { molecule: string; count: number }
+  | { stage: "reading"; pages: number; image_pages: number }
+  | { stage: "fallback"; reason: string }
+  | { stage: "registry" };
+
+/** Upload catalogue with progress: onProgress per molecule found (running count), then the registry check. */
+export async function uploadCatalogueStream(
+  file: File,
+  company: string,
+  pick: CompanyPick | null,
+  onProgress: (p: UploadProgress) => void,
+): Promise<AnalysisResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("company", company);
+  if (pick) {
+    form.append("company_id", String(pick.company_id));
+    form.append("whole_group", String(pick.whole_group));
+  }
+  const dropped = "The connection to the server dropped (it may be restarting). Upload the file again in a minute: " +
+    "pages already read are reused, so they aren't paid for twice.";
+  let res: Response;
+  try {
+    res = await fetch(`${API}/api/analysis/upload-stream`, { method: "POST", credentials: "include", body: form });
+  } catch {
+    throw new Error(dropped);
+  }
+  if (res.status === 502 || res.status === 503 || res.status === 504) throw new Error(dropped);
+  if (!res.ok || !res.body) throw new Error(`Upload failed (${res.status})`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch {
+      throw new Error(dropped);
+    }
+    const { done, value } = chunk;
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (raw === "[DONE]") continue;
+      const msg = JSON.parse(raw);
+      if (msg.error) throw new Error(msg.error);
+      if (msg.result) return msg.result as AnalysisResult;
+      onProgress(msg);
+    }
+  }
+  throw new Error(dropped);
+}
 
 export function streamScore(
   payload: ScorePayload,
@@ -423,9 +501,36 @@ export interface MoleculeCard {
   atc3_molecule_count?: number;
   atc3_value_rank?: string;
   atc3_value_pct?: number;
+  /** Upload catalogue only: vs the picked company's registry portfolio. in_registry = it already holds it;
+   *  already_uploaded = added from an earlier catalogue; new = not in its registries; unmatched = no registry
+   *  molecule found for the name. Nothing is written until the review screen's "Add to registries". */
+  registry_status?: "in_registry" | "already_uploaded" | "new" | "unmatched" | null;
+  /** Upload catalogue: the ingredients as the catalogue wrote them (the registry check's name). */
+  registry_name?: string;
+  /** Upload catalogue read by AI: the catalogue's products for this molecule. */
+  catalogue?: CatalogueInfo;
   // Added by frontend after scoring
   ai_score?: number;
   ai_reasoning?: string;
+}
+
+export interface CatalogueProduct {
+  brand: string;
+  dosage_form: string;
+  /** in_uae: whether the UAE market (IQVIA) sells this strength; null when the molecule isn't in IQVIA. */
+  strengths: { label: string; in_uae: boolean | null }[];
+  countries: string[];
+  status: "approved" | "submitted" | "unknown";
+  expected_date: string;
+  pages: number[];
+  from_image: boolean;
+}
+
+export interface CatalogueInfo {
+  status: "approved" | "submitted" | "unknown";
+  products: CatalogueProduct[];
+  /** Strengths the UAE market sells that the catalogue doesn't offer. */
+  uae_only: string[];
 }
 
 export interface MarketDiscoveryNode {
@@ -509,6 +614,12 @@ export interface AnalysisResult {
   enriched_data: string;
   atc4_context: string;
   stats: { total: number; matched_iqvia: number };
+  /** Upload catalogue with a registry company: the check against its registry portfolio. */
+  registry_check?: { company_id?: number; whole_group?: boolean; in_registry?: number; already_uploaded?: number;
+                     new?: number; unmatched?: number; error?: string };
+  /** Upload catalogue: how the products were read. keyword = the AI failed (reason) and keyword matching ran. */
+  extraction?: { method: "ai" | "keyword"; model?: string; pages?: number; image_pages?: number;
+                 products?: number; dropped?: number; reason?: string };
 }
 
 export interface ManufacturerBreakdown {
@@ -532,6 +643,62 @@ export interface MoleculeSlices {
   partial_year: number;
   competitor: Record<"total" | "private" | "lpo", SliceMetrics>;
   dims: Partial<Record<"channel" | "product" | "strength" | "nfc3", SliceMetrics>>;
+  filters: { nfc3: string | null; strength: string | null };
+  options: { nfc3: string[]; strength: string[] };   // strengths narrowed to the chosen NFC3
+  profile: MoleculeProfile;                           // always the whole molecule, unfiltered
+}
+
+export interface ProfileCompany {
+  product: string;
+  manufacturer: string | null;
+  corporation: string | null;   // IQVIA MIDAS Corporation (parent)
+}
+
+export interface CompetitorRow {
+  manufacturer: string;
+  product: string;           // its biggest product
+  originator: boolean;       // same corporation as the first launch
+  launch: string | null;     // MM/YYYY
+  new: boolean;              // launched in the last two years
+  value: number;             // end year
+  start_value: number;       // first year
+  units: number;
+  cagr: number | null;       // over the full window only
+  private_pct: number | null;
+  share_pct: number;
+}
+
+export interface Competition {
+  end_year: number;
+  start_year: number;
+  manufacturers: CompetitorRow[];   // selling in the end year, biggest first
+  hhi: number | null;
+  top3_pct: number | null;
+  generic_pct: number | null;
+  generics_selling: number;
+  generics_ever: number;
+  to_80_pct: number | null;          // manufacturers needed to reach 80% of value
+  exits: { manufacturer: string; product: string; last_value: number }[];
+}
+
+export interface MoleculeProfile {
+  competition?: Competition;
+  leading_brand: (ProfileCompany & { share_pct: number | null }) | null;  // highest end-year value; share of the molecule's value
+  first_launch: (ProfileCompany & { date: string }) | null;   // date MM/YYYY
+  first_generic: (ProfileCompany & { date: string }) | null;  // earliest launch by another corporation
+  market: {
+    end_year: number;
+    competitors?: number;          // IQVIA manufacturers (same as num_competitors)
+    competitors_selling?: number;  // … with end-year sales
+    value: number;
+    value_cagr: number | null;
+    value_cagr_since: number | null;
+    units: number;
+    units_cagr: number | null;
+    units_cagr_since: number | null;
+    private_value_pct: number | null;
+    private_units_pct: number | null;
+  };
 }
 
 export interface LineageLevel {
@@ -884,6 +1051,8 @@ export interface DealDetail extends Deal {
   events: DealEvent[];
 }
 
+export interface DealRef { id: number; stage: string; stage_name: string; partner: string; status: string }
+
 export interface DealBoard { stages: DealStage[]; reasons: string[]; deals: Deal[] }
 
 export interface DealUpdate {
@@ -960,6 +1129,9 @@ export interface EventDetail extends EventSummary {
 // ─── Master registry ─────────────────────────────────────────────────────────
 
 export interface RegistryMolecule { combo_key: string; products: number; companies: number; countries: number; in_uae: boolean }
+
+/** The registry company a catalogue belongs to: a whole group (validated against all its companies), or one company. */
+export interface CompanyPick { company_id: number; whole_group: boolean }
 
 export interface RegistryCompanyMember { id: number; name: string; products: number; countries: string[] }
 

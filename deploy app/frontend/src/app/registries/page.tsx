@@ -7,9 +7,18 @@ import { ddmmyy } from "@/lib/dates";
 import { AllRegistriesSearch } from "@/components/AllRegistriesSearch";
 
 const COUNTRY: Record<string, string> = {
-  AE: "UAE", BE: "Belgium", BG: "Bulgaria", CZ: "Czechia", ES: "Spain", FR: "France", HU: "Hungary", IE: "Ireland",
-  IT: "Italy", NL: "Netherlands", OM: "Oman", PL: "Poland", RO: "Romania", SE: "Sweden", SK: "Slovakia", US: "United States",
+  AE: "UAE", AT: "Austria", BE: "Belgium", BG: "Bulgaria", BH: "Bahrain", CZ: "Czechia", ES: "Spain", FR: "France",
+  GB: "United Kingdom", HU: "Hungary", IE: "Ireland", IT: "Italy", KW: "Kuwait", NL: "Netherlands", OM: "Oman",
+  PL: "Poland", QA: "Qatar", RO: "Romania", SA: "Saudi Arabia", SE: "Sweden", SK: "Slovakia", US: "United States",
 };
+// Shown under the country when it needs telling apart (two UAE registries) or qualifying (the partial UK list).
+const AGENCY: Record<string, string> = { ae_mohap: "MOHAP", ae_doh: "DoH Abu Dhabi", uk_mhra: "Partial list" };
+const GCC = new Set(["AE", "BH", "KW", "OM", "QA", "SA"]);
+const REFERENCE = new Set(["US", "GB"]);
+const REGIONS = ["GCC", "EU", "USA & UK", "Other"] as const;
+const region = (country: string) =>
+  GCC.has(country) ? "GCC" : REFERENCE.has(country) ? "USA & UK" : country === "Uploaded" ? "Other" : "EU";
+const countryName = (country: string) => (country === "Uploaded" ? "Uploaded catalogues" : COUNTRY[country] ?? country);
 const PAGE = 50;
 
 const molecules = (r: RegistryRow) => (r.combo_key ? r.combo_key.split("+").join(" + ") : r.molecule_raw || "—");
@@ -64,15 +73,33 @@ export default function RegistriesPage() {
       {error && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {!sources && !error && <p className="text-surface-500">Loading registries…</p>}
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {sources?.map((s) => (
-          <button key={s.key} onClick={() => { setRegistry(s.key); setOffset(0); }} aria-pressed={registry === s.key}
-            className={`grid gap-0.5 rounded-xl border px-4 py-2 text-left transition-colors ${registry === s.key ? "border-pharma-700 bg-pharma-50" : "border-surface-300 bg-white hover:border-pharma-300"}`}>
-            <span className="text-sm font-semibold text-surface-900">{COUNTRY[s.country] ?? s.country}</span>
-            <span className="text-xs text-surface-500">{(s.row_count ?? 0).toLocaleString()} products</span>
-            {s.snapshot_date && <span className="text-xs text-surface-400">updated {ddmmyy(s.snapshot_date)}</span>}
-          </button>
-        ))}
+      <div className="mb-6 grid gap-4">
+        {REGIONS.map((name) => {
+          const group = (sources ?? []).filter((s) => region(s.country) === name)
+            .sort((a, b) => countryName(a.country).localeCompare(countryName(b.country)) || a.key.localeCompare(b.key));
+          if (!group.length) return null;
+          const products = group.reduce((n, s) => n + (s.row_count ?? 0), 0);
+          return (
+            <section key={name}>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-500">
+                {name} <span className="font-normal normal-case tracking-normal">· {group.length} {group.length === 1 ? "registry" : "registries"} · {products.toLocaleString()} products</span>
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {group.map((s) => (
+                  <button key={s.key} onClick={() => { setRegistry(s.key); setOffset(0); }} aria-pressed={registry === s.key}
+                    className={`grid gap-0.5 rounded-xl border px-4 py-2 text-left transition-colors ${registry === s.key ? "border-pharma-700 bg-pharma-50" : "border-surface-300 bg-white hover:border-pharma-300"}`}>
+                    <span className="text-sm font-semibold text-surface-900">
+                      {countryName(s.country)}
+                      {AGENCY[s.key] && <span className="ml-1.5 text-xs font-normal text-surface-500">{AGENCY[s.key]}</span>}
+                    </span>
+                    <span className="text-xs text-surface-500">{(s.row_count ?? 0).toLocaleString()} products</span>
+                    {s.snapshot_date && <span className="text-xs text-surface-400">updated {ddmmyy(s.snapshot_date)}</span>}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
       {source && (
