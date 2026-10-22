@@ -201,6 +201,24 @@ export default function AnalysisPage() {
   const fromHistoryRef  = useRef(false);   // prevents re-saving when loading from history
   const restoredRef     = useRef(false);   // the stored working session has been read
 
+  // A catalogue read before 22/10/26 compared strengths across all forms ("UAE also sells: …"): compare it again,
+  // form by form, when it is opened (from History or the stored session).
+  const upgradedRef = useRef<AnalysisResult | null>(null);
+  useEffect(() => {
+    if (!result || upgradedRef.current === result) return;
+    const legacy = result.molecules.filter((m) => m.catalogue && !m.catalogue.other_forms);
+    if (!legacy.length) return;
+    upgradedRef.current = result;
+    api.refreshCatalogue(legacy.map((m) => ({ molecule: m.molecule, catalogue: m.catalogue! })))
+      .then((fresh) => {
+        const byName = new Map(fresh.map((f) => [f.molecule, f.catalogue]));
+        setResult((cur) => cur === result
+          ? { ...cur, molecules: cur.molecules.map((m) => byName.has(m.molecule) ? { ...m, catalogue: byName.get(m.molecule)! } : m) }
+          : cur);
+      })
+      .catch(() => {});
+  }, [result]);
+
   // Leaving the page (or a reload) brings the last catalogue back instead of losing it.
   useEffect(() => {
     const saved = readAnalysisSession();

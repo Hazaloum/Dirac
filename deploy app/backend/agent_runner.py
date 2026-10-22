@@ -289,6 +289,26 @@ def ai_extract_and_enrich_steps(files: Files, company_name: str, dfs: dict):
     yield "result", result
 
 
+def refresh_catalogue(items: list[dict], dfs: dict) -> list[dict]:
+    """Redo the strengths-vs-UAE comparison of saved catalogue cards ([{molecule, catalogue}]) with the current rules,
+    e.g. for runs saved before strengths were compared form by form. Only the supplier's own strengths are kept as
+    input (offered, or every strength on old runs)."""
+    from catalogue_ai import uae_strengths, compare_strengths
+    df = dfs["iqvia"]
+    known = set(df["Molecule Combination"].dropna().unique())
+    out = []
+    for it in items:
+        cat = dict(it.get("catalogue") or {})
+        products = [{**p, "strengths": [x["label"] for x in p.get("strengths") or [] if x.get("offered", True)]}
+                    for p in cat.get("products") or []]
+        molecule = it.get("molecule") or ""
+        uae = uae_strengths(df, molecule) if molecule in known else {}
+        cat["products"], cat["other_forms"] = compare_strengths(uae, products)
+        cat.pop("uae_only", None)
+        out.append({"molecule": molecule, "catalogue": cat})
+    return out
+
+
 def enrich_molecules(molecules: list[str], company_name: str, dfs: dict) -> dict:
     """Enrich a manually selected list of molecules (craft / single molecule modes)."""
     df_upper = dfs["iqvia"]["Molecule Combination"].str.upper()

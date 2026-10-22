@@ -300,6 +300,16 @@ class EnrichRequest(BaseModel):
     molecules: list[str]
     company: Optional[str] = "Portfolio"
 
+class RefreshCatalogueRequest(BaseModel):
+    items: list[dict]          # [{molecule, catalogue}] from a saved result
+
+@app.post("/api/analysis/refresh-catalogue")
+def analysis_refresh_catalogue(body: RefreshCatalogueRequest):
+    """Saved catalogue cards → strengths compared again with the current rules (form by form)."""
+    from agent_runner import refresh_catalogue
+    return refresh_catalogue(body.items, _state["dfs"])
+
+
 @app.post("/api/analysis/enrich")
 def analysis_enrich(body: EnrichRequest):
     """Enrich a list of molecules — craft portfolio or single molecule modes."""

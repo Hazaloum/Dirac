@@ -58,6 +58,13 @@ export const api = {
     return req<AnalysisResult>("/api/analysis/upload", { method: "POST", body: form });
   },
 
+  refreshCatalogue: (items: { molecule: string; catalogue: CatalogueInfo }[]) =>
+    req<{ molecule: string; catalogue: CatalogueInfo }[]>("/api/analysis/refresh-catalogue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    }),
+
   enrichMolecules: (molecules: string[], company?: string) =>
     req<AnalysisResult>("/api/analysis/enrich", {
       method: "POST",
