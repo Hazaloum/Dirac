@@ -13,6 +13,19 @@ export function CatalogueStatusBadge({ status }: { status?: CatalogueInfo["statu
   return null;
 }
 
+/** One strength: highlighted when the supplier has it (green = also sold in the UAE, dashed = a strength the UAE
+ *  doesn't have yet); plain grey when only the UAE market has it. */
+function StrengthPill({ label, in_uae, offered = true }: { label: string; in_uae: boolean | null; offered?: boolean }) {
+  const [style, title] = !offered
+    ? ["border-surface-200 text-surface-400", "Sold in the UAE · this supplier doesn't offer it"]
+    : in_uae == null
+      ? ["border-pharma-300 bg-pharma-50 text-pharma-900 font-semibold", "This supplier has it"]
+      : in_uae
+        ? ["border-pharma-500 bg-pharma-100 text-pharma-900 font-semibold", "This supplier has it · also sold in the UAE"]
+        : ["border-dashed border-amber-500 bg-amber-50 text-amber-900 font-semibold", "This supplier has it · not sold in the UAE yet"];
+  return <span title={title} className={`px-1.5 py-px rounded border tabular-nums ${style}`}>{label}</span>;
+}
+
 /** On a molecule card: the catalogue's status, forms, strengths vs the UAE market, expected date. */
 export function CatalogueLine({ info }: { info: CatalogueInfo }) {
   const products = info.products;
@@ -31,21 +44,21 @@ export function CatalogueLine({ info }: { info: CatalogueInfo }) {
       </div>
       {products.map((p, i) => (
         <div key={i} className="flex flex-wrap items-center gap-1">
-          {p.dosage_form && <span className="text-surface-500 mr-0.5">{p.dosage_form}:</span>}
-          {p.strengths.map((s) => (
-            <span key={s.label}
-              title={s.in_uae == null ? undefined : s.in_uae ? "Sold in the UAE" : "Not sold in the UAE"}
-              className={`px-1.5 py-px rounded border tabular-nums ${s.in_uae == null ? "border-surface-200 text-surface-600"
-                : s.in_uae ? "border-pharma-200 bg-pharma-50 text-pharma-900" : "border-surface-200 text-surface-400"}`}>
-              {s.label}
-            </span>
-          ))}
+          {p.dosage_form && <span className="text-surface-600 mr-0.5">{p.dosage_form}:</span>}
+          {p.strengths.map((s) => <StrengthPill key={s.label} {...s} />)}
         </div>
       ))}
-      {info.uae_only.length > 0 && (
-        <p className="text-surface-500" title="Strengths the UAE market sells that this catalogue doesn't offer">
-          UAE also sells: {info.uae_only.join(", ")}
-        </p>
+      {(info.other_forms ?? []).map((f) => (
+        <div key={f.form} className="flex flex-wrap items-center gap-1" title="Sold in the UAE in a form this catalogue doesn't offer">
+          <span className="text-surface-400 mr-0.5">UAE {f.form.toLowerCase()}:</span>
+          {f.strengths.map((label) => <StrengthPill key={label} label={label} in_uae offered={false} />)}
+        </div>
+      ))}
+      {!info.other_forms && (info.uae_only ?? []).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1" title="Strengths the UAE market sells that this catalogue doesn't offer">
+          <span className="text-surface-400 mr-0.5">UAE also sells:</span>
+          {info.uae_only!.map((label) => <StrengthPill key={label} label={label} in_uae offered={false} />)}
+        </div>
       )}
     </div>
   );
@@ -67,12 +80,18 @@ export function ExtractionNote({ result }: { result: AnalysisResult }) {
       Read by AI: {x.products} product{x.products === 1 ? "" : "s"} from {x.pages} page{x.pages === 1 ? "" : "s"}
       {x.image_pages ? ` (${x.image_pages} read as images)` : ""}
       {x.dropped ? ` · ${x.dropped} dropped (not found on the page)` : ""}
+      <span className="ml-3 inline-flex flex-wrap items-center gap-1.5 align-middle">
+        Strengths:
+        <StrengthPill label="supplier has · in UAE" in_uae />
+        <StrengthPill label="supplier has · not in UAE" in_uae={false} />
+        <StrengthPill label="UAE only" in_uae offered={false} />
+      </span>
     </p>
   );
 }
 
 const forms = (c: MoleculeCard) => Array.from(new Set((c.catalogue?.products ?? []).map((p) => p.dosage_form).filter(Boolean))).join("; ");
-const strengths = (c: MoleculeCard) => Array.from(new Set((c.catalogue?.products ?? []).flatMap((p) => p.strengths.map((s) => s.label)))).join(", ");
+const strengths = (c: MoleculeCard) => Array.from(new Set((c.catalogue?.products ?? []).flatMap((p) => p.strengths.filter((s) => s.offered !== false).map((s) => s.label)))).join(", ");
 
 /** Review before writing: the catalogue's molecules not in the company's registries, ticked to add.
  *  Submitted (not yet approved) and unmatched names start unticked; after a keyword fallback, all do. */

@@ -212,7 +212,7 @@ def ai_extract_and_enrich_steps(files: Files, company_name: str, dfs: dict):
     (products with form, strengths vs the UAE, countries, approved/submitted, pages) and `registry_name`
     (ingredients as written, for the registry check). Raises on failure, so the caller can fall back."""
     import re
-    from catalogue_ai import MODEL, read_catalogue, merge_products, strength_key, uae_strengths
+    from catalogue_ai import MODEL, read_catalogue, merge_products, uae_strengths, compare_strengths
     from data_processing.molecule_normalizer import strip_salt_forms
 
     raw, seen, info, dropped = [], set(), {}, 0
@@ -272,23 +272,17 @@ def ai_extract_and_enrich_steps(files: Files, company_name: str, dfs: dict):
         if not entry:
             continue
         uae = uae_strengths(dfs["iqvia"], entry["iqvia"]) if entry["iqvia"] else {}
-        offered: set[tuple] = set()
-        items = []
-        for p in entry["products"]:
-            strengths = []
-            for s in p.get("strengths") or []:
-                k = strength_key(s)
-                offered.add(k)
-                strengths.append({"label": s, "in_uae": (k in uae) if uae else None})
-            items.append({"brand": p.get("brand") or "", "dosage_form": p.get("dosage_form") or "",
-                          "strengths": strengths, "countries": p.get("countries") or [],
-                          "status": p.get("status") or "unknown", "expected_date": p.get("expected_date") or "",
-                          "pages": p.get("pages") or [], "from_image": bool(p.get("from_image"))})
+        items = [{"brand": p.get("brand") or "", "dosage_form": p.get("dosage_form") or "",
+                  "strengths": p.get("strengths") or [], "countries": p.get("countries") or [],
+                  "status": p.get("status") or "unknown", "expected_date": p.get("expected_date") or "",
+                  "pages": p.get("pages") or [], "from_image": bool(p.get("from_image"))}
+                 for p in entry["products"]]
+        items, other_forms = compare_strengths(uae, items)
         card["registry_name"] = entry["registry_name"]
         card["catalogue"] = {
             "status": min((i["status"] for i in items), key=lambda s: rank.get(s, 2)),
             "products": items,
-            "uae_only": [label for k, label in sorted(uae.items(), key=lambda kv: kv[1]) if k not in offered],
+            "other_forms": other_forms,
         }
     result["extraction"] = {"method": "ai", "model": MODEL, "pages": info.get("pages"),
                             "image_pages": info.get("image_pages"), "products": len(products), "dropped": dropped}

@@ -326,12 +326,78 @@ def strength_key(text: str) -> tuple:
     return tuple(sorted(_doses(text)))
 
 
-def uae_strengths(df_iqvia, molecule: str) -> dict[tuple, str]:
-    """Strengths sold in the UAE for an IQVIA molecule, from the pack text (falls back to the Strength column)."""
+# Dosage-form groups, so a gel is compared with gels and a tablet with tablets. IQVIA: the NFC3 code's first letter
+# (A/B oral solid, D oral liquid, F/G injection, M skin, …); the catalogue: keywords in its free-text form.
+FORM_GROUPS = {
+    "oral_solid": "Tablets / capsules", "oral_liquid": "Oral liquids / sachets", "injection": "Injections",
+    "skin": "Skin (gel, cream, spray)", "eye": "Eye", "ear": "Ear", "nose": "Nose", "inhaled": "Inhaled",
+    "mouth": "Mouth / throat", "vaginal": "Vaginal", "rectal": "Rectal", "patch": "Patches / other systemic",
+}
+_NFC1_GROUP = {"A": "oral_solid", "B": "oral_solid", "D": "oral_liquid", "F": "injection", "G": "injection",
+               "H": "rectal", "I": "nose", "J": "patch", "K": "mouth", "M": "skin", "N": "eye", "P": "ear",
+               "Q": "nose", "R": "inhaled", "T": "vaginal"}
+_FORM_WORDS = [   # first match wins: specific routes before generic shapes
+    ("eye", r"eye|ophthalm|ocular"), ("ear", r"\bear\b|otic|auricular"), ("nose", r"nasal|nose"),
+    ("inhaled", r"inhal|nebuli|respule|aerosol for inhal|dry powder"), ("vaginal", r"vagin|pessar"),
+    ("rectal", r"rectal|suppositor|enema"), ("patch", r"transdermal|patch"),
+    ("mouth", r"mouth|oromucos|throat|lozenge|buccal|gingival|dental"),
+    ("injection", r"inject|infus|vial|ampoule|ampul|syringe|\bpen\b|\bi\.?v\b|\bi\.?m\b|parenteral|concentrate for"),
+    ("skin", r"\bgels?\b|emulgel|cream|ointment|lotion|cutaneous|topical|dermal|foam|shampoo|paste|emulsion|spray|liniment"),
+    ("oral_liquid", r"solution|syrup|suspension|drops|elixir|sachet|granul|powder|liquid|stick|emulsion"),
+    ("oral_solid", r"tablet|tab\b|capsule|caps?\b|caplet|pill|dragee|chewable|orodispers"),
+]
+
+
+def form_group(dosage_form: str) -> str | None:
+    """Catalogue form text → FORM_GROUPS key ('Spray gel' → 'skin', 'Oral solution in bottle' → 'oral_liquid')."""
+    t = (dosage_form or "").lower()
+    for group, pattern in _FORM_WORDS:
+        if re.search(pattern, t):
+            return group
+    return None
+
+
+def _dose_sort(label: str) -> tuple:
+    nums = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", label)]
+    return (nums or [0.0], label)
+
+
+def uae_strengths(df_iqvia, molecule: str) -> dict[str, dict[tuple, str]]:
+    """Strengths sold in the UAE for an IQVIA molecule per form group: {group: {strength key: label}}, from the
+    pack text (falls back to the Strength column). Packs without an NFC3 go under "" (any form)."""
     rows = df_iqvia[df_iqvia["Molecule Combination"] == molecule]
-    out: dict[tuple, str] = {}
-    for pack, strength in zip(rows["Pack"].astype(str), rows["Strength"].astype(str)):
+    nfc3 = rows["NFC3"].astype(str) if "NFC3" in rows.columns else [""] * len(rows)
+    out: dict[str, dict[tuple, str]] = {}
+    for pack, strength, nfc in zip(rows["Pack"].astype(str), rows["Strength"].astype(str), nfc3):
         doses = _doses(pack, pack=True) or _doses(re.sub(r"^0+(?=\d)", "", strength))
         if doses:
-            out.setdefault(tuple(sorted(doses)), "/".join(d.lower() for d in doses))
+            group = _NFC1_GROUP.get(nfc.strip()[:1].upper(), "")
+            out.setdefault(group, {}).setdefault(tuple(sorted(doses)), "/".join(d.lower() for d in doses))
     return out
+
+
+def compare_strengths(uae: dict[str, dict[tuple, str]], products: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Catalogue products vs UAE strengths, form by form.
+
+    Returns (rows, other_forms). Each row = one catalogue product with `uae_form` and `strengths`: every UAE strength
+    of that form plus the catalogue's, each {label, offered, in_uae}. other_forms = UAE forms the catalogue doesn't
+    offer, each {form, strengths:[label]}. Without IQVIA data in_uae is None."""
+    have_uae = bool(uae)
+    rows, used = [], set()
+    for p in products:
+        group = form_group(p.get("dosage_form") or "")
+        pool = uae.get(group, {}) if group else {k: v for g in uae.values() for k, v in g.items()}
+        if group:
+            used.add(group)
+        cells: dict[tuple, dict] = {k: {"label": label, "offered": False, "in_uae": True} for k, label in pool.items()}
+        for s in p.get("strengths") or []:
+            k = strength_key(s)
+            if k in cells:
+                cells[k].update(offered=True, label=s)
+            else:
+                cells[k or (s,)] = {"label": s, "offered": True, "in_uae": False if have_uae else None}
+        rows.append({**p, "form_group": group, "uae_form": FORM_GROUPS.get(group, ""),
+                     "strengths": sorted(cells.values(), key=lambda c: _dose_sort(c["label"]))})
+    other = [{"form": FORM_GROUPS.get(g, "Other"), "strengths": sorted(v.values(), key=_dose_sort)}
+             for g, v in uae.items() if g not in used and v]
+    return rows, other

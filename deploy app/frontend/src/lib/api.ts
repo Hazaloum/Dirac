@@ -522,8 +522,12 @@ export interface MoleculeCard {
 export interface CatalogueProduct {
   brand: string;
   dosage_form: string;
-  /** in_uae: whether the UAE market (IQVIA) sells this strength; null when the molecule isn't in IQVIA. */
-  strengths: { label: string; in_uae: boolean | null }[];
+  /** Every UAE strength of this form plus the catalogue's. offered: the catalogue has it (missing on runs saved
+   *  before 22/10/26, where every strength is the catalogue's); in_uae: the UAE market (IQVIA) sells it, null when
+   *  the molecule isn't in IQVIA. */
+  strengths: { label: string; in_uae: boolean | null; offered?: boolean }[];
+  /** The UAE form group the strengths were compared within, e.g. "Skin (gel, cream, spray)"; "" = all forms. */
+  uae_form?: string;
   countries: string[];
   status: "approved" | "submitted" | "unknown";
   expected_date: string;
@@ -534,8 +538,10 @@ export interface CatalogueProduct {
 export interface CatalogueInfo {
   status: "approved" | "submitted" | "unknown";
   products: CatalogueProduct[];
-  /** Strengths the UAE market sells that the catalogue doesn't offer. */
-  uae_only: string[];
+  /** UAE forms the catalogue doesn't offer, with their strengths. */
+  other_forms?: { form: string; strengths: string[] }[];
+  /** Runs saved before 22/10/26: UAE strengths the catalogue doesn't offer, all forms together. */
+  uae_only?: string[];
 }
 
 export interface MarketDiscoveryNode {
