@@ -9,6 +9,7 @@ import json
 import os
 import secrets
 import sys
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -35,17 +36,36 @@ SESSION_TOKEN = os.getenv("SESSION_TOKEN", secrets.token_hex(32))
 # ─── App state ───────────────────────────────────────────────────────────────
 _state: dict = {}
 
+# On Vercel the backend runs as a function: no startup hook to rely on and nothing runs between requests. So the
+# reference data loads on the first request an instance gets (then stays in memory for later ones), and the
+# background loops are replaced by scheduled calls (Vercel cron → /api/cron/review; Tecnimede in GitHub Actions).
+ON_VERCEL = bool(os.getenv("VERCEL"))
+_load_lock = threading.Lock()
+
+
+def ensure_loaded() -> None:
+    """Load IQVIA / UPP / MOHAP / WHO once per process (Constraint 2: never per request)."""
+    if "dfs" in _state:
+        return
+    with _load_lock:
+        if "dfs" in _state:
+            return
+        from agent_runner import load_data
+        from data_processing.who_crosswalk import _assets as load_who_assets
+        print("Loading UAE market data from Supabase (IQVIA / UPP / MOHAP / WHO ATC)...")
+        dfs, _state["market_context"] = load_data()
+        load_who_assets()
+        _state["molecules"] = sorted(dfs["iqvia"]["Molecule Combination"].dropna().unique().tolist())
+        _state["dfs"] = dfs
+        print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from agent_runner import load_data
-    from data_processing.who_crosswalk import _assets as load_who_assets
-    print("Loading UAE market data from Supabase (IQVIA / UPP / MOHAP / WHO ATC)...")
-    _state["dfs"], _state["market_context"] = load_data()
-    load_who_assets()
-    _state["molecules"] = sorted(
-        _state["dfs"]["iqvia"]["Molecule Combination"].dropna().unique().tolist()
-    )
-    print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
+    if ON_VERCEL:
+        yield
+        return
+    ensure_loaded()
     from tecnimede import daily_sync
     from registry_review import review_after_refresh
     daily = asyncio.create_task(daily_sync())
@@ -79,6 +99,14 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def load_data_middleware(request: Request, call_next):
+    """Vercel: the first request on a fresh instance loads the reference data (~20 s) before it is answered."""
+    if "dfs" not in _state and request.method != "OPTIONS":
+        await run_in_threadpool(ensure_loaded)
+    return await call_next(request)
+
+
 # ─── Auth endpoints ───────────────────────────────────────────────────────────
 class LoginRequest(BaseModel):
     password: str
@@ -88,7 +116,7 @@ def login(body: LoginRequest, response: Response):
     if body.password != APP_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password")
     # Hosted (Railway, Render, Cloud Run) → cross-site cookie for the Vercel frontend; plain cookie locally.
-    is_production = any(os.getenv(v) for v in ("RAILWAY_ENVIRONMENT", "RENDER", "K_SERVICE", "PRODUCTION"))
+    is_production = any(os.getenv(v) for v in ("RAILWAY_ENVIRONMENT", "VERCEL", "RENDER", "K_SERVICE", "PRODUCTION"))
     response.set_cookie(
         "session", SESSION_TOKEN,
         httponly=True,
@@ -1123,7 +1151,38 @@ def registry_review_run():
     from registry_review import start_review
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(400, "ANTHROPIC_API_KEY is not set on the backend")
+    if ON_VERCEL:       # nothing runs after the response on Vercel: review within this request, time-limited
+        from registry_review import run_review
+        try:
+            return {"started": True, "finished": True, **run_review("manual", budget_s=REVIEW_BUDGET_S)}
+        except RuntimeError as e:
+            raise HTTPException(409, str(e))
     return {"started": start_review("manual")}
+
+
+REVIEW_BUDGET_S = 240       # a Vercel function stops at 300 s; leave room to log the run
+
+
+@app.get("/api/cron/review")
+def cron_review(request: Request):
+    """Vercel cron (vercel.json): review the queues if a registry refresh landed or items wait. Time-limited; the
+    next call carries on. Vercel sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set."""
+    secret = os.getenv("CRON_SECRET")
+    if secret and request.headers.get("authorization") != f"Bearer {secret}":
+        raise HTTPException(401, "Unauthorized")
+    from registry_review import run_review, should_review
+    if not os.getenv("ANTHROPIC_API_KEY") or not should_review():
+        return {"ran": False}
+    try:
+        return {"ran": True, **run_review("scheduled", budget_s=REVIEW_BUDGET_S)}
+    except RuntimeError as e:
+        return {"ran": False, "error": str(e)}
+
+
+@app.get("/api/health")
+def health():
+    """Wake-up / warm-up call: answered after the reference data is loaded."""
+    return {"ok": True, "molecules": len(_state.get("molecules", []))}
 
 
 class CompanyDecision(BaseModel):

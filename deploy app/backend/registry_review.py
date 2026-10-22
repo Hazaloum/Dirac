@@ -22,6 +22,7 @@ import asyncio
 import json
 import os
 import threading
+import time
 from datetime import datetime, timezone
 
 from supabase_client import get_client, get_service_client
@@ -33,6 +34,11 @@ MAX_COMPANY_PAIRS, MAX_MOLECULES, MAX_GROUPS = 20000, 50000, 5000       # safety
 MERGE_CONFIDENCE = 0.8
 
 _lock = threading.Lock()
+_deadline: float | None = None      # time.monotonic() after which the queues stop (a time-limited run, e.g. on Vercel)
+
+
+def _out_of_time() -> bool:
+    return _deadline is not None and time.monotonic() > _deadline
 last_review: dict = {}
 
 
@@ -87,7 +93,7 @@ COMPANY_SCHEMA = {
 
 def review_companies(db) -> dict:
     judged = merged = unsure = 0
-    while judged < MAX_COMPANY_PAIRS:
+    while judged < MAX_COMPANY_PAIRS and not _out_of_time():
         pairs = db.rpc("registry_company_pairs", {"p_verdict": None, "p_limit": COMPANY_BATCH}).execute().data or []
         if not pairs:
             break
@@ -156,7 +162,7 @@ GROUP_SCHEMA = {
 def review_groups(db) -> dict:
     db.rpc("registry_build_group_candidates", {}).execute()
     judged = applied = unsure = 0
-    while judged < MAX_GROUPS:
+    while judged < MAX_GROUPS and not _out_of_time():
         clusters = db.rpc("registry_group_clusters", {"p_status": "pending", "p_limit": GROUP_BATCH}).execute().data or []
         if not clusters:
             break
@@ -213,7 +219,7 @@ MOLECULE_SCHEMA = {
 def review_molecules(db) -> dict:
     db.rpc("registry_refresh_ingredient_queue", {}).execute()      # one slow scan, then the queue is a small table
     judged = matched = unsure = 0
-    while judged < MAX_MOLECULES:
+    while judged < MAX_MOLECULES and not _out_of_time():
         items = db.rpc("registry_unmatched_ingredients", {"p_limit": MOLECULE_BATCH, "p_status": None}).execute().data or []
         if not items:
             break
@@ -267,8 +273,10 @@ def decide_molecule(alias: str, inn: str | None) -> dict:
 
 # ---------------------------------------------------------------- runs
 
-def run_review(trigger: str) -> dict:
-    """One review at a time; the outcome is logged in registry_review_log."""
+def run_review(trigger: str, budget_s: float | None = None) -> dict:
+    """One review at a time; the outcome is logged in registry_review_log. With budget_s the queues stop after that
+    many seconds (result `partial`); the next run carries on where this one stopped."""
+    global _deadline
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set on the backend")
     if not _lock.acquire(blocking=False):
@@ -276,15 +284,18 @@ def run_review(trigger: str) -> dict:
     db = _db()
     log = db.table("registry_review_log").insert({"trigger": trigger}).execute().data[0]
     result: dict = {}
+    _deadline = time.monotonic() + budget_s if budget_s else None
     try:
         result.update(review_companies(db))
         result.update(review_groups(db))
         result.update(review_molecules(db))
-        db.rpc("registry_refresh_molecule_index", {}).execute()     # molecule search on the Registries page
+        partial = _out_of_time()
+        if not partial:
+            db.rpc("registry_refresh_molecule_index", {}).execute()     # molecule search on the Registries page
         db.table("registry_review_log").update({**result, "finished_at": datetime.now(timezone.utc).isoformat()}).eq("id", log["id"]).execute()
         last_review.clear()
-        last_review.update({"ok": True, **result})
-        return result
+        last_review.update({"ok": True, **result, **({"partial": True} if partial else {})})
+        return {**result, **({"partial": True} if partial else {})}
     except Exception as e:
         db.table("registry_review_log").update({**result, "error": str(e)[:1000],
                                                 "finished_at": datetime.now(timezone.utc).isoformat()}).eq("id", log["id"]).execute()
@@ -292,6 +303,7 @@ def run_review(trigger: str) -> dict:
         last_review.update({"ok": False, "error": str(e)})
         raise
     finally:
+        _deadline = None
         _lock.release()
 
 
