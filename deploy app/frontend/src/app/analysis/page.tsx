@@ -556,7 +556,7 @@ export default function AnalysisPage() {
           {/* Mode selector */}
           <div className="grid grid-cols-3 gap-3">
             {([
-              { id: "upload",   label: "Upload catalogue", icon: Upload,       desc: "PDF, CSV, or Excel" },
+              { id: "upload",   label: "Upload catalogue", icon: Upload,       desc: "PDF, Excel, CSV or image" },
               { id: "craft",    label: "Craft a list",      icon: Plus,         desc: "Search & select molecules" },
               { id: "molecule", label: "Single molecule",   icon: FlaskConical, desc: "Run an ad-hoc lookup" },
             ] as const).map(({ id, label, icon: Icon, desc }) => (
@@ -615,7 +615,7 @@ export default function AnalysisPage() {
                         ? "border-pharma-300 bg-pharma-900 text-white font-medium/5"
                         : "border-surface-300 hover:border-zinc-600"
                   }`}>
-                  <input id="file-input" type="file" accept=".pdf,.csv,.xlsx,.xls" className="hidden"
+                  <input id="file-input" type="file" accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.heif" className="hidden"
                     onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
                   {file ? (
                     <div className="flex items-center justify-center gap-3">
@@ -633,7 +633,7 @@ export default function AnalysisPage() {
                     <>
                       <Upload className="w-8 h-8 text-surface-400 mx-auto mb-3" />
                       <p className="text-sm text-surface-600">Drop file here or click to browse</p>
-                      <p className="text-xs text-surface-400 mt-1">PDF, CSV, XLSX supported</p>
+                      <p className="text-xs text-surface-400 mt-1">PDF, Excel, CSV or a photo / screenshot</p>
                     </>
                   )}
                 </div>

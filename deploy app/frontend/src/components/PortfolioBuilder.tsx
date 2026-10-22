@@ -307,7 +307,7 @@ export function PortfolioBuilder({
           <input
             ref={fileInput}
             type="file"
-            accept=".pdf,.csv,.xlsx,.xls,.docx"
+            accept=".pdf,.csv,.xlsx,.xls,.docx,.png,.jpg,.jpeg,.webp,.heic,.heif"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -323,7 +323,7 @@ export function PortfolioBuilder({
             <>
               <Upload className="w-6 h-6 text-surface-400 mx-auto mb-2" />
               <p className="text-sm text-surface-700">Import from a file</p>
-              <p className="text-xs text-surface-400 mt-0.5">PDF, CSV or Excel — molecules are added to your list</p>
+              <p className="text-xs text-surface-400 mt-0.5">PDF, Excel, CSV or a photo / screenshot — molecules are added to your list</p>
             </>
           )}
         </div>

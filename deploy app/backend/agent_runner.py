@@ -164,6 +164,25 @@ def extract_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs:
     raise RuntimeError("extraction produced no result")
 
 
+def read_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs: dict) -> dict:
+    """Claude reads the catalogue (ai_extract_and_enrich_steps); if that fails, keyword matching — except for an
+    image, which has no text to match, so the failure is raised."""
+    from catalogue_ai import is_image
+    try:
+        for kind, data in ai_extract_and_enrich_steps(file_bytes, filename, company_name, dfs):
+            if kind == "result":
+                return data
+        raise RuntimeError("extraction produced no result")
+    except Exception as e:
+        reason = str(e) or type(e).__name__
+        if is_image(filename):
+            raise RuntimeError(f"Couldn't read the image: {reason}") from e
+        print(f"AI catalogue reading failed, using keyword matching: {reason}")
+        result = extract_and_enrich(file_bytes, filename, company_name, dfs)
+        result["extraction"] = {"method": "keyword", "reason": reason}
+        return result
+
+
 def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
     """extract_and_enrich as steps, for progress: ("molecule", name) after each molecule is enriched, then ("result", dict)."""
     from data_processing.molecule_normalizer import smart_molecule_search

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -166,15 +167,14 @@ def market_discovery_competitors(atc4: str, molecule: str):
 @app.post("/api/analysis/upload")
 async def analysis_upload(file: UploadFile = File(...), company: str = Form(...),
                           company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
-    """Upload a catalogue (PDF/CSV/Excel) → keyword extraction + enrich. With a registry company: a read-only check
-    of the molecules against its registry portfolio. (Analysis uses /upload-stream, which reads with AI first.)"""
-    from agent_runner import extract_and_enrich
+    """Upload a catalogue (PDF/CSV/Excel/image) → AI reading (keyword fallback) + enrich. With a registry company: a
+    read-only check of the molecules against its registry portfolio. (Analysis uses /upload-stream, for progress.)"""
+    from agent_runner import read_and_enrich
     content = await file.read()
     try:
-        result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
+        result = await run_in_threadpool(read_and_enrich, content, file.filename or "upload", company, _state["dfs"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    result["extraction"] = {"method": "keyword"}
     if company_id:
         from registry import check_catalogue
         try:
@@ -210,6 +210,9 @@ async def analysis_upload_stream(file: UploadFile = File(...), company: str = Fo
                         result = data
             except Exception as e:
                 reason = str(e) or type(e).__name__
+                from catalogue_ai import is_image
+                if is_image(filename):
+                    raise RuntimeError(f"Couldn't read the image: {reason}") from e
                 print(f"AI catalogue reading failed, using keyword matching: {reason}")
                 yield send({"stage": "fallback", "reason": reason})
                 result, count = None, 0
@@ -550,11 +553,11 @@ def portfolio_hierarchy():
 
 @app.post("/api/portfolio/upload")
 async def save_portfolio_upload(file: UploadFile = File(...), company: str = Form(...)):
-    from agent_runner import extract_and_enrich
+    from agent_runner import read_and_enrich
     from store import save_my_portfolio
     content = await file.read()
     try:
-        result = extract_and_enrich(content, file.filename or "upload", company, _state["dfs"])
+        result = await run_in_threadpool(read_and_enrich, content, file.filename or "upload", company, _state["dfs"])
         save_my_portfolio(company, result)
         return result
     except Exception as e:

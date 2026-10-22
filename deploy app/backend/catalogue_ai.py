@@ -2,7 +2,8 @@
 catalogue_ai.py — read a supplier catalogue's product list with Claude (Analysis → Upload catalogue).
 
 Flow: split the file into pages (PDF: text per page; a page with almost no text is sent as an image, e.g. a
-scanned table or a cover; Excel/CSV: the extracted text in parts) → chunks (text pages together, each image
+scanned table or a cover; an image file (photo / screenshot of a price list) is one image page; Excel/CSV: the
+extracted text in parts) → chunks (text pages together, each image
 page alone) read in parallel by Claude Haiku 5.5 with a strict JSON schema → checks → merged products.
 
 Each product cites its page and a short `source` quote. A product from a text page whose quote isn't on the
@@ -32,6 +33,28 @@ MAX_IMAGE_PAGES = 40
 CHUNK_CHARS = 12000
 CHUNK_PAGES = 8
 WORKERS = 4
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif"}
+MAX_IMAGE_SIDE = 2000      # longer edge, px; bigger photos are scaled down before sending
+
+
+def is_image(filename: str) -> bool:
+    return Path(filename).suffix.lower() in IMAGE_SUFFIXES
+
+
+def _image_page(content: bytes) -> dict:
+    """An uploaded image file → one image page (JPEG, EXIF rotation applied, scaled down to MAX_IMAGE_SIDE so it
+    stays under the API's 5 MB image limit)."""
+    from PIL import Image, ImageOps
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except ImportError:
+        pass
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(content))).convert("RGB")
+    img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=88)
+    return {"page": 1, "image": base64.standard_b64encode(buf.getvalue()).decode(), "media_type": "image/jpeg"}
 
 SYSTEM = """You extract the product list from a pharmaceutical company's product catalogue. The text was pulled from a PDF or spreadsheet, so table columns may be run together (e.g. "10mgBulgaria"), rows may wrap across lines, and section headings can appear in odd places. Some pages are given as images instead (scans, designed pages, covers).
 
@@ -76,7 +99,9 @@ SCHEMA = {
 # ─── Pages and chunks ────────────────────────────────────────────────────────
 
 def catalogue_pages(content: bytes, filename: str) -> list[dict]:
-    """[{page, text}] or [{page, image (base64 PNG)}] — PDFs page by page; other files as text parts."""
+    """[{page, text}] or [{page, image (base64 PNG / JPEG)}] — PDFs page by page; an image file as one page; other files as text parts."""
+    if is_image(filename):
+        return [_image_page(content)]
     if Path(filename).suffix.lower() == ".pdf" or content[:5] == b"%PDF-":
         import pdfplumber
         pages, images = [], 0
@@ -133,7 +158,7 @@ def _read_chunk(client, chunk: list[dict], company: str) -> tuple[list[dict], in
     for p in chunk:
         if "image" in p:
             content.append({"type": "text", "text": f"=== PAGE {p['page']} (image) ==="})
-            content.append({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": p["image"]}})
+            content.append({"type": "image", "source": {"type": "base64", "media_type": p.get("media_type", "image/png"), "data": p["image"]}})
         else:
             content.append({"type": "text", "text": f"=== PAGE {p['page']} ===\n{p['text']}"})
 
