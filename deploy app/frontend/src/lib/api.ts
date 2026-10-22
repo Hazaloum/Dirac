@@ -319,9 +319,9 @@ export type UploadProgress =
   | { stage: "fallback"; reason: string }
   | { stage: "registry" };
 
-/** Catalogue files go up as `files` (several are read by the backend as one catalogue). */
+/** Catalogue files: the first as `file`, any others as `files` (the backend reads them all as one catalogue). */
 function appendFiles(form: FormData, files: File | File[]) {
-  for (const f of Array.isArray(files) ? files : [files]) form.append("files", f);
+  (Array.isArray(files) ? files : [files]).forEach((f, i) => form.append(i ? "files" : "file", f));
 }
 
 /** Upload catalogue with progress: onProgress per molecule found (running count), then the registry check. */

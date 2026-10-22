@@ -165,8 +165,8 @@ def market_discovery_competitors(atc4: str, molecule: str):
 
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
 async def _read_uploads(file: Optional[UploadFile], files: Optional[list[UploadFile]]) -> list[tuple[bytes, str]]:
-    """The uploaded catalogue files as [(bytes, filename)]: `files` (several, read as one catalogue) and/or `file`."""
-    uploads = [u for u in (files or []) + ([file] if file else []) if u is not None]
+    """The uploaded catalogue files as [(bytes, filename)]: `file` (the first) then `files` (any more), read as one catalogue."""
+    uploads = [u for u in ([file] if file else []) + (files or []) if u is not None]
     if not uploads:
         raise HTTPException(status_code=422, detail="No file uploaded")
     return [(await u.read(), u.filename or "upload") for u in uploads]
