@@ -275,6 +275,17 @@ def read_catalogue(files: list[tuple[bytes, str]], company: str):
     yield "done", {"dropped": dropped}
 
 
+def _unique_strengths(labels: list[str]) -> list[str]:
+    """'1 mg' and '1mg' are one strength: keep the first spelling of each dose."""
+    seen, out = set(), []
+    for s in labels:
+        k = strength_key(s) or (s.strip().lower(),)
+        if k not in seen:
+            seen.add(k)
+            out.append(s)
+    return out
+
+
 def merge_products(products: list[dict]) -> list[dict]:
     """One entry per ingredients × dosage form: strengths, countries and pages united; approved beats submitted."""
     rank = {"approved": 0, "submitted": 1, "unknown": 2}
@@ -283,10 +294,10 @@ def merge_products(products: list[dict]) -> list[dict]:
         key = (tuple(sorted(i.lower() for i in p["ingredients"])), (p.get("dosage_form") or "").strip().lower())
         m = merged.get(key)
         if m is None:
-            merged[key] = {**p, "pages": [p.get("page")], "strengths": list(dict.fromkeys(p.get("strengths") or [])),
+            merged[key] = {**p, "pages": [p.get("page")], "strengths": _unique_strengths(p.get("strengths") or []),
                            "countries": list(dict.fromkeys(p.get("countries") or []))}
             continue
-        m["strengths"] = list(dict.fromkeys(m["strengths"] + (p.get("strengths") or [])))
+        m["strengths"] = _unique_strengths(m["strengths"] + (p.get("strengths") or []))
         m["countries"] = list(dict.fromkeys(m["countries"] + (p.get("countries") or [])))
         m["pages"] = sorted({*m["pages"], p.get("page")} - {None})
         if rank.get(p.get("status"), 2) < rank.get(m.get("status"), 2):
@@ -383,20 +394,39 @@ def compare_strengths(uae: dict[str, dict[tuple, str]], products: list[dict]) ->
     of that form plus the catalogue's, each {label, offered, in_uae}. other_forms = UAE forms the catalogue doesn't
     offer, each {form, strengths:[label]}. Without IQVIA data in_uae is None."""
     have_uae = bool(uae)
-    rows, used = [], set()
-    for p in products:
+    # One row per form group: "Tablets" and "Film-coated tablets" are both tablets, so their strengths share a row.
+    by_group: dict[str, dict] = {}
+    for i, p in enumerate(products):
         group = form_group(p.get("dosage_form") or "")
+        row = by_group.get(group or f"?{i}")
+        if row is None:
+            by_group[group or f"?{i}"] = {**p, "form_group": group, "strengths": list(p.get("strengths") or []),
+                                          "forms": [p.get("dosage_form") or ""]}
+            continue
+        row["strengths"] += p.get("strengths") or []
+        row["forms"].append(p.get("dosage_form") or "")
+        row["countries"] = list(dict.fromkeys((row.get("countries") or []) + (p.get("countries") or [])))
+        row["pages"] = sorted(set(row.get("pages") or []) | set(p.get("pages") or []))
+        row["from_image"] = bool(row.get("from_image")) and bool(p.get("from_image"))
+        if p.get("status") == "approved" or row.get("status") == "unknown":
+            row["status"] = p.get("status") or row.get("status")
+        row["expected_date"] = row.get("expected_date") or p.get("expected_date") or ""
+    rows, used = [], set()
+    for row in by_group.values():
+        group = row["form_group"]
         pool = uae.get(group, {}) if group else {k: v for g in uae.values() for k, v in g.items()}
         if group:
             used.add(group)
         cells: dict[tuple, dict] = {k: {"label": label, "offered": False, "in_uae": True} for k, label in pool.items()}
-        for s in p.get("strengths") or []:
-            k = strength_key(s)
+        for s in row["strengths"]:
+            k = strength_key(s) or (s.strip().lower(),)
             if k in cells:
-                cells[k].update(offered=True, label=s)
+                if not cells[k]["offered"]:
+                    cells[k].update(offered=True, label=s)
             else:
-                cells[k or (s,)] = {"label": s, "offered": True, "in_uae": False if have_uae else None}
-        rows.append({**p, "form_group": group, "uae_form": FORM_GROUPS.get(group, ""),
+                cells[k] = {"label": s, "offered": True, "in_uae": False if have_uae else None}
+        forms = list(dict.fromkeys(f for f in row.pop("forms") if f))
+        rows.append({**row, "dosage_form": " / ".join(forms), "uae_form": FORM_GROUPS.get(group, ""),
                      "strengths": sorted(cells.values(), key=lambda c: _dose_sort(c["label"]))})
     other = [{"form": FORM_GROUPS.get(g, "Other"), "strengths": sorted(v.values(), key=_dose_sort)}
              for g, v in uae.items() if g not in used and v]

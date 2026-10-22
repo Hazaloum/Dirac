@@ -13,6 +13,10 @@ export function CatalogueStatusBadge({ status }: { status?: CatalogueInfo["statu
   return null;
 }
 
+/** "1 mg" and "1mg" are one strength (runs saved before 22/10/26 can hold both). */
+const uniqueByLabel = <T extends { label: string }>(items: T[]) =>
+  items.filter((x, i) => items.findIndex((y) => y.label.replace(/\s+/g, "").toLowerCase() === x.label.replace(/\s+/g, "").toLowerCase()) === i);
+
 /** One strength: highlighted when the supplier has it (green = also sold in the UAE, dashed = a strength the UAE
  *  doesn't have yet); plain grey when only the UAE market has it. */
 function StrengthPill({ label, in_uae, offered = true }: { label: string; in_uae: boolean | null; offered?: boolean }) {
@@ -45,7 +49,7 @@ export function CatalogueLine({ info }: { info: CatalogueInfo }) {
       {products.map((p, i) => (
         <div key={i} className="flex flex-wrap items-center gap-1">
           {p.dosage_form && <span className="text-surface-600 mr-0.5">{p.dosage_form}:</span>}
-          {p.strengths.map((s) => <StrengthPill key={s.label} {...s} />)}
+          {uniqueByLabel(p.strengths).map((s) => <StrengthPill key={s.label} {...s} />)}
         </div>
       ))}
       {(info.other_forms ?? []).map((f) => (
