@@ -47,9 +47,9 @@ export const api = {
     req<MarketDiscoveryResponse>(`/api/market-discovery/competitors?atc4=${encodeURIComponent(atc4)}&molecule=${encodeURIComponent(molecule)}`),
 
   // Analysis
-  uploadCatalogue: (file: File, company: string, pick?: CompanyPick | null) => {
+  uploadCatalogue: (files: File | File[], company: string, pick?: CompanyPick | null) => {
     const form = new FormData();
-    form.append("file", file);
+    appendFiles(form, files);
     form.append("company", company);
     if (pick) {
       form.append("company_id", String(pick.company_id));
@@ -141,9 +141,9 @@ export const api = {
 
   getPortfolioHierarchy: () => req<PortfolioHierarchy>("/api/portfolio/hierarchy"),
 
-  savePortfolioUpload: (file: File, company: string) => {
+  savePortfolioUpload: (files: File | File[], company: string) => {
     const form = new FormData();
-    form.append("file", file);
+    appendFiles(form, files);
     form.append("company", company);
     return req<AnalysisResult>("/api/portfolio/upload", { method: "POST", body: form });
   },
@@ -319,15 +319,20 @@ export type UploadProgress =
   | { stage: "fallback"; reason: string }
   | { stage: "registry" };
 
+/** Catalogue files go up as `files` (several are read by the backend as one catalogue). */
+function appendFiles(form: FormData, files: File | File[]) {
+  for (const f of Array.isArray(files) ? files : [files]) form.append("files", f);
+}
+
 /** Upload catalogue with progress: onProgress per molecule found (running count), then the registry check. */
 export async function uploadCatalogueStream(
-  file: File,
+  files: File | File[],
   company: string,
   pick: CompanyPick | null,
   onProgress: (p: UploadProgress) => void,
 ): Promise<AnalysisResult> {
   const form = new FormData();
-  form.append("file", file);
+  appendFiles(form, files);
   form.append("company", company);
   if (pick) {
     form.append("company_id", String(pick.company_id));

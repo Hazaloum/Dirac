@@ -156,38 +156,42 @@ def format_enriched_data(companies: list, lookups: dict) -> str:
 
 # ─── Phase 1: Extract + Enrich ───────────────────────────────────────────────
 
-def extract_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs: dict) -> dict:
-    """Extract molecules from uploaded file and enrich with market data."""
-    for kind, data in extract_and_enrich_steps(file_bytes, filename, company_name, dfs):
+Files = list[tuple[bytes, str]]   # uploaded files as (bytes, filename); several are read as one catalogue
+
+
+def extract_and_enrich(files: Files, company_name: str, dfs: dict) -> dict:
+    """Extract molecules from the uploaded files and enrich with market data."""
+    for kind, data in extract_and_enrich_steps(files, company_name, dfs):
         if kind == "result":
             return data
     raise RuntimeError("extraction produced no result")
 
 
-def read_and_enrich(file_bytes: bytes, filename: str, company_name: str, dfs: dict) -> dict:
-    """Claude reads the catalogue (ai_extract_and_enrich_steps); if that fails, keyword matching — except for an
-    image, which has no text to match, so the failure is raised."""
+def read_and_enrich(files: Files, company_name: str, dfs: dict) -> dict:
+    """Claude reads the catalogue (ai_extract_and_enrich_steps); if that fails, keyword matching — except when
+    every file is an image, which has no text to match, so the failure is raised."""
     from catalogue_ai import is_image
     try:
-        for kind, data in ai_extract_and_enrich_steps(file_bytes, filename, company_name, dfs):
+        for kind, data in ai_extract_and_enrich_steps(files, company_name, dfs):
             if kind == "result":
                 return data
         raise RuntimeError("extraction produced no result")
     except Exception as e:
         reason = str(e) or type(e).__name__
-        if is_image(filename):
+        if all(is_image(name) for _, name in files):
             raise RuntimeError(f"Couldn't read the image: {reason}") from e
         print(f"AI catalogue reading failed, using keyword matching: {reason}")
-        result = extract_and_enrich(file_bytes, filename, company_name, dfs)
+        result = extract_and_enrich(files, company_name, dfs)
         result["extraction"] = {"method": "keyword", "reason": reason}
         return result
 
 
-def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+def extract_and_enrich_steps(files: Files, company_name: str, dfs: dict):
     """extract_and_enrich as steps, for progress: ("molecule", name) after each molecule is enriched, then ("result", dict)."""
     from data_processing.molecule_normalizer import smart_molecule_search
 
-    text = _extract_text(file_bytes, filename)
+    from catalogue_ai import is_image
+    text = "\n\n".join(_extract_text(b, name) for b, name in files if not is_image(name))
     known_molecules = set(dfs["iqvia"]["Molecule Combination"].dropna().unique())
     found_molecules, contexts = smart_molecule_search(text, known_molecules)
 
@@ -202,7 +206,7 @@ def extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str
     yield "result", _build_response(companies, lookups, enriched_data, atc4_context, contexts)
 
 
-def ai_extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: str, dfs: dict):
+def ai_extract_and_enrich_steps(files: Files, company_name: str, dfs: dict):
     """extract_and_enrich_steps with Claude reading the catalogue (catalogue_ai) instead of keyword matching:
     ("pages", info), ("molecule", name) per new product, then ("result", dict). Each card gets `catalogue`
     (products with form, strengths vs the UAE, countries, approved/submitted, pages) and `registry_name`
@@ -212,7 +216,7 @@ def ai_extract_and_enrich_steps(file_bytes: bytes, filename: str, company_name: 
     from data_processing.molecule_normalizer import strip_salt_forms
 
     raw, seen, info, dropped = [], set(), {}, 0
-    for kind, data in read_catalogue(file_bytes, filename, company_name):
+    for kind, data in read_catalogue(files, company_name):
         if kind == "pages":
             info = data
             yield "pages", data

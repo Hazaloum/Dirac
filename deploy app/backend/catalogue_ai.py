@@ -13,6 +13,9 @@ Each chunk's result is cached in Supabase `catalogue_ai_cache` (key = hash of mo
 and the chunk's pages), so re-uploading the same file — e.g. after a dropped connection or a backend
 redeploy mid-read — reuses the chunks already read instead of paying for them again.
 
+Several files can be uploaded together (e.g. screenshots of one email): their pages are numbered on from one file
+to the next and read as one catalogue.
+
 read_catalogue(...) is a generator: ("pages", {...}) once, ("products", [...]) per chunk as it finishes, then
 ("done", {...}). Raises on any failure so the caller can fall back to keyword matching.
 """
@@ -153,14 +156,30 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
 
 
+def _from(p: dict, lead: str = ", ") -> str:
+    """ "from <file>" for the page header when several files were uploaded."""
+    if not p.get("file"):
+        return ""
+    return f"{lead}from {p['file']}" + (")" if lead.startswith(" (") else "")
+
+
+def all_pages(files: list[tuple[bytes, str]]) -> list[dict]:
+    """catalogue_pages of every file, pages numbered on across files (each tagged with its file when > 1)."""
+    pages: list[dict] = []
+    for content, filename in files:
+        for p in catalogue_pages(content, filename):
+            pages.append({**p, "page": len(pages) + 1, **({"file": filename} if len(files) > 1 else {})})
+    return pages
+
+
 def _read_chunk(client, chunk: list[dict], company: str) -> tuple[list[dict], int]:
     content = [{"type": "text", "text": f"Company: {company}"}]
     for p in chunk:
         if "image" in p:
-            content.append({"type": "text", "text": f"=== PAGE {p['page']} (image) ==="})
+            content.append({"type": "text", "text": f"=== PAGE {p['page']} (image{_from(p)}) ==="})
             content.append({"type": "image", "source": {"type": "base64", "media_type": p.get("media_type", "image/png"), "data": p["image"]}})
         else:
-            content.append({"type": "text", "text": f"=== PAGE {p['page']} ===\n{p['text']}"})
+            content.append({"type": "text", "text": f"=== PAGE {p['page']}{_from(p, ' (')} ===\n{p['text']}"})
 
     resp = client.messages.create(
         model=MODEL, max_tokens=16000, system=SYSTEM,
@@ -232,16 +251,17 @@ def _read_chunk_cached(client, chunk: list[dict], company: str) -> tuple[list[di
     return products, dropped
 
 
-def read_catalogue(content: bytes, filename: str, company: str):
+def read_catalogue(files: list[tuple[bytes, str]], company: str):
+    """files = [(bytes, filename), …], read as one catalogue."""
     key = os.getenv("ANTHROPIC_API_KEY", "")
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
     import anthropic
     client = anthropic.Anthropic(api_key=key, max_retries=3)
 
-    pages = catalogue_pages(content, filename)
+    pages = all_pages(files)
     if not pages:
-        raise RuntimeError("no readable pages in the file")
+        raise RuntimeError("no readable pages in the file" + ("s" if len(files) > 1 else ""))
     chunks = _chunks(pages)
     yield "pages", {"pages": len(pages), "image_pages": sum("image" in p for p in pages), "calls": len(chunks)}
 

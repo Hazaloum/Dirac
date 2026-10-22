@@ -134,7 +134,7 @@ export default function AnalysisPage() {
   const [phase,     setPhase]     = useState<Phase>("input");
 
   // Input state
-  const [file,           setFile]           = useState<File | null>(null);
+  const [files,          setFiles]          = useState<File[]>([]);
   const [companyName,    setCompanyName]     = useState("");
   const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
   const [uploadProgress, setUploadProgress]  = useState<{ count: number; line?: string } | null>(null);
@@ -265,13 +265,19 @@ export default function AnalysisPage() {
       .catch(() => {});
   }, []);
 
+  // ── Files (several are read as one catalogue, e.g. screenshots of one email) ──
+  const addFiles = (list: FileList | null) => {
+    const picked = Array.from(list ?? []);
+    if (picked.length) setFiles((prev) => [...prev, ...picked.filter((f) => !prev.some((p) => p.name === f.name && p.size === f.size))]);
+  };
+  const sourceName = files.map((f) => f.name).join(", ");
+
   // ── Drag & drop ──
   const [dragging, setDragging] = useState(false);
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) setFile(f);
+    addFiles(e.dataTransfer.files);
   }, []);
 
   // ── Phase 1: run enrichment ──
@@ -287,9 +293,9 @@ export default function AnalysisPage() {
 
       if (mode === "upload") {
         if (!companyName) throw new Error("Pick the company this catalogue is from");
-        if (!file) throw new Error("Please select a file");
+        if (!files.length) throw new Error("Please select a file");
         setUploadProgress({ count: 0 });
-        res = await uploadCatalogueStream(file, companyName, companyPick, (p: UploadProgress) =>
+        res = await uploadCatalogueStream(files, companyName, companyPick, (p: UploadProgress) =>
           setUploadProgress((prev) => {
             if ("molecule" in p) return { count: p.count, line: p.molecule };
             if (p.stage === "reading")
@@ -379,7 +385,7 @@ export default function AnalysisPage() {
     setReportText("");
     setReportDone(false);
     setScoredMolecules({});
-    setFile(null);
+    setFiles([]);
     setCraftMolecules([]);
     setCompanyName("");
     setEnrichError("");
@@ -611,28 +617,35 @@ export default function AnalysisPage() {
                   className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                     dragging
                       ? "border-pharma-500/70 bg-pharma-900 text-white font-medium/5"
-                      : file
+                      : files.length
                         ? "border-pharma-300 bg-pharma-900 text-white font-medium/5"
                         : "border-surface-300 hover:border-zinc-600"
                   }`}>
-                  <input id="file-input" type="file" accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.heif" className="hidden"
-                    onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
-                  {file ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <FileText className="w-8 h-8 text-pharma-900" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-surface-800">{file.name}</p>
-                        <p className="text-xs text-surface-500">{(file.size / 1024).toFixed(0)} KB</p>
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                        className="ml-2 text-surface-500 hover:text-rose-700 transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
+                  <input id="file-input" type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.heic,.heif" className="hidden"
+                    onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+                  {files.length ? (
+                    <div className="mx-auto grid max-w-md gap-2">
+                      {files.map((f, i) => (
+                        <div key={`${f.name}:${f.size}`} className="flex items-center gap-3">
+                          <FileText className="w-6 h-6 shrink-0 text-pharma-900" />
+                          <div className="min-w-0 flex-1 text-left">
+                            <p className="truncate text-sm font-medium text-surface-800">{f.name}</p>
+                            <p className="text-xs text-surface-500">{(f.size / 1024).toFixed(0)} KB</p>
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); setFiles(files.filter((_, j) => j !== i)); }}
+                            aria-label={`Remove ${f.name}`} className="text-surface-500 hover:text-rose-700 transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-xs text-surface-500">
+                        {files.length > 1 ? `${files.length} files, read as one catalogue · ` : ""}click or drop to add more
+                      </p>
                     </div>
                   ) : (
                     <>
                       <Upload className="w-8 h-8 text-surface-400 mx-auto mb-3" />
-                      <p className="text-sm text-surface-600">Drop file here or click to browse</p>
+                      <p className="text-sm text-surface-600">Drop files here or click to browse — several at once is fine</p>
                       <p className="text-xs text-surface-400 mt-1">PDF, Excel, CSV or a photo / screenshot</p>
                     </>
                   )}
@@ -712,7 +725,7 @@ export default function AnalysisPage() {
 
             <button
               onClick={runPhase1}
-              disabled={enrichLoading || (mode === "upload" && !file) || (mode !== "upload" && craftMolecules.length === 0)}
+              disabled={enrichLoading || (mode === "upload" && !files.length) || (mode !== "upload" && craftMolecules.length === 0)}
               className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
               {enrichLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               {enrichLoading ? "Extracting & enriching molecules..." : "Analyse catalogue"}
@@ -727,10 +740,10 @@ export default function AnalysisPage() {
           <ExtractionNote result={result} />
           {result.registry_check?.company_id && (
             <RegistryReview
-              key={`${result.registry_check.company_id}:${file?.name ?? ""}`}
+              key={`${result.registry_check.company_id}:${sourceName}`}
               result={result}
               company={companyName}
-              source={file?.name ?? ""}
+              source={sourceName}
               onAdded={(names) => {
                 const next = { ...result, molecules: result.molecules.map((m) =>
                   names.includes(m.molecule) ? { ...m, registry_status: "already_uploaded" as const } : m) };

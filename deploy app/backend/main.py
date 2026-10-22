@@ -164,15 +164,23 @@ def market_discovery_competitors(atc4: str, molecule: str):
 
 
 # ─── Analysis — Phase 1 ───────────────────────────────────────────────────────
+async def _read_uploads(file: Optional[UploadFile], files: Optional[list[UploadFile]]) -> list[tuple[bytes, str]]:
+    """The uploaded catalogue files as [(bytes, filename)]: `files` (several, read as one catalogue) and/or `file`."""
+    uploads = [u for u in (files or []) + ([file] if file else []) if u is not None]
+    if not uploads:
+        raise HTTPException(status_code=422, detail="No file uploaded")
+    return [(await u.read(), u.filename or "upload") for u in uploads]
+
+
 @app.post("/api/analysis/upload")
-async def analysis_upload(file: UploadFile = File(...), company: str = Form(...),
+async def analysis_upload(file: Optional[UploadFile] = File(None), files: Optional[list[UploadFile]] = File(None), company: str = Form(...),
                           company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
     """Upload a catalogue (PDF/CSV/Excel/image) → AI reading (keyword fallback) + enrich. With a registry company: a
     read-only check of the molecules against its registry portfolio. (Analysis uses /upload-stream, for progress.)"""
     from agent_runner import read_and_enrich
-    content = await file.read()
+    uploads = await _read_uploads(file, files)
     try:
-        result = await run_in_threadpool(read_and_enrich, content, file.filename or "upload", company, _state["dfs"])
+        result = await run_in_threadpool(read_and_enrich, uploads, company, _state["dfs"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     if company_id:
@@ -185,22 +193,21 @@ async def analysis_upload(file: UploadFile = File(...), company: str = Form(...)
 
 
 @app.post("/api/analysis/upload-stream")
-async def analysis_upload_stream(file: UploadFile = File(...), company: str = Form(...),
+async def analysis_upload_stream(file: Optional[UploadFile] = File(None), files: Optional[list[UploadFile]] = File(None), company: str = Form(...),
                                  company_id: Optional[int] = Form(None), whole_group: bool = Form(True)):
     """Upload a catalogue as SSE, for the progress pop-up. Claude reads the products first (catalogue_ai); if that
     fails, keyword matching (extract_and_enrich_steps) takes over. Events: {stage: "reading", pages, image_pages},
     {molecule, count} per molecule found, {stage: "fallback", reason}, {stage: "registry"}, then {result}.
     The registry check is read-only; the review screen writes via POST /api/registry/uploaded. Ends with [DONE]."""
     from agent_runner import ai_extract_and_enrich_steps, extract_and_enrich_steps
-    content = await file.read()
-    filename = file.filename or "upload"
+    uploads = await _read_uploads(file, files)
     send = lambda obj: f"data: {json.dumps(obj)}\n\n"
 
     def generate():
         try:
             result, count = None, 0
             try:
-                for kind, data in ai_extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                for kind, data in ai_extract_and_enrich_steps(uploads, company, _state["dfs"]):
                     if kind == "pages":
                         yield send({"stage": "reading", **data})
                     elif kind == "molecule":
@@ -211,12 +218,12 @@ async def analysis_upload_stream(file: UploadFile = File(...), company: str = Fo
             except Exception as e:
                 reason = str(e) or type(e).__name__
                 from catalogue_ai import is_image
-                if is_image(filename):
+                if all(is_image(name) for _, name in uploads):
                     raise RuntimeError(f"Couldn't read the image: {reason}") from e
                 print(f"AI catalogue reading failed, using keyword matching: {reason}")
                 yield send({"stage": "fallback", "reason": reason})
                 result, count = None, 0
-                for kind, data in extract_and_enrich_steps(content, filename, company, _state["dfs"]):
+                for kind, data in extract_and_enrich_steps(uploads, company, _state["dfs"]):
                     if kind == "molecule":
                         count += 1
                         yield send({"molecule": data, "count": count})
@@ -552,12 +559,12 @@ def portfolio_hierarchy():
 
 
 @app.post("/api/portfolio/upload")
-async def save_portfolio_upload(file: UploadFile = File(...), company: str = Form(...)):
+async def save_portfolio_upload(file: Optional[UploadFile] = File(None), files: Optional[list[UploadFile]] = File(None), company: str = Form(...)):
     from agent_runner import read_and_enrich
     from store import save_my_portfolio
-    content = await file.read()
+    uploads = await _read_uploads(file, files)
     try:
-        result = await run_in_threadpool(read_and_enrich, content, file.filename or "upload", company, _state["dfs"])
+        result = await run_in_threadpool(read_and_enrich, uploads, company, _state["dfs"])
         save_my_portfolio(company, result)
         return result
     except Exception as e:

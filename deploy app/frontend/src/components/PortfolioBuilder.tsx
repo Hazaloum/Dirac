@@ -132,18 +132,21 @@ export function PortfolioBuilder({
     );
   };
 
-  const importFile = async (file: File) => {
+  const importFiles = async (list: FileList | null) => {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    const label = files.length === 1 ? files[0].name : `${files.length} files`;
     setImporting(true);
     setImportNote("");
     try {
-      const res = await api.uploadCatalogue(file, "My Portfolio");
+      const res = await api.uploadCatalogue(files, "My Portfolio");
       const found = res.molecules.filter((m) => m.in_iqvia).map((m) => m.molecule);
       const fresh = found.filter((m) => !selected.includes(m));
       setSelected((prev) => [...prev, ...fresh.filter((m) => !prev.includes(m))]);
       setImportNote(
         found.length
-          ? `Found ${found.length} IQVIA molecule${found.length === 1 ? "" : "s"} in ${file.name} — ${fresh.length} added.`
-          : `No IQVIA molecules found in ${file.name}.`,
+          ? `Found ${found.length} IQVIA molecule${found.length === 1 ? "" : "s"} in ${label} — ${fresh.length} added.`
+          : `No IQVIA molecules found in ${label}.`,
       );
     } catch (e: unknown) {
       setImportNote(e instanceof Error ? e.message : "Import failed");
@@ -296,8 +299,7 @@ export function PortfolioBuilder({
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            const f = e.dataTransfer.files[0];
-            if (f) importFile(f);
+            importFiles(e.dataTransfer.files);
           }}
           onClick={() => !importing && fileInput.current?.click()}
           className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
@@ -307,11 +309,11 @@ export function PortfolioBuilder({
           <input
             ref={fileInput}
             type="file"
+            multiple
             accept=".pdf,.csv,.xlsx,.xls,.docx,.png,.jpg,.jpeg,.webp,.heic,.heif"
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) importFile(f);
+              importFiles(e.target.files);
               e.target.value = "";
             }}
           />
@@ -323,7 +325,7 @@ export function PortfolioBuilder({
             <>
               <Upload className="w-6 h-6 text-surface-400 mx-auto mb-2" />
               <p className="text-sm text-surface-700">Import from a file</p>
-              <p className="text-xs text-surface-400 mt-0.5">PDF, Excel, CSV or a photo / screenshot — molecules are added to your list</p>
+              <p className="text-xs text-surface-400 mt-0.5">PDF, Excel, CSV or photos / screenshots, several at once — molecules are added to your list</p>
             </>
           )}
         </div>
