@@ -40,6 +40,11 @@ function DealCard({ deal, stage, stages, onOpen }: {
     >
       <span className={`text-sm font-semibold text-surface-900 ${deal.status === "dropped" ? "line-through" : ""}`}>{title(deal.molecule)}</span>
       <span className="text-xs text-surface-500">{deal.partner || "No partner yet"}</span>
+      {!!deal.other_suppliers?.length && (
+        <span className="text-[11px] text-surface-500" title="Their uploaded catalogues also list this molecule">
+          {deal.partner ? "Also offered by" : "Offered by"}: <span className="text-surface-700">{deal.other_suppliers.join(", ")}</span>
+        </span>
+      )}
       <span className="flex flex-wrap gap-1">
         {deal.area && <span className="rounded-full bg-pharma-50 px-2 py-0.5 text-[11px] text-pharma-800">{deal.area.split(" ")[0]}</span>}
         {deal.status !== "active" && (
@@ -176,6 +181,18 @@ function DealDrawer({ deal, stages, reasons, onChange, onClose, onDeleted }: {
             onChange={(e) => setPartner(e.target.value)}
             onBlur={() => partner.trim() !== deal.partner && update({ partner })}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+          {!!deal.other_suppliers?.length && (
+            <p className="text-xs text-surface-500">
+              Also in catalogues from:{" "}
+              {deal.other_suppliers.map((c, i) => (
+                <span key={c}>
+                  {i > 0 && ", "}
+                  <button type="button" className="text-pharma-900 underline-offset-2 hover:underline" title="Make this the partner"
+                    onClick={() => { setPartner(c); update({ partner: c }); }}>{c}</button>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
         <div className="grid gap-1">
           <label htmlFor="deal-mah" className="text-xs text-surface-600">Marketing authorisation holder</label>

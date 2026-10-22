@@ -1054,6 +1054,8 @@ export interface Deal {
   filled: Record<string, number>;
   documents: number;
   updated_at: string;
+  /** Other companies whose uploaded catalogues (Analysis History) list this molecule, latest first. */
+  other_suppliers?: string[];
 }
 
 export interface DealDocument { id: number; stage: string; file_name: string; size_bytes: number; uploaded_at: string }

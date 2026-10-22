@@ -204,7 +204,34 @@ def _filled(info: dict, dirac: dict) -> dict[str, int]:
     return out
 
 
-def _summary(row: dict, dfs: dict, live: dict, doc_counts: dict[int, int]) -> dict:
+def _catalogue_suppliers() -> dict[str, list[str]]:
+    """Molecule (upper case) → companies whose uploaded catalogues (Analysis History) list it, latest first.
+    SQL deal_catalogue_suppliers reads the saved runs; History keeps the last 100."""
+    try:
+        rows = get_client().rpc("deal_catalogue_suppliers", {}).execute().data or []
+    except Exception:
+        return {}
+    out: dict[str, list[str]] = {}
+    for r in sorted(rows, key=lambda r: r["last_seen"] or "", reverse=True):
+        out.setdefault(r["molecule"], []).append(r["company"])
+    return out
+
+
+def _same_company(a: str, b: str) -> bool:
+    """'Tecnimed' / 'Tecnimede S.A.': one name contains the other once punctuation and spaces are gone."""
+    a, b = re.sub(r"[^a-z0-9]", "", a.lower()), re.sub(r"[^a-z0-9]", "", b.lower())
+    return bool(a and b) and (a in b or b in a)
+
+
+def _other_suppliers(row: dict, suppliers: dict[str, list[str]]) -> list[str]:
+    out: list[str] = []
+    for c in suppliers.get(row["molecule"].upper(), []):
+        if not _same_company(c, row["partner"] or "") and not any(_same_company(c, o) for o in out):
+            out.append(c)
+    return out
+
+
+def _summary(row: dict, dfs: dict, live: dict, doc_counts: dict[int, int], suppliers: dict[str, list[str]]) -> dict:
     info = json.loads(row["info"] or "{}")
     dirac = dirac_values(row["molecule"], dfs, live)
     return {
@@ -213,6 +240,7 @@ def _summary(row: dict, dfs: dict, live: dict, doc_counts: dict[int, int]) -> di
         "status": row["status"], "status_reason": row["status_reason"],
         "area": dirac.pop("_area"), "filled": _filled(info, dirac),
         "documents": doc_counts.get(row["id"], 0), "updated_at": row["updated_at"],
+        "other_suppliers": _other_suppliers(row, suppliers),
     }
 
 
@@ -232,9 +260,10 @@ def _normalise(row: dict) -> dict:
 def list_deals(dfs: dict) -> dict:
     live = _live_facts()
     counts = _doc_counts()
+    suppliers = _catalogue_suppliers()
     rows = [_normalise(r) for r in fetch_all("deals")]
     return {"stages": stages_config(), "reasons": REASONS,
-            "deals": [_summary(r, dfs, live, counts) for r in rows]}
+            "deals": [_summary(r, dfs, live, counts, suppliers) for r in rows]}
 
 
 def _row(deal_id: int) -> dict | None:
@@ -256,7 +285,7 @@ def get_deal(deal_id: int, dfs: dict) -> dict | None:
         if e["kind"] == "stage":
             e["from_value"] = LEGACY_STAGES.get(e["from_value"], e["from_value"])
             e["to_value"] = LEGACY_STAGES.get(e["to_value"], e["to_value"])
-    deal = _summary(row, dfs, live, {deal_id: len(docs)})
+    deal = _summary(row, dfs, live, {deal_id: len(docs)}, _catalogue_suppliers())
     dirac = dirac_values(row["molecule"], dfs, live)
     dirac.pop("_area")
     return {**deal, "info": json.loads(row["info"] or "{}"), "dirac": dirac, "notes": row["notes"],
