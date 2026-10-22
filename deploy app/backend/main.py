@@ -87,7 +87,8 @@ class LoginRequest(BaseModel):
 def login(body: LoginRequest, response: Response):
     if body.password != APP_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password")
-    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT"))
+    # Hosted (Railway, Render, Cloud Run) → cross-site cookie for the Vercel frontend; plain cookie locally.
+    is_production = any(os.getenv(v) for v in ("RAILWAY_ENVIRONMENT", "RENDER", "K_SERVICE", "PRODUCTION"))
     response.set_cookie(
         "session", SESSION_TOKEN,
         httponly=True,

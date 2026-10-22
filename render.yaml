@@ -1,0 +1,39 @@
+# Render Blueprint for the Dirac backend (FastAPI). Render → New → Blueprint → pick this repo.
+# Secrets are `sync: false`: Render asks for each value when the Blueprint is created; none are stored here.
+services:
+  - type: web
+    name: dirac-backend
+    runtime: python
+    rootDir: deploy app/backend
+    plan: standard            # 2 GB RAM: IQVIA/UPP/MOHAP DataFrames are held in memory
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/auth/me
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        value: https://xgaomspclfexhkdfgwgv.supabase.co
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: SESSION_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: TECNIMEDE_USERNAME
+        sync: false
+      - key: TECNIMEDE_PASSWORD
+        sync: false
