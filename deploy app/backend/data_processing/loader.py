@@ -66,18 +66,25 @@ def load_iqvia() -> pd.DataFrame:
         df["Launch Year"] = pd.to_numeric(df["Launch Year"], errors="coerce")
 
     # 5. Build Molecule Combination column
-    # Maps each Product to the sorted set of molecules it contains.
-    # This is the canonical key used for all molecule lookups.
+    # IQVIA repeats a combination pack once per ingredient (same sales on each
+    # row), so each pack (product × pack × manufacturer × market) gets the
+    # sorted set of its molecules. This is the canonical key used for all
+    # molecule lookups. Keyed by pack, not by product: one brand name can
+    # cover different products (CEFUZIME tablets = cefuroxime axetil, its
+    # vial = cefuroxime), which must not be merged into a fake combination.
     df["Molecule"] = df["Molecule"].astype(str).str.strip().str.upper()
     df["Product"]  = df["Product"].astype(str).str.strip().str.upper()
 
-    product_molecule_map = (
-        df.groupby("Product")["Molecule"]
-        .unique()
-        .apply(lambda mols: " + ".join(sorted(set(mols))))
-        .to_dict()
+    pack_cols = [c for c in ["Product", "Pack", "Manufacturer", "Market"] if c in df.columns]
+    pack_id = df.groupby(pack_cols, dropna=False, sort=False).ngroup()
+    labels = (
+        pd.DataFrame({"pack": pack_id, "Molecule": df["Molecule"]})
+        .dropna().drop_duplicates()
+        .sort_values("Molecule")
+        .groupby("pack")["Molecule"]
+        .agg(" + ".join)
     )
-    df["Molecule Combination"] = df["Product"].map(product_molecule_map)
+    df["Molecule Combination"] = pack_id.map(labels)
 
     logger.info(f"IQVIA loaded: {len(df):,} rows, {df['Molecule Combination'].nunique():,} unique molecules")
     return df

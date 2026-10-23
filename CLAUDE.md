@@ -385,7 +385,7 @@ Refresh: `scripts/convert_iqvia_export.py` (IQVIA xlsx), `scripts/upload_referen
 
 3. **IQVIA end_year = `years[-2]`** — most recent year is partial data. Do not change to `years[-1]`. The converter deliberately keeps one trailing partial year so this convention holds.
 
-4. **Combination molecule division** — all value/unit aggregations divided by `num_molecules` to correct IQVIA double-counting. Never remove.
+4. **Combination molecule division** — all value/unit aggregations divided by `num_molecules` to correct IQVIA double-counting. Never remove. IQVIA repeats a combination pack once per ingredient with full sales on each row. `Molecule Combination` is therefore built **per pack** (Product × Pack × Manufacturer × Market, `loader.py`), never per brand name: one brand can cover different products (CEFUZIME tablets = cefuroxime axetil, its vial = cefuroxime), and labelling per brand made fake combinations that halved their sales and hid them from the real molecule.
 
 5. **Hard disqualifiers in scoring prompt** — `num_competitors > 10` → max score 5; `market_value < 5M AED AND value_cagr < 10%` → max score 4. Deliberate COMIX policy.
 
