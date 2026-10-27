@@ -127,11 +127,11 @@ export const api = {
     req(`/api/analysis/history/${runId}`, { method: "DELETE" }),
 
   // Forecast
-  getForecast: (molecules: string[], growthRate: number) =>
+  getForecast: (molecules: string[], growthRate: number, years = 3) =>
     req<ForecastResult>("/api/analysis/forecast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ molecules, growth_rate: growthRate }),
+      body: JSON.stringify({ molecules, growth_rate: growthRate, years }),
     }),
 
   // Outreach
@@ -805,6 +805,9 @@ export interface ForecastPackData {
   y1_revenue: number;
   y2_revenue: number;
   y3_revenue: number;
+  /** One value per forecast year (Y1…YN). The y1–y3 keys exist only up to N. */
+  units: number[];
+  revenue: number[];
 }
 
 export interface MoleculeForecast {
@@ -817,6 +820,7 @@ export interface MoleculeForecast {
   growth_rate: number;
   total_market_units: number;
   total_market_value: number;
+  years: number;
   summary: {
     total_y1_units: number;
     total_y2_units: number;
@@ -824,6 +828,8 @@ export interface MoleculeForecast {
     total_y1_revenue: number;
     total_y2_revenue: number;
     total_y3_revenue: number;
+    units: number[];
+    revenue: number[];
   };
   packs: ForecastPackData[];
 }
@@ -832,6 +838,7 @@ export interface ForecastResult {
   forecasts: MoleculeForecast[];
   errors: { molecule: string; error: string }[];
   growth_rate: number;
+  years: number;
 }
 
 export interface OutreachEvent {

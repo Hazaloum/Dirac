@@ -24,10 +24,23 @@ function applyFmts(ws: Record<string, any>, colFmts: Record<number, string>, nRo
   }
 }
 
+const sum = (xs: number[]) => xs.reduce((s, v) => s + v, 0);
+
+/** Year columns ("Y1 UNITS" …), one per forecast year. */
+function yearCols(label: string, values: number[]) {
+  return Object.fromEntries(values.map((v, i) => [`Y${i + 1} ${label}`, Math.round(v)]));
+}
+
+/** Column index → format for a run of `n` columns starting at `from`. */
+function fmtRun(from: number, n: number, fmt: string) {
+  return Object.fromEntries(Array.from({ length: n }, (_, i) => [from + i, fmt]));
+}
+
 /** The two-sheet forecast workbook ("Forecast" pack detail + "Summary"). */
 async function forecastWorkbook(forecasts: MoleculeForecast[], growthRate: number) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
+  const n = forecasts[0]?.summary.revenue.length ?? 3;
 
   // Sheet 1 — Pack detail
   const packRows = forecasts.flatMap(f => {
@@ -43,22 +56,17 @@ async function forecastWorkbook(forecasts: MoleculeForecast[], growthRate: numbe
       "RETAIL (AED)":            parseFloat(p.retail_price.toFixed(2)),
       "CIF (AED)":               parseFloat(p.cif_price.toFixed(2)),
       "SHARE (%)":               parseFloat((p.pack_share * 100).toFixed(1)),
-      "Y1 UNITS":                Math.round(p.y1_units),
-      "Y2 UNITS":                Math.round(p.y2_units),
-      "Y3 UNITS":                Math.round(p.y3_units),
-      "Y1 REV (AED)":            Math.round(p.y1_revenue),
-      "Y2 REV (AED)":            Math.round(p.y2_revenue),
-      "Y3 REV (AED)":            Math.round(p.y3_revenue),
+      ...yearCols("UNITS", p.units),
+      ...yearCols("REV (AED)", p.revenue),
     }));
   });
   const packWs = XLSX.utils.json_to_sheet(packRows);
-  // col 3=TOTAL MKT UNITS, 4=TOTAL MKT VALUE, 7=RETAIL, 8=CIF, 9=SHARE, 10-12=UNITS, 13-15=REV
+  // col 3=TOTAL MKT UNITS, 4=TOTAL MKT VALUE, 7=RETAIL, 8=CIF, 9=SHARE, then N units + N revenue columns
   applyFmts(packWs, {
     3: '#,##0', 4: '#,##0',
     7: '#,##0.00', 8: '#,##0.00',
     9: '0.0"%"',
-    10: '#,##0', 11: '#,##0', 12: '#,##0',
-    13: '#,##0', 14: '#,##0', 15: '#,##0',
+    ...fmtRun(10, 2 * n, '#,##0'),
   }, packRows.length, XLSX);
   XLSX.utils.book_append_sheet(wb, packWs, "Forecast");
 
@@ -71,20 +79,15 @@ async function forecastWorkbook(forecasts: MoleculeForecast[], growthRate: numbe
     "PENETRATION (%)":    parseFloat(f.penetration_pct.replace("%", "")),
     "GROWTH RATE (%)":    Math.round(growthRate * 100),
     "MARKET VALUE (AED)": Math.round(f.total_market_value),
-    "Y1 UNITS":           Math.round(f.summary.total_y1_units),
-    "Y2 UNITS":           Math.round(f.summary.total_y2_units),
-    "Y3 UNITS":           Math.round(f.summary.total_y3_units),
-    "Y1 REV (AED)":       Math.round(f.summary.total_y1_revenue),
-    "Y2 REV (AED)":       Math.round(f.summary.total_y2_revenue),
-    "Y3 REV (AED)":       Math.round(f.summary.total_y3_revenue),
-    "3Y TOTAL (AED)":     Math.round(f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue),
+    ...yearCols("UNITS", f.summary.units),
+    ...yearCols("REV (AED)", f.summary.revenue),
+    [`${n}Y TOTAL (AED)`]: Math.round(sum(f.summary.revenue)),
   }));
   const summaryWs = XLSX.utils.json_to_sheet(summaryRows);
   applyFmts(summaryWs, {
     4: '0.0"%"', 5: '0"%"',
     6: '#,##0',
-    7: '#,##0', 8: '#,##0', 9: '#,##0',
-    10: '#,##0', 11: '#,##0', 12: '#,##0', 13: '#,##0',
+    ...fmtRun(7, 2 * n + 1, '#,##0'),
   }, summaryRows.length, XLSX);
   XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
   return { XLSX, wb };

@@ -1,6 +1,6 @@
 """
 Detailed forecasting module for pharmaceutical products.
-Provides Y1-Y3 unit and revenue forecasts based on competitor-adjusted penetration.
+Provides Y1–YN (default 3) unit and revenue forecasts based on competitor-adjusted penetration.
 Ported from Pharmozi — adapted to use COMIX data layer.
 """
 import re
@@ -21,9 +21,10 @@ def forecast_molecule_product(
     molecule_name: str,
     product_name: str,
     growth_rate: float = 0.10,
+    years: int = 3,
 ) -> pd.DataFrame:
     """
-    Forecast Y1–Y3 units and revenue for the given molecule/product.
+    Forecast Y1–YN units and revenue for the given molecule/product.
 
     Penetration is competitor-adjusted:
       1 manufacturer  → 20%
@@ -32,7 +33,7 @@ def forecast_molecule_product(
 
     Growth: user-selected rate (default 15%)
       Y2 = Y1 × (1 + growth_rate)
-      Y3 = Y2 × (1 + growth_rate)
+      Y3 = Y2 × (1 + growth_rate) … up to YN (years, 1–10)
 
     Combination molecules (e.g. DRUG A + DRUG B) have their units/values
     divided by the number of constituent molecules to avoid double-counting.
@@ -44,8 +45,8 @@ def forecast_molecule_product(
     df["Molecule Combination"] = df["Molecule Combination"].str.upper()
     df["Product"] = df["Product"].str.upper()
 
-    years = _extract_years(df, "Units")
-    analysis_year = years[-2] if len(years) >= 2 else (years[-1] if years else 2024)
+    data_years = _extract_years(df, "Units")
+    analysis_year = data_years[-2] if len(data_years) >= 2 else (data_years[-1] if data_years else 2024)
     units_col = f"{analysis_year} Units"
     value_col = f"{analysis_year} LC Value"
 
@@ -80,15 +81,15 @@ def forecast_molecule_product(
     packs["Pack Share"] = packs["Pack_Units"] / (total_prod_units or 1)
 
     packs["Y1 Units"] = packs["Pack Share"] * total_mol_units * penetration
-    packs["Y2 Units"] = packs["Y1 Units"] * (1 + growth_rate)
-    packs["Y3 Units"] = packs["Y2 Units"] * (1 + growth_rate)
+    for n in range(2, years + 1):
+        packs[f"Y{n} Units"] = packs[f"Y{n - 1} Units"] * (1 + growth_rate)
 
     packs["CIF Price"]         = (packs["Retail Price"] / 1.4) * 0.4
     packs["Retail Price (USD)"] = packs["Retail Price"] / 3.68
     packs["CIF Price (USD)"]    = packs["CIF Price"] / 3.68
 
-    for y in ("Y1", "Y2", "Y3"):
-        packs[f"{y} Revenue"] = packs[f"{y} Units"] * packs["CIF Price"]
+    for n in range(1, years + 1):
+        packs[f"Y{n} Revenue"] = packs[f"Y{n} Units"] * packs["CIF Price"]
 
     packs["Molecule"]           = mol
     packs["Product"]            = prod
@@ -104,10 +105,10 @@ def forecast_molecule_product(
         "Total Market Units", "Total Market Value",
         "Competitors", "Penetration", "Analysis Year", "Growth Rate",
         "Pack", "Pack_Units", "Pack Share",
-        "Y1 Units", "Y2 Units", "Y3 Units",
+        *[f"Y{n} Units" for n in range(1, years + 1)],
         "Retail Price", "CIF Price",
         "Retail Price (USD)", "CIF Price (USD)",
-        "Y1 Revenue", "Y2 Revenue", "Y3 Revenue",
+        *[f"Y{n} Revenue" for n in range(1, years + 1)],
     ]]
 
 
@@ -131,13 +132,18 @@ def forecast_top_product(
     df: pd.DataFrame,
     molecule_name: str,
     growth_rate: float = 0.10,
+    years: int = 3,
 ) -> dict:
     """
-    Generate a Y1-Y3 forecast for the top-selling product of the given molecule.
-    Returns a JSON-serialisable dict matching the Pharmozi API response shape.
+    Generate a Y1–YN forecast (years 1–10, default 3) for the top-selling product
+    of the given molecule. Returns a JSON-serialisable dict matching the Pharmozi
+    API response shape, plus `units` / `revenue` lists (one value per year) on the
+    summary and each pack.
     """
+    years = max(1, min(10, int(years)))
     top_product  = _get_top_product(df, molecule_name)
-    forecast_df  = forecast_molecule_product(df, molecule_name, top_product, growth_rate)
+    forecast_df  = forecast_molecule_product(df, molecule_name, top_product, growth_rate, years)
+    ns = range(1, years + 1)
 
     packs   = forecast_df.to_dict(orient="records")
     first   = forecast_df.iloc[0]
@@ -152,13 +158,12 @@ def forecast_top_product(
         "growth_rate":        float(first["Growth Rate"]),
         "total_market_units": float(first["Total Market Units"]),
         "total_market_value": float(first["Total Market Value"]),
+        "years":              years,
         "summary": {
-            "total_y1_units":   float(forecast_df["Y1 Units"].sum()),
-            "total_y2_units":   float(forecast_df["Y2 Units"].sum()),
-            "total_y3_units":   float(forecast_df["Y3 Units"].sum()),
-            "total_y1_revenue": float(forecast_df["Y1 Revenue"].sum()),
-            "total_y2_revenue": float(forecast_df["Y2 Revenue"].sum()),
-            "total_y3_revenue": float(forecast_df["Y3 Revenue"].sum()),
+            **{f"total_y{n}_units":   float(forecast_df[f"Y{n} Units"].sum()) for n in ns},
+            **{f"total_y{n}_revenue": float(forecast_df[f"Y{n} Revenue"].sum()) for n in ns},
+            "units":   [float(forecast_df[f"Y{n} Units"].sum()) for n in ns],
+            "revenue": [float(forecast_df[f"Y{n} Revenue"].sum()) for n in ns],
         },
         "packs": [
             {
@@ -166,16 +171,14 @@ def forecast_top_product(
                 "pack":            p["Pack"],
                 "pack_units":      float(p["Pack_Units"]),
                 "pack_share":      float(p["Pack Share"]),
-                "y1_units":        float(p["Y1 Units"]),
-                "y2_units":        float(p["Y2 Units"]),
-                "y3_units":        float(p["Y3 Units"]),
+                **{f"y{n}_units":  float(p[f"Y{n} Units"]) for n in ns},
                 "retail_price":    float(p["Retail Price"]),
                 "cif_price":       float(p["CIF Price"]),
                 "retail_price_usd": float(p["Retail Price (USD)"]),
                 "cif_price_usd":   float(p["CIF Price (USD)"]),
-                "y1_revenue":      float(p["Y1 Revenue"]),
-                "y2_revenue":      float(p["Y2 Revenue"]),
-                "y3_revenue":      float(p["Y3 Revenue"]),
+                **{f"y{n}_revenue": float(p[f"Y{n} Revenue"]) for n in ns},
+                "units":           [float(p[f"Y{n} Units"]) for n in ns],
+                "revenue":         [float(p[f"Y{n} Revenue"]) for n in ns],
             }
             for p in packs
         ],

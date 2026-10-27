@@ -10,12 +10,16 @@ import { api, type MoleculeCard, type MoleculeForecast, type ForecastResult } fr
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 import { exportXlsx, fmtAed, fmtUnits } from "@/lib/forecastExport";
 
+const YEAR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const sum = (xs: number[]) => xs.reduce((s, v) => s + v, 0);
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ForecastPage() {
   const router = useRouter();
 
   const [session,      setSession]      = useState<ForecastSession | null>(null);
   const [growthRate,   setGrowthRate]   = useState(0.15);
+  const [years,        setYears]        = useState(3);
   const [forecastData, setForecastData] = useState<ForecastResult | null>(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
@@ -31,14 +35,14 @@ export default function ForecastPage() {
 
   // Auto-run forecast when session loads
   useEffect(() => {
-    if (session && session.molecules.length > 0) runForecast(session, growthRate);
+    if (session && session.molecules.length > 0) runForecast(session, growthRate, years);
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runForecast = async (s: ForecastSession, gr: number) => {
+  const runForecast = async (s: ForecastSession, gr: number, n: number) => {
     setLoading(true);
     setError("");
     try {
-      const data = await api.getForecast(s.molecules.map(m => m.molecule), gr);
+      const data = await api.getForecast(s.molecules.map(m => m.molecule), gr, n);
       setForecastData(data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Forecast failed");
@@ -48,7 +52,7 @@ export default function ForecastPage() {
   };
 
   const handleRegenerate = () => {
-    if (session) runForecast(session, growthRate);
+    if (session) runForecast(session, growthRate, years);
   };
 
   const toggleExpand = (mol: string) =>
@@ -74,11 +78,15 @@ export default function ForecastPage() {
   const totalMolecules = session.molecules.length;
   const totalMarketValue = session.molecules.reduce((s, m) => s + (m.market_value_aed ?? 0), 0);
 
-  // Portfolio 3Y total
-  const total3Y = forecastData
-    ? forecastData.forecasts.reduce(
-        (s, f) => s + f.summary.total_y1_revenue + f.summary.total_y2_revenue + f.summary.total_y3_revenue, 0
-      )
+  // Years in the results shown (the picker only takes effect on Generate)
+  const shownYears = forecastData?.years ?? years;
+  const yearIdx = Array.from({ length: shownYears }, (_, i) => i);
+  // Per-year columns on each molecule row; past 5 years only Y1, the last year and the total fit
+  const rowYears = shownYears <= 5 ? yearIdx : [0, shownYears - 1];
+
+  // Portfolio total over the forecast years
+  const totalNY = forecastData
+    ? forecastData.forecasts.reduce((s, f) => s + sum(f.summary.revenue), 0)
     : null;
 
   return (
@@ -97,14 +105,14 @@ export default function ForecastPage() {
               Financial forecast
             </h1>
             <p className="text-sm text-surface-500 mt-0.5">
-              Y1–Y3 projections for {totalMolecules} shortlisted molecule{totalMolecules !== 1 ? "s" : ""}
+              {shownYears === 1 ? "Y1" : `Y1–Y${shownYears}`} projections for {totalMolecules} shortlisted molecule{totalMolecules !== 1 ? "s" : ""}
             </p>
           </div>
         </div>
 
         {forecastData && (
           <button
-            onClick={() => exportXlsx(forecastData.forecasts, growthRate)}
+            onClick={() => exportXlsx(forecastData.forecasts, forecastData.growth_rate)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
           >
             <Download className="w-4 h-4" /> Export XLSX
@@ -124,11 +132,11 @@ export default function ForecastPage() {
         </div>
         <div className="bg-white rounded-xl border border-surface-200 px-4 py-3">
           <p className="text-[10px] text-surface-500 uppercase tracking-wider">Growth Rate</p>
-          <p className="text-2xl font-bold text-surface-900">{Math.round(growthRate * 100)}%</p>
+          <p className="text-2xl font-bold text-surface-900">{Math.round((forecastData?.growth_rate ?? growthRate) * 100)}%</p>
         </div>
         <div className="bg-white rounded-xl border border-surface-200 px-4 py-3">
-          <p className="text-[10px] text-surface-500 uppercase tracking-wider">Total 3Y Revenue</p>
-          <p className="text-lg font-bold text-emerald-700">{total3Y != null ? fmtAed(total3Y) : "—"}</p>
+          <p className="text-[10px] text-surface-500 uppercase tracking-wider">Total {shownYears}Y Revenue</p>
+          <p className="text-lg font-bold text-emerald-700">{totalNY != null ? fmtAed(totalNY) : "—"}</p>
         </div>
       </div>
 
@@ -197,11 +205,30 @@ export default function ForecastPage() {
         })()}
       </div>
 
-      {/* ── Growth rate + generate ── */}
-      <div className="flex items-center gap-6 p-5 bg-white rounded-xl border border-surface-200">
-        <div className="flex-1">
+      {/* ── Years + growth rate + generate ── */}
+      <div className="flex flex-wrap items-center gap-6 p-5 bg-white rounded-xl border border-surface-200">
+        <div>
+          <p className="block text-xs font-medium text-surface-600 mb-2">Forecast years</p>
+          <div role="radiogroup" aria-label="Forecast years" className="flex rounded-xl border border-surface-300 overflow-hidden">
+            {YEAR_OPTIONS.map(n => (
+              <button
+                key={n}
+                role="radio"
+                aria-checked={years === n}
+                onClick={() => setYears(n)}
+                className={`w-8 py-1.5 text-xs font-semibold transition-colors ${
+                  years === n ? "bg-pharma-900 text-white" : "bg-white text-surface-600 hover:bg-surface-100"
+                } ${n > 1 ? "border-l border-surface-200" : ""}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-surface-400 mt-1">{years === 1 ? "Year 1 only" : `Y1 → Y${years}`}</p>
+        </div>
+        <div className="flex-1 min-w-[240px]">
           <label className="block text-xs font-medium text-surface-600 mb-2">
-            Growth Rate (Y1 → Y2 → Y3)
+            Growth Rate (each year after Y1)
           </label>
           <div className="flex items-center gap-4">
             <input
@@ -251,15 +278,13 @@ export default function ForecastPage() {
       {forecastData && forecastData.forecasts.length > 0 && (
         <div className="space-y-4">
 
-          {/* Y1 / Y2 / Y3 summary cards */}
-          <div className="grid grid-cols-3 gap-3">
-            {(["Y1", "Y2", "Y3"] as const).map((y, i) => {
-              const revKey = (["total_y1_revenue", "total_y2_revenue", "total_y3_revenue"] as const)[i];
-              const unitKey = (["total_y1_units", "total_y2_units", "total_y3_units"] as const)[i];
-              const totalRev   = forecastData.forecasts.reduce((s, f) => s + f.summary[revKey], 0);
-              const totalUnits = forecastData.forecasts.reduce((s, f) => s + f.summary[unitKey], 0);
+          {/* One summary card per forecast year */}
+          <div className={`grid gap-3 ${shownYears <= 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`}>
+            {yearIdx.map(i => {
+              const totalRev   = forecastData.forecasts.reduce((s, f) => s + (f.summary.revenue[i] ?? 0), 0);
+              const totalUnits = forecastData.forecasts.reduce((s, f) => s + (f.summary.units[i] ?? 0), 0);
               return (
-                <div key={y} className="bg-white rounded-xl border border-surface-200 p-4 text-center">
+                <div key={i} className="bg-white rounded-xl border border-surface-200 p-4 text-center">
                   <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-2">Year {i + 1}</p>
                   <p className="text-xl font-bold text-pharma-900">{fmtAed(totalRev)}</p>
                   <p className="text-xs text-surface-400 mt-0.5">{fmtUnits(totalUnits)} units</p>
@@ -278,7 +303,7 @@ export default function ForecastPage() {
 
             {forecastData.forecasts.map((fc, idx) => {
               const isExpanded = expanded.has(fc.molecule);
-              const mol3Y = fc.summary.total_y1_revenue + fc.summary.total_y2_revenue + fc.summary.total_y3_revenue;
+              const molTotal = sum(fc.summary.revenue);
               return (
                 <div key={fc.molecule} className={idx > 0 ? "border-t border-surface-200" : ""}>
                   {/* Summary row */}
@@ -298,21 +323,15 @@ export default function ForecastPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-5 shrink-0">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] text-surface-500">Y1</p>
-                        <p className="text-sm font-bold text-surface-800">{fmtAed(fc.summary.total_y1_revenue)}</p>
-                      </div>
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] text-surface-500">Y2</p>
-                        <p className="text-sm font-bold text-surface-800">{fmtAed(fc.summary.total_y2_revenue)}</p>
-                      </div>
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] text-surface-500">Y3</p>
-                        <p className="text-sm font-bold text-surface-800">{fmtAed(fc.summary.total_y3_revenue)}</p>
-                      </div>
+                      {rowYears.map(i => (
+                        <div key={i} className="text-right hidden sm:block">
+                          <p className="text-[10px] text-surface-500">Y{i + 1}</p>
+                          <p className="text-sm font-bold text-surface-800">{fmtAed(fc.summary.revenue[i] ?? 0)}</p>
+                        </div>
+                      ))}
                       <div className="text-right">
-                        <p className="text-[10px] text-surface-500">3Y Total</p>
-                        <p className="text-sm font-bold text-emerald-700">{fmtAed(mol3Y)}</p>
+                        <p className="text-[10px] text-surface-500">{shownYears}Y Total</p>
+                        <p className="text-sm font-bold text-emerald-700">{fmtAed(molTotal)}</p>
                       </div>
                       {isExpanded
                         ? <ChevronUp className="w-4 h-4 text-surface-400" />
@@ -328,9 +347,9 @@ export default function ForecastPage() {
                         <thead className="bg-surface-50">
                           <tr>
                             {[
-                              "Manufacturer", "Pack", "Retail (AED)", "CIF (AED)",
-                              "Share", "Y1 Units", "Y2 Units", "Y3 Units",
-                              "Y1 Rev", "Y2 Rev", "Y3 Rev",
+                              "Manufacturer", "Pack", "Retail (AED)", "CIF (AED)", "Share",
+                              ...yearIdx.map(i => `Y${i + 1} Units`),
+                              ...yearIdx.map(i => `Y${i + 1} Rev`),
                             ].map(h => (
                               <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-surface-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                             ))}
@@ -344,12 +363,12 @@ export default function ForecastPage() {
                               <td className="px-3 py-2 text-surface-700 text-right">{p.retail_price.toFixed(2)}</td>
                               <td className="px-3 py-2 text-surface-700 text-right">{p.cif_price.toFixed(2)}</td>
                               <td className="px-3 py-2 text-surface-600 text-right">{(p.pack_share * 100).toFixed(1)}%</td>
-                              <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y1_units)}</td>
-                              <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y2_units)}</td>
-                              <td className="px-3 py-2 text-surface-700 text-right">{fmtUnits(p.y3_units)}</td>
-                              <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y1_revenue)}</td>
-                              <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y2_revenue)}</td>
-                              <td className="px-3 py-2 text-emerald-700 font-semibold text-right">{fmtAed(p.y3_revenue)}</td>
+                              {p.units.map((u, j) => (
+                                <td key={`u${j}`} className="px-3 py-2 text-surface-700 text-right whitespace-nowrap">{fmtUnits(u)}</td>
+                              ))}
+                              {p.revenue.map((r, j) => (
+                                <td key={`r${j}`} className="px-3 py-2 text-emerald-700 font-semibold text-right whitespace-nowrap">{fmtAed(r)}</td>
+                              ))}
                             </tr>
                           ))}
                         </tbody>
@@ -375,7 +394,7 @@ export default function ForecastPage() {
           {/* Bottom export button */}
           <div className="flex justify-end">
             <button
-              onClick={() => exportXlsx(forecastData.forecasts, growthRate)}
+              onClick={() => exportXlsx(forecastData.forecasts, forecastData.growth_rate)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
             >
               <Download className="w-4 h-4" /> Export XLSX

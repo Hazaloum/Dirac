@@ -116,7 +116,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read ref
 | GET | `/api/analysis/history` | List saved analysis runs |
 | GET | `/api/analysis/history/{run_id}` | Get full run (result + report) |
 | DELETE | `/api/analysis/history/{run_id}` | Delete run |
-| POST | `/api/analysis/forecast` | Y1–Y3 forecast for a molecule list |
+| POST | `/api/analysis/forecast` | Y1–YN forecast for a molecule list (`years` 1–10, default 3) |
 | GET | `/api/analysis/manufacturers/{molecule}` | IQVIA manufacturer breakdown (pie chart) |
 | GET | `/api/portfolio` | Get My Portfolio |
 | POST | `/api/portfolio/upload` | Upload catalogue → save as My Portfolio |
@@ -183,7 +183,7 @@ forecast_top_product(df_iqvia, molecule, growth_rate)
         5+              →  5%
     → Y1 = market_units × pack_share × penetration
     → Y2 = Y1 × (1 + growth_rate)
-    → Y3 = Y2 × (1 + growth_rate)
+    → Y3 = Y2 × (1 + growth_rate) … up to YN (years 1–10, default 3)
     → CIF price = (retail_price / 1.4) × 0.4
     → revenue = units × CIF price
     → returns per-pack breakdown + molecule summary
@@ -214,9 +214,9 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 
 **Forecast (`/forecast`)**
 - Reads `ForecastSession` from localStorage on mount
-- Auto-triggers forecast on load; growth rate slider (5–30%) + Regenerate button
-- Expandable per-molecule rows showing pack-level table: Manufacturer, Pack, Retail (AED), CIF (AED), Share, Y1/Y2/Y3 Units, Y1/Y2/Y3 Rev
-- **Export XLSX** — two sheets: "Forecast" (pack detail with top product/manufacturer/market totals) and "Summary" (one row per molecule). All numeric columns use Excel number formats (`#,##0`, `#,##0.00`, `0.0"%"`).
+- Auto-triggers forecast on load; **forecast years** picker (1–10, default 3; `years` on `POST /api/analysis/forecast`) + growth rate slider (5–30%) + Generate Forecast button (both apply on Generate)
+- One summary card per year; expandable per-molecule rows (Y1…YN revenue, or Y1 / YN / total past 5 years) showing pack-level table: Manufacturer, Pack, Retail (AED), CIF (AED), Share, Y1…YN Units, Y1…YN Rev. The API returns `units` / `revenue` lists (one per year) on each pack and summary, alongside the `y1_units` … keys.
+- **Export XLSX** — two sheets: "Forecast" (pack detail with top product/manufacturer/market totals) and "Summary" (one row per molecule, with an NY total). All numeric columns use Excel number formats (`#,##0`, `#,##0.00`, `0.0"%"`).
 
 **Outreach (`/outreach`)**
 - Input: country name + model selector
