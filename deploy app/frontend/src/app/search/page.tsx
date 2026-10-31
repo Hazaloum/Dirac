@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -24,7 +24,9 @@ import {
 import { AddToDeal } from "@/components/AddToDeal";
 import { MoleculeDashboard } from "@/components/MoleculeDashboard";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProfileCompany } from "@/lib/api";
+import { api, type MoleculeCard, type MoleculeProfile, type MoleculeSlices, type ProductMatch, type ProfileCompany } from "@/lib/api";
+
+type SearchMode = "molecule" | "product";
 
 const shortcuts = [
   { href: "/analysis", icon: BookOpenText, title: "Evaluate a Catalogue", blurb: "Upload a supplier list and score every molecule" },
@@ -186,12 +188,20 @@ function MarketFacts({ p, fallbackCompetitors }: { p: MoleculeProfile; fallbackC
 export default function SearchPage() {
   const [allMolecules, setAllMolecules] = useState<string[]>([]);
   const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<SearchMode>("molecule");
+  const [productHits, setProductHits] = useState<ProductMatch[]>([]);
+  const [productLoading, setProductLoading] = useState(false);
+  // The product the current brief was opened from (Product mode), shown above it
+  const [viaProduct, setViaProduct] = useState<ProductMatch | null>(null);
   const [result, setResult] = useState<MoleculeCard | null>(null);
   const [slices, setSlices] = useState<MoleculeSlices | null>(null);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // The delayed hide on blur; cancelled when the input is used again (e.g. after clicking the toggle)
+  const hideTimer = useRef<number>();
+  const openSuggestions = () => { window.clearTimeout(hideTimer.current); setShowSuggestions(true); };
   const [drawerMolecule, setDrawerMolecule] = useState<MoleculeCard | null>(null);
 
   useEffect(() => {
@@ -209,13 +219,49 @@ export default function SearchPage() {
       .slice(0, 8);
   }, [allMolecules, query]);
 
+  // Product mode: ask the backend for matching products as the user types
+  useEffect(() => {
+    if (mode !== "product") return;
+    const q = query.trim();
+    if (!q) { setProductHits([]); return; }
+    let live = true;
+    setProductLoading(true);
+    const timer = window.setTimeout(() => {
+      api.searchProducts(q)
+        .then((r) => live && setProductHits(r.products))
+        .catch(() => live && setProductHits([]))
+        .finally(() => live && setProductLoading(false));
+    }, 200);
+    return () => { live = false; window.clearTimeout(timer); };
+  }, [mode, query]);
+
+  const switchMode = (next: SearchMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setQuery("");
+    setProductHits([]);
+    setError("");
+  };
+
   const submitSearch = async (event?: FormEvent, moleculeOverride?: string) => {
     event?.preventDefault();
     const submittedQuery = moleculeOverride ?? query;
     const normalized = submittedQuery.trim().toLowerCase();
     if (!normalized) {
-      setError("Type a molecule name to search.");
+      setError(mode === "product" ? "Type a product name to search." : "Type a molecule name to search.");
       return;
+    }
+
+    if (mode === "product" && !moleculeOverride) {
+      // Exact product name first, else the top match
+      const hits = productHits.length ? productHits : (await api.searchProducts(submittedQuery.trim()).catch(() => ({ products: [] }))).products;
+      const hit = hits.find((p) => p.product.toLowerCase() === normalized) ?? hits[0];
+      if (!hit) {
+        setResult(null);
+        setError(`No IQVIA product matches “${submittedQuery.trim()}”.`);
+        return;
+      }
+      return openProduct(hit);
     }
 
     const exact = allMolecules.find((molecule) => molecule.toLowerCase() === normalized);
@@ -227,6 +273,18 @@ export default function SearchPage() {
     }
 
     setQuery(molecule);
+    setViaProduct(null);
+    return lookUp(molecule);
+  };
+
+  // A product opens its molecule's brief, with the product named above it
+  const openProduct = (hit: ProductMatch) => {
+    setQuery(hit.product);
+    setViaProduct(hit);
+    return lookUp(hit.molecule);
+  };
+
+  const lookUp = async (molecule: string) => {
     setShowSuggestions(false);
     setError("");
     setLoading(true);
@@ -249,6 +307,8 @@ export default function SearchPage() {
 
   const clearSearch = () => {
     setQuery("");
+    setViaProduct(null);
+    setProductHits([]);
     setResult(null);
     setSlices(null);
     setError("");
@@ -274,16 +334,34 @@ export default function SearchPage() {
 
           <form onSubmit={submitSearch} className={`relative ${result ? "mt-6 max-w-3xl" : "mx-auto mt-10 max-w-3xl"}`}>
             <div className={`flex items-center gap-3 rounded-2xl border bg-white p-2 shadow-[0_15px_50px_rgba(20,33,29,.10)] transition-all focus-within:border-pharma-400 focus-within:shadow-[0_18px_60px_rgba(12,92,76,.14)] ${showSuggestions ? "border-pharma-300" : "border-surface-200"}`}>
-              <SearchIcon className="ml-4 h-5 w-5 shrink-0 text-pharma-900" aria-hidden="true" />
+              <div role="radiogroup" aria-label="Search by" className="ml-1 flex shrink-0 rounded-xl bg-surface-100 p-1">
+                {(["molecule", "product"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={mode === m}
+                    onClick={() => switchMode(m)}
+                    className={`rounded-lg px-2.5 py-2 text-xs font-semibold capitalize transition-colors sm:px-3 ${
+                      mode === m ? "bg-white text-pharma-900 shadow-sm" : "text-surface-500 hover:text-surface-800"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <SearchIcon className="hidden h-5 w-5 shrink-0 text-pharma-900 sm:block" aria-hidden="true" />
               <input
-                aria-label="Search IQVIA molecules"
+                aria-label={mode === "product" ? "Search IQVIA products" : "Search IQVIA molecules"}
                 autoComplete="off"
                 autoFocus={!result}
                 value={query}
-                onChange={(event) => { setQuery(event.target.value); setShowSuggestions(true); setError(""); }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => window.setTimeout(() => setShowSuggestions(false), 140)}
-                placeholder={listLoading ? "Loading IQVIA molecules..." : "Search a molecule, e.g. METFORMIN"}
+                onChange={(event) => { setQuery(event.target.value); openSuggestions(); setError(""); }}
+                onFocus={openSuggestions}
+                onBlur={() => { hideTimer.current = window.setTimeout(() => setShowSuggestions(false), 140); }}
+                placeholder={mode === "product"
+                  ? "Search a product, e.g. GLUCOPHAGE"
+                  : listLoading ? "Loading IQVIA molecules..." : "Search a molecule, e.g. METFORMIN"}
                 className="min-w-0 flex-1 bg-transparent px-1 py-4 text-base text-surface-900 outline-none placeholder:text-surface-400 sm:text-lg"
               />
               {query && (
@@ -297,7 +375,28 @@ export default function SearchPage() {
               </button>
             </div>
 
-            {showSuggestions && query.trim() && suggestions.length > 0 && (
+            {mode === "product" && showSuggestions && query.trim() && (productHits.length > 0 || !productLoading) && (
+              <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-surface-200 bg-white text-left shadow-xl">
+                <p className="border-b border-surface-100 px-4 py-2.5 font-mono text-[9px] uppercase tracking-[.12em] text-surface-400">IQVIA product matches</p>
+                {productHits.length === 0 && (
+                  <p className="px-4 py-3 text-sm text-surface-500">No product matches “{query.trim()}”.</p>
+                )}
+                {productHits.map((p) => (
+                  <button key={`${p.product}|${p.molecule}`} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void openProduct(p)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-surface-700 transition-colors hover:bg-pharma-50 hover:text-pharma-900">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{p.product}</span>
+                      <span className="block truncate text-xs text-surface-500">{p.molecule} · {p.manufacturer}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {p.value > 0 && <span className="text-xs text-surface-400">{fmtAed(p.value)}</span>}
+                      <ChevronDown className="h-3.5 w-3.5 -rotate-90 text-surface-300" />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {mode === "molecule" && showSuggestions && query.trim() && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-surface-200 bg-white text-left shadow-xl">
                 <p className="border-b border-surface-100 px-4 py-2.5 font-mono text-[9px] uppercase tracking-[.12em] text-surface-400">IQVIA molecule matches</p>
                 {suggestions.map((molecule) => (
@@ -352,7 +451,12 @@ export default function SearchPage() {
                     <span className="matthew-eyebrow text-pharma-900">Molecule brief</span>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-emerald-700">IQVIA matched</span>
                   </div>
-                  <h2 className="mt-3 font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl">{result.molecule}</h2>
+                  {viaProduct && viaProduct.molecule.toUpperCase() === result.molecule.toUpperCase() && (
+                    <p className="mt-3 text-sm text-surface-600">
+                      <span className="font-semibold text-surface-900">{viaProduct.product}</span> ({viaProduct.manufacturer}) contains
+                    </p>
+                  )}
+                  <h2 className={`${viaProduct ? "mt-1" : "mt-3"} font-serif text-4xl font-medium tracking-[-.04em] text-surface-900 sm:text-5xl`}>{result.molecule}</h2>
                   {(result.atc4_class || result.atc3_class) && (
                     <span className="mt-3 inline-block rounded-full border border-surface-200 bg-surface-50 px-3 py-1 text-xs text-surface-600">
                       {result.atc4_class || result.atc3_class}

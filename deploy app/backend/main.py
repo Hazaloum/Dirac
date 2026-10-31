@@ -43,6 +43,29 @@ ON_VERCEL = bool(os.getenv("VERCEL"))
 _load_lock = threading.Lock()
 
 
+def _product_index(df) -> list[dict]:
+    """One entry per IQVIA product (brand) × molecule, for the product search.
+
+    Each entry gives the product's biggest manufacturer and its end-year value
+    (years[-2], divided by the molecule count like every combination total)."""
+    import re
+    import pandas as pd
+    years = sorted(int(c.split()[0]) for c in df.columns if re.fullmatch(r"\d{4} LC Value", c))
+    end = years[-2] if len(years) >= 2 else (years[-1] if years else None)
+    sub = df[["Product", "Molecule Combination", "Manufacturer"]].copy()
+    sub["value"] = pd.to_numeric(df[f"{end} LC Value"], errors="coerce").fillna(0) if end else 0.0
+    sub = sub.dropna(subset=["Product", "Molecule Combination"])
+    sub["value"] = sub["value"] / (sub["Molecule Combination"].str.count(r" \+ ") + 1)
+    by_mfr = (sub.groupby(["Product", "Molecule Combination", "Manufacturer"], as_index=False)["value"].sum()
+                 .sort_values("value", ascending=False))
+    out = []
+    for (product, molecule), g in by_mfr.groupby(["Product", "Molecule Combination"], sort=False):
+        out.append({"product": str(product), "molecule": str(molecule),
+                    "manufacturer": str(g.iloc[0]["Manufacturer"]), "value": float(g["value"].sum())})
+    out.sort(key=lambda r: (r["product"], -r["value"]))
+    return out
+
+
 def ensure_loaded() -> None:
     """Load IQVIA / UPP / MOHAP / WHO once per process (Constraint 2: never per request)."""
     if "dfs" in _state:
@@ -56,6 +79,7 @@ def ensure_loaded() -> None:
         dfs, _state["market_context"] = load_data()
         load_who_assets()
         _state["molecules"] = sorted(dfs["iqvia"]["Molecule Combination"].dropna().unique().tolist())
+        _state["products"] = _product_index(dfs["iqvia"])
         _state["dfs"] = dfs
         print(f"  Ready — {len(_state['molecules'])} molecules loaded.")
 
@@ -140,6 +164,18 @@ def me(request: Request):
 @app.get("/api/molecules")
 def molecules():
     return {"molecules": _state.get("molecules", [])}
+
+
+@app.get("/api/products")
+def products(q: str = "", limit: int = 8):
+    """IQVIA products (brands) matching q, each with its molecule — for the search page's Product mode.
+    Names starting with q come first, then by end-year value."""
+    needle = q.strip().upper()
+    if not needle:
+        return {"products": []}
+    hits = [p for p in _state.get("products", []) if needle in p["product"].upper()]
+    hits.sort(key=lambda p: (not p["product"].upper().startswith(needle), p["product"].upper() != needle, -p["value"]))
+    return {"products": hits[:max(1, min(limit, 50))]}
 
 
 # ─── Market Discovery — segmented IQVIA/EphMRA hierarchy ───────────────────

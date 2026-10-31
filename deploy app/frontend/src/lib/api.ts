@@ -32,6 +32,10 @@ export const api = {
   // Molecules
   getMolecules: () => req<{ molecules: string[] }>("/api/molecules"),
 
+  // IQVIA products (brands) by name, each with its molecule — search page, Product mode.
+  searchProducts: (q: string, limit = 8) =>
+    req<{ products: ProductMatch[] }>(`/api/products?q=${encodeURIComponent(q)}&limit=${limit}`),
+
   // Market discovery hierarchy. ATC1 has no parent; deeper levels do.
   getMarketDiscovery: (level = "ATC1", parentCode?: string, source = "IQVIA") => {
     const query = new URLSearchParams({ level });
@@ -788,6 +792,15 @@ export interface MyPortfolio {
   result:       AnalysisResult;
   report:       string;
   saved_at:     string;
+}
+
+export interface ProductMatch {
+  product: string;
+  molecule: string;
+  /** The product's biggest manufacturer. */
+  manufacturer: string;
+  /** End-year (years[-2]) value in AED, combinations divided by molecule count. */
+  value: number;
 }
 
 export interface ForecastPackData {
