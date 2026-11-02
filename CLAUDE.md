@@ -119,6 +119,7 @@ DataFrames live in `_state` for the lifetime of the process. **Never re-read ref
 | DELETE | `/api/analysis/history/{run_id}` | Delete run |
 | POST | `/api/analysis/forecast` | Y1–YN forecast for a molecule list (`years` 1–10, default 3) |
 | GET | `/api/analysis/manufacturers/{molecule}` | IQVIA manufacturer breakdown (pie chart) |
+| GET | `/api/analysis/uae-registrations/{molecule}?source=mohap\|upp` | The companies behind the molecule drawer's MOHAP / UPP counts, each with its products |
 | GET | `/api/portfolio` | Get My Portfolio |
 | POST | `/api/portfolio/upload` | Upload catalogue → save as My Portfolio |
 | POST | `/api/portfolio/enrich` | Craft molecule list → save as My Portfolio |
@@ -206,6 +207,8 @@ Growth rate is user-selected via slider (5–30%, default 15%) on the `/forecast
 - Shortlisted IQVIA molecules → **Generate Forecasts** button → serialises `ForecastSession` to localStorage → `router.push("/forecast")`
 - History sidebar: lists saved runs, click to reload. **Every upload / crafted list is saved to History automatically** (not single-molecule lookups); the same run is then updated (`POST /api/analysis/history` with `run_id`) when the AI report finishes, molecules are added to registries, or Save is pressed — one History entry per catalogue.
 - The working state (result, company, report) is kept in localStorage (`src/lib/analysisSession.ts`, key `comix_analysis_session`) so leaving the page or reloading brings the last catalogue back; "New analysis" (reset) clears it. A finished report restored this way isn't saved to history again.
+
+**Molecule drawer — UAE Registrations** (`components/UaeRegistrations.tsx`): "Manufacturers in UPP" and "Holders in MOHAP" each have an **Open** button that lists the companies and their products (name, ingredient, strength, form, pack, public price, agent) from `GET /api/analysis/uae-registrations/{molecule}?source=`. It uses the same matching as the counts (`mohap.find_mohap_rows` / `upp.find_upp_rows`, UPP active only), so the lists agree with the numbers; UPP packages repeated per insurance plan show once.
 
 **Molecule search (`/search`)**
 - The search bar has a **Molecule / Product** toggle. Molecule mode filters the IQVIA molecule list in the browser (`GET /api/molecules`). Product mode asks `GET /api/products?q=` (brand names from IQVIA `Product`, built once at startup by `main._product_index`: one entry per product × molecule with its biggest manufacturer and end-year value; names starting with the search first, then by value). Picking a product opens its molecule's brief with "PRODUCT (manufacturer) contains" above the name.

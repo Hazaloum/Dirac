@@ -55,6 +55,59 @@ def _search_combination(df: pd.DataFrame, constituents: List[str]) -> pd.DataFra
 # Master extraction function
 # ─────────────────────────────────────────────────────────────
 
+def find_mohap_rows(df: pd.DataFrame, molecule: str) -> pd.DataFrame:
+    """The MOHAP rows counted for a molecule (combinations: every INN in the same row)."""
+    mol_upper    = molecule.strip().upper()
+    constituents = _split_constituents(mol_upper)
+    if len(constituents) > 1:
+        return _search_combination(df, constituents)
+    return _search_single(df, mol_upper)
+
+
+def _text(v) -> str:
+    return "" if pd.isna(v) or str(v).strip().upper() in ("", "NAN", "NONE") else str(v).strip()
+
+
+def _num(v):
+    try:
+        f = float(v)
+        return None if pd.isna(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
+def get_mohap_competitors(df: pd.DataFrame, molecule: str) -> list[dict]:
+    """
+    The companies behind the MOHAP holder count, each with its products
+    (trade name, ingredient, strength, form, pack, public price, agent).
+    Biggest product list first.
+    """
+    rows = find_mohap_rows(df, molecule)
+    companies = []
+    for company, g in rows.groupby("Company", dropna=False):
+        products, seen = [], set()
+        for _, r in g.iterrows():
+            p = {
+                "name":       _text(r.get("Trade Name")),
+                "ingredient": _text(r.get("Ingredient")),
+                "strength":   _text(r.get("Strength")),
+                "form":       _text(r.get("Form")),
+                "pack":       _text(r.get("Pack Size")),
+                "price":      _num(r.get("Public Price (AED)")),
+                "agent":      _text(r.get("Agent")),
+            }
+            key = (p["name"], p["strength"], p["form"], p["pack"])
+            if key in seen:
+                continue
+            seen.add(key)
+            products.append(p)
+        products.sort(key=lambda p: (p["name"], p["strength"], p["form"], p["pack"]))
+        agents = sorted({p["agent"] for p in products if p["agent"]})
+        companies.append({"company": _text(company) or "Unknown", "agents": agents, "products": products})
+    companies.sort(key=lambda c: (-len(c["products"]), c["company"]))
+    return companies
+
+
 def get_mohap_data(df: pd.DataFrame, molecule: str) -> dict:
     """
     Return the number of distinct companies registered for a molecule in MOHAP.
@@ -70,11 +123,7 @@ def get_mohap_data(df: pd.DataFrame, molecule: str) -> dict:
             "error":             str | None,
         }
     """
-    mol_upper    = molecule.strip().upper()
-    constituents = _split_constituents(mol_upper)
-    is_combo     = len(constituents) > 1
-
-    results = _search_combination(df, constituents) if is_combo else _search_single(df, mol_upper)
+    results = find_mohap_rows(df, molecule)
 
     if results.empty:
         logger.info(f"MOHAP: '{molecule}' not found")

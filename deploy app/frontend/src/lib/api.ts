@@ -76,6 +76,11 @@ export const api = {
       body: JSON.stringify({ molecules, company }),
     }),
 
+  // The companies + products behind the drawer's MOHAP / UPP counts
+  getUaeRegistrations: (molecule: string, source: "mohap" | "upp") =>
+    req<{ source: string; molecule: string; companies: UaeRegistrationCompany[] }>(
+      `/api/analysis/uae-registrations/${encodeURIComponent(molecule)}?source=${source}`),
+
   getManufacturers: (molecule: string) =>
     req<ManufacturerBreakdown>(`/api/analysis/manufacturers/${encodeURIComponent(molecule)}`),
 
@@ -792,6 +797,23 @@ export interface MyPortfolio {
   result:       AnalysisResult;
   report:       string;
   saved_at:     string;
+}
+
+export interface UaeRegistrationProduct {
+  name: string;
+  ingredient: string;
+  strength: string;
+  form: string;
+  pack: string;
+  /** Public price in AED (MOHAP "Public Price", UPP "Package Price to Public"). */
+  price: number | null;
+  agent: string;
+}
+
+export interface UaeRegistrationCompany {
+  company: string;
+  agents: string[];
+  products: UaeRegistrationProduct[];
 }
 
 export interface ProductMatch {

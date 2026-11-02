@@ -9,6 +9,7 @@ import {
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
 import { api, type MoleculeCard } from "@/lib/api";
 import { RegistryHolders } from "@/components/RegistryHolders";
+import { UaeRegistrationRow } from "@/components/UaeRegistrations";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -297,24 +298,8 @@ export function MoleculeDrawer({ molecule: m, isTop5, onClose }: Props) {
 
           {/* ── UAE Registrations ── */}
           <Section title="UAE Registrations" icon={<Building2 className="w-4 h-4" />}>
-            <MetricRow
-              label="Manufacturers in UPP"
-              value={fmtNum(m.upp_manufacturers)}
-              highlight={
-                m.upp_manufacturers == null ? undefined :
-                m.upp_manufacturers <= 3 ? "good" :
-                m.upp_manufacturers <= 6 ? "neutral" : "bad"
-              }
-            />
-            <MetricRow
-              label="Holders in MOHAP"
-              value={fmtNum(m.mohap_manufacturers)}
-              highlight={
-                m.mohap_manufacturers == null ? undefined :
-                m.mohap_manufacturers <= 3 ? "good" :
-                m.mohap_manufacturers <= 6 ? "neutral" : "bad"
-              }
-            />
+            <UaeRegistrationRow molecule={m.molecule} source="upp" label="Manufacturers in UPP" count={m.upp_manufacturers} />
+            <UaeRegistrationRow molecule={m.molecule} source="mohap" label="Holders in MOHAP" count={m.mohap_manufacturers} />
           </Section>
 
           {/* ── Registry holders (master registry, all countries) ── */}

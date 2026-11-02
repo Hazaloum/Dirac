@@ -112,6 +112,65 @@ def _fuzzy_fallback(df: pd.DataFrame, molecule: str, threshold: int = 80) -> pd.
 # Master extraction function
 # ─────────────────────────────────────────────────────────────
 
+def find_upp_rows(df: pd.DataFrame, molecule: str) -> pd.DataFrame:
+    """The UPP rows matched for a molecule (exact, then fuzzy), before the ACTIVE filter."""
+    mol_upper    = molecule.strip().upper()
+    constituents = _split_constituents(mol_upper)
+    results = _search_combination(df, constituents) if len(constituents) > 1 else _search_single(df, mol_upper)
+    if results.empty:
+        logger.debug(f"UPP: exact search empty for '{molecule}', trying fuzzy")
+        results = _fuzzy_fallback(df, mol_upper)
+    return results
+
+
+def _text(v) -> str:
+    return "" if pd.isna(v) or str(v).strip().upper() in ("", "NAN", "NONE") else str(v).strip()
+
+
+def _num(v):
+    try:
+        f = float(v)
+        return None if pd.isna(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
+def get_upp_competitors(df: pd.DataFrame, molecule: str) -> list[dict]:
+    """
+    The manufacturers behind the UPP count (active products only, like the count),
+    each with its products (package name, generic, strength, form, pack, public price,
+    agent). One line per package: UPP repeats a package once per insurance plan.
+    Biggest product list first.
+    """
+    rows = find_upp_rows(df, molecule)
+    if rows.empty:
+        return []
+    rows = rows[rows["Status"] == "ACTIVE"]
+    companies = []
+    for company, g in rows.groupby("Manufacturer Name", dropna=False):
+        products, seen = [], set()
+        for _, r in g.iterrows():
+            p = {
+                "name":       _text(r.get("Package Name")),
+                "ingredient": _text(r.get("Generic Name")),
+                "strength":   _text(r.get("Strength")),
+                "form":       _text(r.get("Dosage Form")),
+                "pack":       _text(r.get("Package Size")),
+                "price":      _num(r.get("Package Price to Public")),
+                "agent":      _text(r.get("Agent Name")),
+            }
+            key = (p["name"], p["strength"], p["form"], p["pack"])
+            if key in seen:
+                continue
+            seen.add(key)
+            products.append(p)
+        products.sort(key=lambda p: (p["name"], p["strength"], p["form"], p["pack"]))
+        agents = sorted({p["agent"] for p in products if p["agent"]})
+        companies.append({"company": _text(company) or "Unknown", "agents": agents, "products": products})
+    companies.sort(key=lambda c: (-len(c["products"]), c["company"]))
+    return companies
+
+
 def get_upp_data(df: pd.DataFrame, molecule: str) -> dict:
     """
     Return the number of active registered manufacturers for a molecule in UPP.
@@ -127,17 +186,7 @@ def get_upp_data(df: pd.DataFrame, molecule: str) -> dict:
             "error":             str | None,
         }
     """
-    mol_upper   = molecule.strip().upper()
-    constituents = _split_constituents(mol_upper)
-    is_combo     = len(constituents) > 1
-
-    # Exact search
-    results = _search_combination(df, constituents) if is_combo else _search_single(df, mol_upper)
-
-    # Fuzzy fallback
-    if results.empty:
-        logger.debug(f"UPP: exact search empty for '{molecule}', trying fuzzy")
-        results = _fuzzy_fallback(df, mol_upper)
+    results = find_upp_rows(df, molecule)
 
     if results.empty:
         logger.info(f"UPP: '{molecule}' not found")

@@ -483,6 +483,21 @@ def get_manufacturers(molecule: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/analysis/uae-registrations/{molecule}")
+def uae_registrations(molecule: str, source: str):
+    """The companies behind the drawer's MOHAP / UPP counts, each with its products.
+    Uses the same matching as the counts (lookup_molecule), so the lists agree with them."""
+    from data_processing.mohap import get_mohap_competitors
+    from data_processing.upp import get_upp_competitors
+    src = source.lower()
+    if src not in ("mohap", "upp"):
+        raise HTTPException(status_code=422, detail="source must be mohap or upp")
+    dfs = _state["dfs"]
+    companies = (get_mohap_competitors(dfs["mohap"], molecule.upper()) if src == "mohap"
+                 else get_upp_competitors(dfs["upp"], molecule.upper()))
+    return {"source": src, "molecule": molecule, "companies": companies}
+
+
 # ─── Outreach — registered products for a UAE-present company ────────────────
 @app.get("/api/outreach/company-products")
 def company_products(mohap_name: str):
