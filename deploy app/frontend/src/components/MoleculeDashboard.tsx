@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { CompetitionPanel } from "@/components/CompetitionPanel";
 import { MarketBreakdownChart } from "@/components/MarketBreakdownChart";
+import { OpenRegistrations } from "@/components/UaeRegistrations";
 import type { MoleculeCard, MoleculeSlices } from "@/lib/api";
 
 function fmtPct(v?: number | null, showSign = false) {
@@ -75,10 +76,12 @@ export function MoleculeDashboard({ molecule: m, slices }: { molecule: MoleculeC
             <div className="rounded-xl bg-surface-50 p-3.5 text-center">
               <p className="text-[10px] uppercase tracking-wider text-surface-400">MOHAP holders</p>
               <p className="mt-1.5 font-serif text-2xl text-surface-900">{m.mohap_manufacturers ?? "—"}</p>
+              <OpenRegistrations molecule={m.molecule} source="mohap" count={m.mohap_manufacturers} className="mt-2" />
             </div>
             <div className="rounded-xl bg-surface-50 p-3.5 text-center">
               <p className="text-[10px] uppercase tracking-wider text-surface-400">UPP registered</p>
               <p className="mt-1.5 font-serif text-2xl text-surface-900">{m.upp_manufacturers ?? "—"}</p>
+              <OpenRegistrations molecule={m.molecule} source="upp" count={m.upp_manufacturers} className="mt-2" />
             </div>
           </div>
           {registeredNotSelling != null && registeredNotSelling > 0 && (
