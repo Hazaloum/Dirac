@@ -5,6 +5,7 @@ import {
   Briefcase, Check, ChevronRight, FileText, Loader2, Plus, Search, Upload, X,
 } from "lucide-react";
 import { api, type HierarchyClass, type PortfolioHierarchy } from "@/lib/api";
+import { textAsFile } from "@/lib/pastedText";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtAed(v: number) {
@@ -132,10 +133,13 @@ export function PortfolioBuilder({
     );
   };
 
-  const importFiles = async (list: FileList | null) => {
+  const [importSource, setImportSource] = useState<"files" | "text">("files");
+  const [pastedText,   setPastedText]   = useState("");
+
+  const importFiles = async (list: FileList | File[] | null, labelOverride?: string) => {
     const files = Array.from(list ?? []);
     if (!files.length) return;
-    const label = files.length === 1 ? files[0].name : `${files.length} files`;
+    const label = labelOverride ?? (files.length === 1 ? files[0].name : `${files.length} files`);
     setImporting(true);
     setImportNote("");
     try {
@@ -292,7 +296,39 @@ export function PortfolioBuilder({
           </div>
         </div>
 
-        {/* Import from file */}
+        {/* Import from a file, or from pasted text */}
+        <div role="radiogroup" aria-label="Import from" className="flex w-fit rounded-lg bg-surface-100 p-0.5">
+          {([["files", "Documents"], ["text", "Paste text"]] as const).map(([key, label]) => (
+            <button key={key} type="button" role="radio" aria-checked={importSource === key}
+              onClick={() => setImportSource(key)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                importSource === key ? "bg-white text-pharma-900 shadow-sm" : "text-surface-500 hover:text-surface-800"
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {importSource === "text" ? (
+          <div className="space-y-2">
+            <textarea
+              aria-label="Text to find molecules in"
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              rows={7}
+              placeholder="Paste an email, a product list or any text — the AI picks out the molecules"
+              className="w-full resize-y rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm text-surface-900 placeholder-surface-400 focus:border-pharma-300 focus:outline-none"
+            />
+            <button
+              type="button"
+              disabled={importing || !pastedText.trim()}
+              onClick={() => importFiles([textAsFile(pastedText)], "the pasted text")}
+              className="flex items-center gap-2 rounded-xl border border-pharma-700 bg-white px-3 py-2 text-sm font-medium text-pharma-900 hover:bg-pharma-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              {importing ? "Reading text..." : "Find molecules"}
+            </button>
+          </div>
+        ) : (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -329,6 +365,7 @@ export function PortfolioBuilder({
             </>
           )}
         </div>
+        )}
         {importNote && (
           <p className="flex items-start gap-2 text-xs text-surface-600 bg-surface-50 border border-surface-200 rounded-xl px-3 py-2">
             <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-pharma-900" /> {importNote}

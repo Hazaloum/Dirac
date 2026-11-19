@@ -400,6 +400,10 @@ def _extract_text(content: bytes, filename: str) -> str:
     """
     suffix = Path(filename).suffix.lower()
 
+    # Plain text (the "Paste text" option sends the pasted text as a .txt file)
+    if suffix in (".txt", ".md"):
+        return content.decode("utf-8", errors="replace")
+
     # AnyDoc handles PDF, CSV, Excel, and the other common office formats. CSV
     # is the one supported format that cannot be identified from file bytes, so
     # pass its extension explicitly. For all other formats content detection

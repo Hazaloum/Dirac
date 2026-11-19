@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { FORECAST_SESSION_KEY, type ForecastSession } from "@/lib/forecastSession";
 import { readAnalysisSession, writeAnalysisSession } from "@/lib/analysisSession";
+import { textAsFile } from "@/lib/pastedText";
 import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
 import { ExtractionNote, RegistryReview } from "@/components/CatalogueReview";
@@ -135,6 +136,9 @@ export default function AnalysisPage() {
 
   // Input state
   const [files,          setFiles]          = useState<File[]>([]);
+  // Upload catalogue: documents, or a wall of pasted text the AI reads the same way
+  const [uploadSource,   setUploadSource]   = useState<"files" | "text">("files");
+  const [pastedText,     setPastedText]     = useState("");
   const [companyName,    setCompanyName]     = useState("");
   const [companyPick,    setCompanyPick]     = useState<CompanyPick | null>(null);
   const [uploadProgress, setUploadProgress]  = useState<{ count: number; line?: string } | null>(null);
@@ -288,7 +292,9 @@ export default function AnalysisPage() {
     const picked = Array.from(list ?? []);
     if (picked.length) setFiles((prev) => [...prev, ...picked.filter((f) => !prev.some((p) => p.name === f.name && p.size === f.size))]);
   };
-  const sourceName = files.map((f) => f.name).join(", ");
+  // What the upload sends: the picked files, or the pasted text as one .txt file
+  const uploads = uploadSource === "text" ? (pastedText.trim() ? [textAsFile(pastedText)] : []) : files;
+  const sourceName = uploads.map((f) => f.name).join(", ");
 
   // ── Drag & drop ──
   const [dragging, setDragging] = useState(false);
@@ -311,9 +317,9 @@ export default function AnalysisPage() {
 
       if (mode === "upload") {
         if (!companyName) throw new Error("Pick the company this catalogue is from");
-        if (!files.length) throw new Error("Please select a file");
+        if (!uploads.length) throw new Error(uploadSource === "text" ? "Paste some text first" : "Please select a file");
         setUploadProgress({ count: 0 });
-        res = await uploadCatalogueStream(files, companyName, companyPick, (p: UploadProgress) =>
+        res = await uploadCatalogueStream(uploads, companyName, companyPick, (p: UploadProgress) =>
           setUploadProgress((prev) => {
             if ("molecule" in p) return { count: p.count, line: p.molecule };
             if (p.stage === "reading")
@@ -404,6 +410,7 @@ export default function AnalysisPage() {
     setReportDone(false);
     setScoredMolecules({});
     setFiles([]);
+    setPastedText("");
     setCraftMolecules([]);
     setCompanyName("");
     setEnrichError("");
@@ -626,7 +633,37 @@ export default function AnalysisPage() {
             {/* Upload mode */}
             {mode === "upload" && (
               <div>
-                <label className="block text-xs font-medium text-surface-600 mb-1.5">Catalogue File</label>
+                <div className="mb-1.5 flex items-center justify-between gap-3">
+                  <label className="block text-xs font-medium text-surface-600">
+                    {uploadSource === "text" ? "Catalogue text" : "Catalogue File"}
+                  </label>
+                  <div role="radiogroup" aria-label="Catalogue source" className="flex rounded-lg bg-surface-100 p-0.5">
+                    {([["files", "Documents"], ["text", "Paste text"]] as const).map(([key, label]) => (
+                      <button key={key} type="button" role="radio" aria-checked={uploadSource === key}
+                        onClick={() => setUploadSource(key)}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                          uploadSource === key ? "bg-white text-pharma-900 shadow-sm" : "text-surface-500 hover:text-surface-800"
+                        }`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {uploadSource === "text" ? (
+                  <div>
+                    <textarea
+                      aria-label="Catalogue text"
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      rows={10}
+                      placeholder="Paste an email, a product list or any text — the AI picks out the molecules, forms and strengths"
+                      className="w-full resize-y rounded-xl border border-surface-300 bg-white px-4 py-3 text-sm text-surface-900 placeholder-surface-400 focus:border-pharma-300 focus:outline-none"
+                    />
+                    <p className="mt-1 text-xs text-surface-400">
+                      {pastedText.trim() ? `${pastedText.trim().length.toLocaleString()} characters` : "Read the same way as an uploaded document"}
+                    </p>
+                  </div>
+                ) : (
                 <div
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
@@ -668,6 +705,7 @@ export default function AnalysisPage() {
                     </>
                   )}
                 </div>
+                )}
               </div>
             )}
 
@@ -743,7 +781,7 @@ export default function AnalysisPage() {
 
             <button
               onClick={runPhase1}
-              disabled={enrichLoading || (mode === "upload" && !files.length) || (mode !== "upload" && craftMolecules.length === 0)}
+              disabled={enrichLoading || (mode === "upload" && !uploads.length) || (mode !== "upload" && craftMolecules.length === 0)}
               className="w-full flex items-center justify-center gap-2 bg-pharma-900 text-white font-medium hover:bg-pharma-800 text-white disabled:bg-zinc-700 disabled:text-surface-500 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm">
               {enrichLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               {enrichLoading ? "Extracting & enriching molecules..." : "Analyse catalogue"}

@@ -123,7 +123,7 @@ def catalogue_pages(content: bytes, filename: str) -> list[dict]:
     from agent_runner import _extract_text
     text = _extract_text(content, filename)
     parts, current = [], ""
-    for line in text.splitlines(keepends=True):
+    for line in _split_long(text.splitlines(keepends=True)):
         if current and len(current) + len(line) > CHUNK_CHARS:
             parts.append(current)
             current = ""
@@ -131,6 +131,19 @@ def catalogue_pages(content: bytes, filename: str) -> list[dict]:
     if current.strip():
         parts.append(current)
     return [{"page": n, "text": t} for n, t in enumerate(parts, start=1)]
+
+
+def _split_long(lines: list[str]) -> list[str]:
+    """Lines longer than CHUNK_CHARS cut at a space (pasted text often has no line breaks)."""
+    out = []
+    for line in lines:
+        while len(line) > CHUNK_CHARS:
+            cut = line.rfind(" ", 0, CHUNK_CHARS)
+            cut = cut if cut > 0 else CHUNK_CHARS
+            out.append(line[:cut + 1])
+            line = line[cut + 1:]
+        out.append(line)
+    return out
 
 
 def _chunks(pages: list[dict]) -> list[list[dict]]:
