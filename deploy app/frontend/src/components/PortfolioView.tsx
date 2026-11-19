@@ -11,7 +11,7 @@ import type { AnalysisResult, MoleculeCard } from "@/lib/api";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { CatalogueLine } from "@/components/CatalogueReview";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
-import { RegistryOnlySection } from "@/components/RegistryOnlySection";
+import { useRegistryOnly } from "@/lib/registryOnly";
 
 /**
  * Portfolio results view shared by My Portfolio and Catalogues: stats bar,
@@ -51,14 +51,6 @@ function RegistryTag({ status }: { status?: MoleculeCard["registry_status"] }) {
   return null;
 }
 
-function SectionHeading({ title, sub }: { title: string; sub: string }) {
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <h2 className="text-base font-semibold text-surface-900">{title}</h2>
-      <span className="text-xs text-surface-500">{sub}</span>
-    </div>
-  );
-}
 
 export function PortfolioView({
   result,
@@ -107,30 +99,55 @@ export function PortfolioView({
   const isShortlisted  = (mol: string) => decisionFor?.(mol) === "shortlisted";
   const isMaybe        = (mol: string) => decisionFor?.(mol) === "maybe";
   const isDisqualified = (mol: string) => decisionFor?.(mol) === "disqualified";
-  const top5Molecules  = topFiveMolecules(cards, reportDone);
-  // Upload catalogue with a registry company: split into "In portfolio" (this catalogue) and "In registry"
+  // Upload catalogue with a registry company: toggle between the catalogue ("Portfolio") and what the company holds
+  // in the official registries but didn't list ("In registry only"), shown as the same cards.
   const registryCompany = result.registry_check && !result.registry_check.error ? result.registry_check.company_id : undefined;
-  const alsoInRegistry = cards.filter((m) => m.registry_status === "in_registry").length;
+  const [source, setSource] = useState<"portfolio" | "registry">("portfolio");
+  const inRegistryView = registryCompany != null && source === "registry" && phase === "portfolio";
+  const registry = useRegistryOnly(registryCompany, result.registry_check?.whole_group ?? true, cards, inRegistryView);
+  const gridResult = inRegistryView ? registry.result : result;
+  const gridCards  = inRegistryView ? (registry.result?.molecules ?? []) : cards;
+  const top5Molecules  = topFiveMolecules(gridCards, reportDone && !inRegistryView);
 
   return (
     <div className="space-y-6">
+      {registryCompany != null && phase === "portfolio" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div role="radiogroup" aria-label="Show" className="flex rounded-xl bg-surface-100 p-1">
+            {([["portfolio", "Portfolio"], ["registry", "In registry only"]] as const).map(([key, label]) => (
+              <button key={key} type="button" role="radio" aria-checked={source === key} onClick={() => setSource(key)}
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                  source === key ? "bg-white text-pharma-900 shadow-sm" : "text-surface-500 hover:text-surface-800"
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-surface-500">
+            {inRegistryView
+              ? `What ${registry.companyName || "this company"} holds in the official registries but didn't list in this catalogue`
+              : `This catalogue's molecules · ${cards.filter((m) => m.registry_status === "in_registry").length} also in its registries`}
+          </p>
+        </div>
+      )}
+
       {/* Stats bar */}
       <div className="flex items-center gap-6 p-4 bg-white shadow-sm border border-surface-200 rounded-xl">
         <div>
           <p className="text-xs text-surface-500">Molecules</p>
-          <p className="text-xl font-bold text-surface-900">{result.stats.total}</p>
+          <p className="text-xl font-bold text-surface-900">{gridResult?.stats.total ?? "…"}</p>
         </div>
         <div className="w-px h-8 bg-surface-100" />
         <div>
           <p className="text-xs text-surface-500">IQVIA Matched</p>
-          <p className="text-xl font-bold text-pharma-900">{result.stats.matched_iqvia}</p>
+          <p className="text-xl font-bold text-pharma-900">{gridResult?.stats.matched_iqvia ?? "…"}</p>
         </div>
         <div className="w-px h-8 bg-surface-100" />
         <div>
           <p className="text-xs text-surface-500">Therapy Areas</p>
-          <p className="text-xl font-bold text-surface-900">{Object.keys(result.molecules_by_atc1).length}</p>
+          <p className="text-xl font-bold text-surface-900">{gridResult ? Object.keys(gridResult.molecules_by_atc1).length : "…"}</p>
         </div>
-        {result.registry_check && (
+        {result.registry_check && !inRegistryView && (
           <>
             <div className="w-px h-8 bg-surface-100" />
             {result.registry_check.error ? (
@@ -150,10 +167,10 @@ export function PortfolioView({
         )}
         <div className="flex-1" />
 
-        {actions}
+        {!inRegistryView && actions}
 
         {/* Scoring model selector (portfolio phase only) */}
-        {phase === "portfolio" && !reportDone && (
+        {phase === "portfolio" && !reportDone && !inRegistryView && (
           <div className="relative">
             <select
               value={scoringModel}
@@ -183,8 +200,8 @@ export function PortfolioView({
           </div>
         )}
 
-        {/* Generate / View report button */}
-        {phase === "portfolio" && (
+        {/* Generate / View report button (on the catalogue) */}
+        {phase === "portfolio" && !inRegistryView && (
           reportDone ? (
             <button onClick={() => { onPhaseChange("report"); setReportTab("report"); }}
               className="flex items-center gap-2 bg-pharma-100 hover:bg-pharma-200 border border-pharma-300 text-pharma-900 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
@@ -211,16 +228,19 @@ export function PortfolioView({
       </div>
 
       {/* ── PORTFOLIO GRID / TREEMAP ── */}
-      {phase === "portfolio" && (
+      {phase === "portfolio" && inRegistryView && (registry.error || !gridResult || registry.loaded < registry.total || gridCards.length === 0) && (
+        <p className={`flex items-center gap-2 text-sm ${registry.error ? "text-rose-700" : "text-surface-500"}`}>
+          {registry.error ? registry.error : !gridResult ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading the registry portfolio…</>
+            : registry.loaded < registry.total ? <><Loader2 className="h-4 w-4 animate-spin" /> Adding market data: {registry.loaded} of {registry.total} molecules in UAE IQVIA…</>
+            : "Nothing else: every molecule it holds in the official registries is in this catalogue."}
+        </p>
+      )}
+      {phase === "portfolio" && gridResult && (
         <>
-          {registryCompany != null && (
-            <SectionHeading title="In portfolio"
-              sub={`${cards.length} molecule${cards.length === 1 ? "" : "s"} from this catalogue · ${alsoInRegistry} also in its registries`} />
-          )}
           {viewMode === "grid" ? (
             <div className="space-y-4">
-              {Object.entries(result.molecules_by_atc1).map(([atc1, moleculeNames], groupIndex) => {
-                const groupCards = cards.filter(m =>
+              {Object.entries(gridResult.molecules_by_atc1).map(([atc1, moleculeNames], groupIndex) => {
+                const groupCards = gridCards.filter(m =>
                   moleculeNames.some(n => n.toUpperCase() === m.molecule.toUpperCase())
                 );
                 const groupValue = groupCards.reduce((sum, m) => sum + (m.market_value_aed ?? 0), 0);
@@ -265,7 +285,7 @@ export function PortfolioView({
                             className="flex items-stretch gap-2 opacity-0 animate-slide-up"
                             style={{ animationDelay: `${(groupIndex * 5 + idx) * 0.02}s` }}
                           >
-                            {onDecision && (
+                            {onDecision && !inRegistryView && (
                             <div className="flex flex-col gap-1 justify-center">
                               <button
                                 onClick={() => onDecision(mol.molecule, "shortlisted")}
@@ -293,7 +313,7 @@ export function PortfolioView({
                             </div>
                             )}
                             <button
-                              onClick={() => onMoleculeOpen(cards.find(s => s.molecule === mol.molecule) ?? mol)}
+                              onClick={() => onMoleculeOpen(gridCards.find(s => s.molecule === mol.molecule) ?? mol)}
                               className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                             >
                               {top5Molecules.has(mol.molecule.toUpperCase()) && (
@@ -376,11 +396,11 @@ export function PortfolioView({
               {/* Ungrouped molecules */}
               {(() => {
                 const groupedSet = new Set(
-                  Object.values(result.molecules_by_atc1).flat().map(n => n.toUpperCase())
+                  Object.values(gridResult.molecules_by_atc1).flat().map(n => n.toUpperCase())
                 );
-                const ungrouped = cards.filter(m => !groupedSet.has(m.molecule.toUpperCase()));
+                const ungrouped = gridCards.filter(m => !groupedSet.has(m.molecule.toUpperCase()));
                 if (ungrouped.length === 0) return null;
-                const groupOffset = Object.keys(result.molecules_by_atc1).length;
+                const groupOffset = Object.keys(gridResult.molecules_by_atc1).length;
                 return (
                   <div className="p-5 rounded-xl bg-surface-50 border border-surface-200">
                     <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-surface-200">
@@ -398,7 +418,7 @@ export function PortfolioView({
                         const cardBorder   = shortlisted ? "border-emerald-800 bg-emerald-50" : maybe ? "border-amber-300 bg-amber-50/60" : disqualified ? "border-surface-300 bg-surface-50 opacity-60" : "border-surface-200 bg-white shadow-sm hover:bg-white hover:border-pharma-200";
                         return (
                           <div key={mol.molecule} className="flex items-stretch gap-2 opacity-0 animate-slide-up" style={{ animationDelay: `${(groupOffset * 5 + idx) * 0.02}s` }}>
-                            {onDecision && (
+                            {onDecision && !inRegistryView && (
                             <div className="flex flex-col gap-1 justify-center">
                               <button onClick={() => onDecision(mol.molecule, "shortlisted")} className={`p-1.5 rounded-lg transition-all ${shortlisted ? "text-emerald-700 bg-emerald-50" : "text-surface-500 hover:text-emerald-700 hover:bg-emerald-50"}`}>
                                 <CheckCircle2 className="w-5 h-5" />
@@ -418,7 +438,7 @@ export function PortfolioView({
                             </div>
                             )}
                             <button
-                              onClick={() => onMoleculeOpen(cards.find(s => s.molecule === mol.molecule) ?? mol)}
+                              onClick={() => onMoleculeOpen(gridCards.find(s => s.molecule === mol.molecule) ?? mol)}
                               className={`relative group p-3 border rounded-xl transition-all duration-200 flex-1 text-left cursor-pointer ${cardBorder}`}
                             >
                               <div className="flex items-center gap-2 mb-1 pr-2">
@@ -440,19 +460,15 @@ export function PortfolioView({
             </div>
           ) : (
             <PortfolioTreemap
-              moleculesByAtc1={result.molecules_by_atc1}
-              moleculeMetrics={result.molecule_metrics}
+              moleculesByAtc1={gridResult.molecules_by_atc1}
+              moleculeMetrics={gridResult.molecule_metrics}
               onMoleculeClick={(mol) => {
-                const card = cards.find(s => s.molecule === mol);
+                const card = gridCards.find(s => s.molecule === mol);
                 if (card) onMoleculeOpen(card);
               }}
             />
           )}
-          {registryCompany != null && (
-            <RegistryOnlySection companyId={registryCompany} wholeGroup={result.registry_check?.whole_group ?? true}
-              cards={cards} onMoleculeOpen={onMoleculeOpen} />
-          )}
-          {footer}
+          {!inRegistryView && footer}
         </>
       )}
 
