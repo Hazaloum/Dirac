@@ -254,6 +254,8 @@ async def analysis_upload(file: Optional[UploadFile] = File(None), files: Option
             check_catalogue(result, company_id, whole_group)
         except Exception as e:
             result["registry_check"] = {"error": str(e)}
+        from registry import add_catalogue
+        add_catalogue(result, company_id, ", ".join(name for _, name in uploads))
     return result
 
 
@@ -263,7 +265,8 @@ async def analysis_upload_stream(file: Optional[UploadFile] = File(None), files:
     """Upload a catalogue as SSE, for the progress pop-up. Claude reads the products first (catalogue_ai); if that
     fails, keyword matching (extract_and_enrich_steps) takes over. Events: {stage: "reading", pages, image_pages},
     {molecule, count} per molecule found, {stage: "fallback", reason}, {stage: "registry"}, then {result}.
-    The registry check is read-only; the review screen writes via POST /api/registry/uploaded. Ends with [DONE]."""
+    After the registry check the catalogue's molecules the company's registries don't list are added to the Uploaded
+    registry (registry.add_catalogue: the catalogue is the source of truth; not after a keyword fallback). Ends with [DONE]."""
     from agent_runner import ai_extract_and_enrich_steps, extract_and_enrich_steps
     uploads = await _read_uploads(file, files)
     send = lambda obj: f"data: {json.dumps(obj)}\n\n"
@@ -302,6 +305,8 @@ async def analysis_upload_stream(file: Optional[UploadFile] = File(None), files:
                     check_catalogue(result, company_id, whole_group)
                 except Exception as e:
                     result["registry_check"] = {"error": str(e)}
+                from registry import add_catalogue
+                add_catalogue(result, company_id, ", ".join(name for _, name in uploads))
             yield send({"result": result})
         except Exception as e:
             yield send({"error": str(e)})

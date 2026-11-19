@@ -12,7 +12,7 @@ import { readAnalysisSession, writeAnalysisSession } from "@/lib/analysisSession
 import { textAsFile } from "@/lib/pastedText";
 import { api, streamScore, uploadCatalogueStream, type UploadProgress, type AnalysisResult, type CompanyPick, type MoleculeCard as MolCardType, type AnalysisRun } from "@/lib/api";
 import { MoleculeDrawer } from "@/components/MoleculeDrawer";
-import { ExtractionNote, RegistryReview } from "@/components/CatalogueReview";
+import { ExtractionNote, RegistryAddedNote, RegistryReview, needsRegistryReview } from "@/components/CatalogueReview";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { PortfolioView, topFiveMolecules } from "@/components/PortfolioView";
 
@@ -794,9 +794,10 @@ export default function AnalysisPage() {
       {(phase === "portfolio" || phase === "report") && result && (result.extraction || result.registry_check?.company_id) && (
         <div className="space-y-3 mb-6">
           <ExtractionNote result={result} />
-          {result.registry_check?.company_id && (
+          <RegistryAddedNote result={result} company={companyName} />
+          {needsRegistryReview(result) && (
             <RegistryReview
-              key={`${result.registry_check.company_id}:${sourceName}`}
+              key={`${result.registry_check?.company_id}:${sourceName}`}
               result={result}
               company={companyName}
               source={sourceName}

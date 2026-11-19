@@ -645,7 +645,10 @@ export interface AnalysisResult {
   stats: { total: number; matched_iqvia: number };
   /** Upload catalogue with a registry company: the check against its registry portfolio. */
   registry_check?: { company_id?: number; whole_group?: boolean; in_registry?: number; already_uploaded?: number;
-                     new?: number; unmatched?: number; error?: string };
+                     new?: number; unmatched?: number; error?: string;
+                     /** What the upload added to the Uploaded registry by itself (the catalogue is the source of truth).
+                      *  skipped "keyword": not after a keyword fallback. Missing on runs saved before this existed. */
+                     auto_add?: { added?: number; updated?: number; error?: string; skipped?: "keyword" } };
   /** Upload catalogue: how the products were read. keyword = the AI failed (reason) and keyword matching ran. */
   extraction?: { method: "ai" | "keyword"; model?: string; pages?: number; image_pages?: number;
                  products?: number; dropped?: number; reason?: string };

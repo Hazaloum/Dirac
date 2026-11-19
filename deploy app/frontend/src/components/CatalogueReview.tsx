@@ -97,6 +97,31 @@ export function ExtractionNote({ result }: { result: AnalysisResult }) {
 const forms = (c: MoleculeCard) => Array.from(new Set((c.catalogue?.products ?? []).map((p) => p.dosage_form).filter(Boolean))).join("; ");
 const strengths = (c: MoleculeCard) => Array.from(new Set((c.catalogue?.products ?? []).flatMap((p) => p.strengths.filter((s) => s.offered !== false).map((s) => s.label)))).join(", ");
 
+/** Whether an upload still needs the review panel: only when nothing was added by itself (a keyword fallback,
+ *  or a run saved before uploads added their molecules automatically). */
+export function needsRegistryReview(result: AnalysisResult): boolean {
+  const auto = result.registry_check?.auto_add;
+  return !!result.registry_check?.company_id && !result.registry_check.error && (!auto || auto.skipped === "keyword");
+}
+
+/** One line after an upload: what went into the company's registries by itself. */
+export function RegistryAddedNote({ result, company }: { result: AnalysisResult; company: string }) {
+  const check = result.registry_check;
+  const auto = check?.auto_add;
+  if (!check?.company_id || !auto || auto.skipped) return null;
+  if (auto.error) return <p className="text-xs text-rose-700">Couldn&apos;t add the catalogue to {company}&apos;s registries: {auto.error}</p>;
+  const added = auto.added ?? 0, updated = auto.updated ?? 0;
+  return (
+    <p className="flex flex-wrap items-center gap-1 text-xs text-surface-600">
+      <Check className="w-3.5 h-3.5 text-emerald-700" />
+      {added || updated
+        ? <>Added to {company}&apos;s registries: {added} new{updated ? `, ${updated} updated` : ""} (Uploaded registry).</>
+        : <>Nothing new for {company}&apos;s registries.</>}
+      <span className="text-surface-400">{check.in_registry ?? 0} {(check.in_registry ?? 0) === 1 ? "was" : "were"} already in its official registries.</span>
+    </p>
+  );
+}
+
 /** Review before writing: the catalogue's molecules not in the company's registries, ticked to add.
  *  Submitted (not yet approved) and unmatched names start unticked; after a keyword fallback, all do. */
 export function RegistryReview({ result, company, source, onAdded }: {
@@ -149,6 +174,9 @@ export function RegistryReview({ result, company, source, onAdded }: {
 
   return (
     <div className="rounded-xl border border-surface-200 bg-white shadow-sm p-4 space-y-3">
+      {result.registry_check?.auto_add?.skipped === "keyword" && (
+        <p className="text-xs text-amber-800">The AI reading failed and keyword matching ran instead, which can split combinations, so nothing was added by itself: tick what&apos;s right.</p>
+      )}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-surface-900">Add to {company}&apos;s registries</h3>
         <p className="text-xs text-surface-500">

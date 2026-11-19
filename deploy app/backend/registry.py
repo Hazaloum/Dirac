@@ -45,6 +45,49 @@ def check_catalogue(result: dict, company_id: int, whole_group: bool) -> dict:
     return result
 
 
+def _catalogue_forms(card: dict) -> str:
+    products = (card.get("catalogue") or {}).get("products") or []
+    return "; ".join(dict.fromkeys(p.get("dosage_form") for p in products if p.get("dosage_form")))
+
+
+def _catalogue_strengths(card: dict) -> str:
+    products = (card.get("catalogue") or {}).get("products") or []
+    return ", ".join(dict.fromkeys(s["label"] for p in products for s in p.get("strengths") or []
+                                   if s.get("label") and s.get("offered") is not False))
+
+
+def add_catalogue(result: dict, company_id: int, source: str) -> dict:
+    """The catalogue is the source of truth: after check_catalogue, its molecules the company's registries don't list
+    (new, unmatched, or added from an earlier catalogue: strengths / form refreshed) go into the Uploaded registry,
+    with no review step. Not after a keyword fallback, which can split combinations into wrong molecules."""
+    check = result.get("registry_check") or {}
+    if check.get("error"):
+        return result
+    if (result.get("extraction") or {}).get("method") == "keyword":
+        check["auto_add"] = {"skipped": "keyword"}
+        return result
+    cards = [c for c in result.get("molecules", []) if c.get("registry_status") in ("new", "unmatched")
+             or (c.get("registry_status") == "already_uploaded" and c.get("catalogue"))]  # no catalogue info: don't blank it
+    if not cards:
+        check["auto_add"] = {"added": 0, "updated": 0}
+        return result
+    items = [{"name": c.get("registry_name") or c["molecule"], "form": _catalogue_forms(c),
+              "strengths": _catalogue_strengths(c), "catalogue_status": (c.get("catalogue") or {}).get("status")}
+             for c in cards]
+    try:
+        res = add_uploaded(company_id, items, source)
+    except Exception as e:
+        check["auto_add"] = {"error": str(e)}
+        return result
+    for c in cards:
+        if c["registry_status"] == "new":
+            c["registry_status"] = "already_uploaded"
+    check["new"] = 0
+    check["already_uploaded"] = sum(c.get("registry_status") == "already_uploaded" for c in result["molecules"])
+    check["auto_add"] = {"added": res["added"], "updated": res["updated"]}
+    return result
+
+
 def add_uploaded(company_id: int, items: list[dict], source: str) -> dict:
     rows = get_client().rpc("registry_add_uploaded", {"p_company_id": company_id, "p_items": items,
                                                      "p_source": source}).execute().data or []

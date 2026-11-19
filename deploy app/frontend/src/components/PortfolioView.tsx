@@ -153,12 +153,14 @@ export function PortfolioView({
             {result.registry_check.error ? (
               <p className="text-xs text-rose-700 max-w-xs">Registry check failed: {result.registry_check.error}</p>
             ) : (
-              <div title="Checked against this company's registry portfolio. Add the new ones from the review above.">
+              <div title="Checked against this company's registry portfolio; the catalogue's other molecules are added to it.">
                 <p className="text-xs text-surface-500">In its registries</p>
                 <p className="text-xl font-bold text-surface-900">
                   {result.registry_check.in_registry ?? 0}
                   <span className="ml-2 text-xs font-medium text-emerald-700">
-                    +{(result.registry_check.new ?? 0) + (result.registry_check.unmatched ?? 0)} new
+                    {result.registry_check.auto_add?.added != null
+                      ? `+${result.registry_check.auto_add.added} added`
+                      : `+${(result.registry_check.new ?? 0) + (result.registry_check.unmatched ?? 0)} new`}
                   </span>
                 </p>
               </div>
