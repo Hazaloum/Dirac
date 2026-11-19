@@ -528,6 +528,8 @@ export interface MoleculeCard {
   registry_status?: "in_registry" | "already_uploaded" | "new" | "unmatched" | null;
   /** Upload catalogue: the ingredients as the catalogue wrote them (the registry check's name). */
   registry_name?: string;
+  /** Upload catalogue: the registry molecule key the name matched ("amlodipine+valsartan"), null if unmatched. */
+  registry_combo_key?: string | null;
   /** Upload catalogue read by AI: the catalogue's products for this molecule. */
   catalogue?: CatalogueInfo;
   // Added by frontend after scoring

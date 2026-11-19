@@ -8,7 +8,13 @@ const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n ==
 const country = (c: string) => (c === "AE" ? "UAE" : c);
 
 /** A registry company's portfolio: molecules grouped by ATC1, with UAE IQVIA market value, countries and UAE status. */
-export function RegistryPortfolio({ data }: { data: ExhibitorPortfolio }) {
+export function RegistryPortfolio({ data, onMoleculeClick, note }: {
+  data: ExhibitorPortfolio;
+  /** Makes IQVIA-matched molecule names clickable (e.g. to open the molecule drawer). */
+  onMoleculeClick?: (molecule: string) => void;
+  /** Replaces the footnote. */
+  note?: string;
+}) {
   const [notInUaeOnly, setNotInUaeOnly] = useState(false);
   const groups = data.groups
     .map((g) => ({ ...g, molecules: g.molecules.filter((m) => !notInUaeOnly || !m.in_uae) }))
@@ -43,7 +49,14 @@ export function RegistryPortfolio({ data }: { data: ExhibitorPortfolio }) {
                 <tbody className="divide-y divide-surface-100">
                   {g.molecules.map((m) => (
                     <tr key={m.molecule}>
-                      <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>{m.molecule.replace(/\+/g, " + ")}</td>
+                      <td className={`px-2 py-1.5 ${m.matched ? "font-medium text-surface-800" : "text-surface-500"}`}>
+                        {onMoleculeClick && m.matched ? (
+                          <button type="button" onClick={() => onMoleculeClick(m.molecule)}
+                            className="text-left font-medium text-pharma-900 underline decoration-pharma-200 underline-offset-2 hover:decoration-pharma-700">
+                            {m.molecule.replace(/\+/g, " + ")}
+                          </button>
+                        ) : m.molecule.replace(/\+/g, " + ")}
+                      </td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-surface-700">{m.market_value_aed == null
                         ? <span className="text-surface-400" title="Not found in UAE IQVIA">—</span>
                         : m.market_value_aed > 0 ? fmtAed(m.market_value_aed)
@@ -59,7 +72,7 @@ export function RegistryPortfolio({ data }: { data: ExhibitorPortfolio }) {
             </div>
           </section>
         ))}
-        <p className="text-[11px] text-surface-400">From the master registry (EU, US, UAE registers). Market value: UAE IQVIA, combinations divided by their molecule count. — = not in UAE IQVIA; No sales = in IQVIA but nothing sold that year.</p>
+        <p className="text-[11px] text-surface-400">{note ?? "From the master registry (EU, US, UAE registers)."} Market value: UAE IQVIA, combinations divided by their molecule count. — = not in UAE IQVIA; No sales = in IQVIA but nothing sold that year.</p>
       </div>
   );
 }

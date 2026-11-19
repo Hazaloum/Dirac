@@ -11,6 +11,7 @@ import type { AnalysisResult, MoleculeCard } from "@/lib/api";
 import { PortfolioTreemap } from "@/components/PortfolioTreemap";
 import { CatalogueLine } from "@/components/CatalogueReview";
 import { ManufacturerPieChart } from "@/components/IQVIACharts";
+import { RegistryOnlySection } from "@/components/RegistryOnlySection";
 
 /**
  * Portfolio results view shared by My Portfolio and Catalogues: stats bar,
@@ -43,17 +44,20 @@ const fmtAed = (v?: number | null) => {
   return v.toFixed(0);
 };
 
-/** Upload catalogue: whether the company's registry portfolio already had this molecule. */
+/** Upload catalogue ("In portfolio"): tags a catalogue molecule the company also holds in the official registries. */
 function RegistryTag({ status }: { status?: MoleculeCard["registry_status"] }) {
   if (status === "in_registry")
-    return <span title="Already in this company's registry portfolio" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">In registries</span>;
-  if (status === "already_uploaded")
-    return <span title="Not in this company's registries: added from a catalogue (Uploaded registry)" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">Uploaded</span>;
-  if (status === "new")
-    return <span title="Not in this company's registries yet: add it from the review above" className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0 font-medium">New</span>;
-  if (status === "unmatched")
-    return <span title="No registry molecule matches this name" className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">Unmatched</span>;
+    return <span title="This company also holds it in the official registries" className="text-[10px] bg-surface-100 text-surface-600 border border-surface-300 px-1.5 py-0.5 rounded shrink-0">Also in registry</span>;
   return null;
+}
+
+function SectionHeading({ title, sub }: { title: string; sub: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2 className="text-base font-semibold text-surface-900">{title}</h2>
+      <span className="text-xs text-surface-500">{sub}</span>
+    </div>
+  );
 }
 
 export function PortfolioView({
@@ -104,6 +108,9 @@ export function PortfolioView({
   const isMaybe        = (mol: string) => decisionFor?.(mol) === "maybe";
   const isDisqualified = (mol: string) => decisionFor?.(mol) === "disqualified";
   const top5Molecules  = topFiveMolecules(cards, reportDone);
+  // Upload catalogue with a registry company: split into "In portfolio" (this catalogue) and "In registry"
+  const registryCompany = result.registry_check && !result.registry_check.error ? result.registry_check.company_id : undefined;
+  const alsoInRegistry = cards.filter((m) => m.registry_status === "in_registry").length;
 
   return (
     <div className="space-y-6">
@@ -206,6 +213,10 @@ export function PortfolioView({
       {/* ── PORTFOLIO GRID / TREEMAP ── */}
       {phase === "portfolio" && (
         <>
+          {registryCompany != null && (
+            <SectionHeading title="In portfolio"
+              sub={`${cards.length} molecule${cards.length === 1 ? "" : "s"} from this catalogue · ${alsoInRegistry} also in its registries`} />
+          )}
           {viewMode === "grid" ? (
             <div className="space-y-4">
               {Object.entries(result.molecules_by_atc1).map(([atc1, moleculeNames], groupIndex) => {
@@ -436,6 +447,10 @@ export function PortfolioView({
                 if (card) onMoleculeOpen(card);
               }}
             />
+          )}
+          {registryCompany != null && (
+            <RegistryOnlySection companyId={registryCompany} wholeGroup={result.registry_check?.whole_group ?? true}
+              cards={cards} onMoleculeOpen={onMoleculeOpen} />
           )}
           {footer}
         </>

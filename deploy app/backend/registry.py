@@ -39,6 +39,7 @@ def check_catalogue(result: dict, company_id: int, whole_group: bool) -> dict:
         status = "unmatched" if r["status"] == "new" and not r["combo_key"] else r["status"]
         card["registry_name"] = name
         card["registry_status"] = status
+        card["registry_combo_key"] = r["combo_key"]  # to leave the catalogue's molecules out of "In registry"
         counts[status] += 1
     result["registry_check"] = {"company_id": company_id, "whole_group": whole_group, **counts}
     return result
